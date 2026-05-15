@@ -3,7 +3,7 @@ export type StylePreference = 'modern' | 'traditional' | 'minimal' | 'luxury' | 
 export type QualityTier = 'budget' | 'mid' | 'premium';
 export type LocationType = 'interior' | 'exterior';
 export type RiskLevel = 'low' | 'medium' | 'high';
-export type LeadStatus = 'new' | 'routed_to_prybar' | 'outbound' | 'converted' | 'closed';
+export type LeadStatus = 'new' | 'routed' | 'routed_to_prybar' | 'outbound' | 'converted' | 'closed';
 
 export interface Project {
   id: string;
@@ -18,7 +18,7 @@ export interface Project {
   uploaded_image_urls: string[];
   generated_image_urls: string[];
   notes?: string;
-  status: 'draft' | 'estimated' | 'brief_generated' | 'lead_submitted';
+  status: 'draft' | 'estimated' | 'materials_generated' | 'brief_generated' | 'lead_submitted';
   share_token: string;
   created_at: string;
   updated_at: string;

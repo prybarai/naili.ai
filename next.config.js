@@ -38,6 +38,7 @@ const nextConfig = {
    { protocol: "https", hostname: "placehold.co" },
    { protocol: "https", hostname: "images.unsplash.com" },
    ...(supabaseHostname ? [{ protocol: 'https', hostname: supabaseHostname }] : []),
+   { protocol: 'https', hostname: 'oaidalleapiprodscus.blob.core.windows.net' },
   ],
  },
 };

@@ -61,7 +61,7 @@ export default function ProjectBriefDocument({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-600">Planning range</p>
-              <h3 className="mt-2 text-2xl font-bold text-slate-950">{formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}</h3>
+              <h3 className="mt-2 text-2xl font-bold text-ink">{formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}</h3>
               <p className="mt-2 text-sm text-ink-600">Most likely outcome: {formatCurrency(estimate.mid_estimate)}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
@@ -71,7 +71,7 @@ export default function ProjectBriefDocument({
               </div>
               <div className="rounded-2xl bg-canvas-50 px-4 py-3 text-center ring-2 ring-[rgba(216,185,138,0.16)] shadow-soft">
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-600">Mid</div>
-                <div className="mt-2 text-xl font-bold text-slate-950">{formatCurrency(estimate.mid_estimate)}</div>
+                <div className="mt-2 text-xl font-bold text-ink">{formatCurrency(estimate.mid_estimate)}</div>
               </div>
               <div className="rounded-2xl bg-canvas-50 px-4 py-3 text-center shadow-soft">
                 <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">High</div>
@@ -87,17 +87,17 @@ export default function ProjectBriefDocument({
         <div className="space-y-5">
           <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Project summary</p>
-            <p className="mt-3 text-base leading-relaxed text-slate-800">{brief?.summary || 'The estimate is ready. The written project summary is still finishing in the background.'}</p>
+            <p className="mt-3 text-base leading-relaxed text-ink">{brief?.summary || 'The estimate is ready. The written project summary is still finishing in the background.'}</p>
           </section>
 
           <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Homeowner goals</p>
-            <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-slate-800">{brief?.homeowner_goals || project.notes || 'No extra homeowner notes were added yet.'}</p>
+            <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink">{brief?.homeowner_goals || project.notes || 'No extra homeowner notes were added yet.'}</p>
           </section>
 
           <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Walk-through notes</p>
-            <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-slate-800">{brief?.contractor_notes || 'Use the original photo, concept direction, and estimate assumptions to confirm final scope onsite.'}</p>
+            <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink">{brief?.contractor_notes || 'Use the original photo, concept direction, and estimate assumptions to confirm final scope onsite.'}</p>
           </section>
 
           {materialPreview.length > 0 && (

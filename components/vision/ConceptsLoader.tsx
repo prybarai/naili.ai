@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
@@ -28,13 +28,14 @@ export default function ConceptsLoader({
   referenceImageUrl,
   hasImages,
   mode = 'auto',
-  buttonLabel = 'Generate concept',
+  buttonLabel = 'Generate new concept',
   className,
 }: ConceptsLoaderProps) {
   const router = useRouter();
   const autoStartedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const runGeneration = useCallback(async () => {
     if (loading) return;
@@ -53,24 +54,36 @@ export default function ConceptsLoader({
           quality_tier: qualityTier,
           notes: notes || undefined,
           reference_image_url: referenceImageUrl || undefined,
-          count: 1,
+          count: 2,
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to generate concepts');
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || 'Failed to generate concepts');
+      }
+
       router.refresh();
-    } catch (e) {
-      console.error(e);
-      setError(
-        mode === 'manual'
-          ? 'We could not refresh the concept just yet. Try again in a moment.'
-          : 'Your concept is taking longer than expected. You can refresh later to try again.'
-      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.error('ConceptsLoader error:', message);
+
+      if (retryCount < 2 && mode === 'auto') {
+        setRetryCount((c) => c + 1);
+        setLoading(false);
+        // Auto-retry after a short delay
+        setTimeout(() => {
+          void runGeneration();
+        }, 3000);
+        return;
+      }
+
+      setError('Concept generation is taking longer than expected. You can retry or check back in a moment.');
       autoStartedRef.current = false;
     } finally {
       setLoading(false);
     }
-  }, [category, loading, mode, notes, projectId, qualityTier, referenceImageUrl, router, style]);
+  }, [category, loading, mode, notes, projectId, qualityTier, referenceImageUrl, retryCount, router, style]);
 
   useEffect(() => {
     if (mode !== 'auto' || hasImages || autoStartedRef.current) return;
@@ -78,6 +91,7 @@ export default function ConceptsLoader({
     void runGeneration();
   }, [hasImages, mode, runGeneration]);
 
+  /* ── Manual mode (regenerate button on results page) ── */
   if (mode === 'manual') {
     return (
       <div className={cn('space-y-2', className)}>
@@ -85,7 +99,7 @@ export default function ConceptsLoader({
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Regenerating...
+              Generating...
             </>
           ) : (
             <>
@@ -104,8 +118,10 @@ export default function ConceptsLoader({
     );
   }
 
+  /* ── Auto mode: already have images → nothing to show ── */
   if (hasImages) return null;
 
+  /* ── Auto mode: still generating ── */
   return (
     <div className={cn('space-y-4 rounded-[1.75rem] border border-[rgba(216,185,138,0.22)] bg-[linear-gradient(135deg,rgba(251,248,244,0.96),rgba(246,243,238,0.94))] p-6 shadow-soft', className)}>
       <div className="flex items-start gap-3">
@@ -115,9 +131,17 @@ export default function ConceptsLoader({
           <Sparkles className="mt-0.5 h-5 w-5 flex-shrink-0 text-sand-dark" />
         )}
         <div>
-          <p className="text-sm font-medium text-ink">Your planning results are ready.</p>
+          <p className="text-sm font-semibold text-ink">
+            {loading
+              ? retryCount > 0
+                ? `Retrying concept generation (attempt ${retryCount + 1})...`
+                : 'Generating design concepts...'
+              : 'Your planning results are ready.'}
+          </p>
           <p className="mt-1 text-sm text-ink-600">
-            We&apos;re generating a photo-grounded concept in the background so you don&apos;t have to wait on this page.
+            {loading
+              ? 'This usually takes 30\u201360 seconds. Your estimate, materials, and brief are already available above.'
+              : 'Design concepts render in the background. You can generate one now or check back later.'}
           </p>
         </div>
       </div>
@@ -131,7 +155,10 @@ export default function ConceptsLoader({
 
       {!loading && (
         <div>
-          <Button size="sm" onClick={runGeneration}>Generate concept</Button>
+          <Button size="sm" onClick={runGeneration}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Generate concepts
+          </Button>
         </div>
       )}
     </div>

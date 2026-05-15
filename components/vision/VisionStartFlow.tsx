@@ -320,7 +320,6 @@ const PROGRESS_STEPS = [
   'Building your local cost range...',
   'Drafting your materials plan...',
   'Writing your contractor brief...',
-  'Rendering your first design concept...',
   'Finalizing your plan...',
 ];
 
@@ -657,36 +656,24 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         }),
       });
 
-      const conceptPromise = (async () => {
-        try {
-          const controller = new AbortController();
-          const timeout = window.setTimeout(() => controller.abort(), 15000);
-
-          const conceptsRes = await fetch('/api/vision/generate-concepts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              project_id: projectId,
-              category,
-              style,
-              quality_tier: qualityTier,
-              notes: notesWithScope,
-              reference_image_url: referenceImageUrl,
-              analysis,
-              count: 1,
-            }),
-          });
-
-          window.clearTimeout(timeout);
-
-          if (!conceptsRes.ok) {
-            throw new Error(`Concept generation returned ${conceptsRes.status}`);
-          }
-        } catch (conceptError) {
-          console.error('Concept generation failed', conceptError);
-        }
-      })();
+      // Fire concept generation in background — do NOT abort or block navigation.
+      // gpt-image-1 takes 30-60s; the results page will poll for completion.
+      fetch('/api/vision/generate-concepts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+          category,
+          style,
+          quality_tier: qualityTier,
+          notes: notesWithScope,
+          reference_image_url: referenceImageUrl,
+          analysis,
+          count: 2,
+        }),
+      }).catch((conceptError) => {
+        console.error('Background concept generation failed:', conceptError);
+      });
 
       const [materialsRes, briefRes] = await Promise.all([materialsPromise, briefPromise]);
 
@@ -695,9 +682,6 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
       if (!briefRes.ok) throw new Error(await readApiError(briefRes, 'We could not build your contractor brief yet. Please try again.'));
 
       setProgressStep(4);
-      await conceptPromise;
-
-      setProgressStep(5);
 
       posthog.capture('naili_generation_completed', {
         category,
@@ -1083,7 +1067,7 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
                 : 'Useful details include pets, existing damage, finish preferences, materials you want to avoid, or anything a contractor should notice fast.'}
             </p>
             <textarea
-              className="w-full resize-none rounded-2xl border border-panel bg-canvas-50 px-4 py-3 text-ink placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sand/30"
+              className="w-full resize-none rounded-2xl border border-panel bg-canvas-50 px-4 py-3 text-ink placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-sand/30"
               rows={isCustomProject ? 5 : 4}
               placeholder={isCustomProject ? 'e.g. Replace the old pergola with a covered outdoor kitchen, improve lighting near the patio, and make it easier to entertain.' : 'e.g. Need durable flooring because of a dog, want warmer tones, and current trim has a lot of visible wear.'}
               value={notes}
@@ -1113,9 +1097,9 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/60">naili vision</p>
             <h2 className="mt-3 text-3xl font-bold sm:text-5xl">Nail the vision. Know the cost.</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">
-              We&apos;re reading your actual photo and request first, then turning that analysis into your estimate, materials list, contractor brief, and a fast first concept.
+              We&apos;re reading your actual photo and request first, then building your estimate, materials list, and contractor brief.
             </p>
-            <p className="mt-3 text-sm text-white/60">Design concepts may keep rendering in the background after your results page opens.</p>
+            <p className="mt-3 text-sm text-white/60">Design concepts render in the background and will appear on your results page within a minute.</p>
 
             <div className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
               <div className="space-y-3 text-left">

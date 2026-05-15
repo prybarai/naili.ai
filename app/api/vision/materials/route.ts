@@ -330,6 +330,10 @@ If category is custom_project, make the list useful for planning mixed scope wor
       .single();
 
     if (error) throw error;
+
+    // Advance project status so the lifecycle stays consistent
+    await supabaseAdmin.from('projects').update({ status: 'materials_generated' }).eq('id', params.project_id);
+
     return NextResponse.json({ materials: data });
   } catch (error) {
     console.error('materials error:', error);

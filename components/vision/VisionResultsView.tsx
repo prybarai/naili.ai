@@ -1,18 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Download,
   Eye,
   FileText,
   FolderOpen,
   ImageIcon,
+  Loader2,
   MapPin,
   PenSquare,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -32,6 +36,8 @@ import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
 import type { Estimate, MaterialList, Project, ProjectBrief } from '@/types';
 
+/* ─── Props ─── */
+
 interface Props {
   projectId: string;
   project: Project;
@@ -45,6 +51,8 @@ interface Props {
   likelyTrades: string[];
   siteQuestions: string[];
 }
+
+/* ─── Helpers ─── */
 
 function qualityTierCopy(tier: Project['quality_tier']) {
   switch (tier) {
@@ -102,12 +110,26 @@ function deriveContingency(estimate: Estimate) {
   return Math.round(estimate.mid_estimate * 0.12);
 }
 
+/* ─── Section Nav Tabs ─── */
+
+type SectionId = 'concepts' | 'estimate' | 'materials' | 'brief' | 'next';
+
+const SECTION_TABS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
+  { id: 'concepts', label: 'Concepts', icon: <ImageIcon className="h-4 w-4" /> },
+  { id: 'estimate', label: 'Estimate', icon: <Wallet className="h-4 w-4" /> },
+  { id: 'materials', label: 'Materials', icon: <Wrench className="h-4 w-4" /> },
+  { id: 'brief', label: 'Brief', icon: <FileText className="h-4 w-4" /> },
+  { id: 'next', label: 'Next Steps', icon: <ArrowRight className="h-4 w-4" /> },
+];
+
+/* ─── Main Component ─── */
+
 export default function VisionResultsView({
   projectId,
   project,
-  estimate,
-  materials,
-  brief,
+  estimate: initialEstimate,
+  materials: initialMaterials,
+  brief: initialBrief,
   categoryLabel,
   shareUrl,
   estimateAssumptions,
@@ -115,16 +137,95 @@ export default function VisionResultsView({
   likelyTrades,
   siteQuestions,
 }: Props) {
-  const conceptImages = Array.isArray(project.generated_image_urls) ? project.generated_image_urls : [];
+  const router = useRouter();
+
+  /* ─── Polling for missing data ─── */
+  const [estimate, setEstimate] = useState(initialEstimate);
+  const [materials, setMaterials] = useState(initialMaterials);
+  const [brief, setBrief] = useState(initialBrief);
+  const [conceptImages, setConceptImages] = useState<string[]>(
+    Array.isArray(project.generated_image_urls) ? project.generated_image_urls : []
+  );
+  const [pollCount, setPollCount] = useState(0);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const needsPolling = !estimate || !materials || !brief || conceptImages.length === 0;
+
+  const pollForData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/get?id=${projectId}`);
+      if (!res.ok) return;
+      const { project: updatedProject } = await res.json() as { project: Project };
+      const newConcepts = Array.isArray(updatedProject.generated_image_urls)
+        ? updatedProject.generated_image_urls
+        : [];
+      if (newConcepts.length > conceptImages.length) {
+        setConceptImages(newConcepts);
+      }
+    } catch {
+      // Silent fail on polling
+    }
+
+    // Also try to refresh server-rendered data
+    router.refresh();
+    setPollCount((c) => c + 1);
+  }, [conceptImages.length, projectId, router]);
+
+  useEffect(() => {
+    if (!needsPolling || pollCount >= 20) return; // Stop after ~5 minutes
+    const delay = pollCount < 4 ? 8000 : pollCount < 10 ? 15000 : 30000;
+    pollTimerRef.current = setTimeout(pollForData, delay);
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
+  }, [needsPolling, pollCount, pollForData]);
+
+  // Sync server-rendered props on refresh
+  useEffect(() => {
+    if (initialEstimate && !estimate) setEstimate(initialEstimate);
+    if (initialMaterials && !materials) setMaterials(initialMaterials);
+    if (initialBrief && !brief) setBrief(initialBrief);
+  }, [initialEstimate, initialMaterials, initialBrief, estimate, materials, brief]);
+
+  /* ─── State ─── */
   const originalImage = project.uploaded_image_urls?.[0];
   const hasAnyConcepts = conceptImages.length > 0;
   const [selectedConcept, setSelectedConcept] = useState(0);
+  const [activeSection, setActiveSection] = useState<SectionId>('concepts');
+  const [stickyVisible, setStickyVisible] = useState(false);
 
   const sectionCounts = useMemo(() => ({
     concepts: conceptImages.length,
     materialItems: materials?.line_items?.length || 0,
   }), [conceptImages.length, materials?.line_items?.length]);
 
+  /* ─── Scroll spy for sticky nav ─── */
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollY = window.scrollY;
+      setStickyVisible(scrollY > 400);
+
+      const sections: SectionId[] = ['concepts', 'estimate', 'materials', 'brief', 'next'];
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const el = document.getElementById(`section-${sections[i]}`);
+        if (el && el.offsetTop - 120 <= scrollY) {
+          setActiveSection(sections[i]);
+          break;
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (id: SectionId) => {
+    const el = document.getElementById(`section-${id}`);
+    if (el) {
+      window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
+    }
+  };
+
+  /* ─── Analytics ─── */
   useEffect(() => {
     posthog.capture('naili_results_viewed', {
       project_id: projectId,
@@ -132,27 +233,9 @@ export default function VisionResultsView({
       project_category: project.project_category,
       quality_tier: project.quality_tier,
     });
+  }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
-    if (estimate) {
-      posthog.capture('naili_estimate_viewed', { project_id: projectId, project_category: project.project_category });
-    }
-    if (materials) {
-      posthog.capture('naili_materials_viewed', { project_id: projectId, item_count: materials.line_items.length });
-    }
-    if (brief) {
-      posthog.capture('naili_brief_viewed', { project_id: projectId, project_category: project.project_category });
-    }
-  }, [brief, estimate, materials, project.project_category, project.quality_tier, project.zip_code, projectId]);
-
-  useEffect(() => {
-    if (!hasAnyConcepts) return;
-    posthog.capture('naili_concept_image_viewed', {
-      project_id: projectId,
-      concept_index: selectedConcept,
-      project_category: project.project_category,
-    });
-  }, [hasAnyConcepts, project.project_category, projectId, selectedConcept]);
-
+  /* ─── Derived values ─── */
   const selectedConceptUrl = conceptImages[selectedConcept] || conceptImages[0] || null;
   const laborMid = estimate?.estimate_breakdown?.labor_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.58) : 0);
   const materialsMid = estimate?.estimate_breakdown?.materials_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
@@ -169,8 +252,54 @@ export default function VisionResultsView({
     image: originalImage || '',
   }).toString()}`;
 
+  /* ─── Readiness summary ─── */
+  const readySections = [
+    estimate ? 'Estimate' : null,
+    materials ? 'Materials' : null,
+    brief ? 'Brief' : null,
+    hasAnyConcepts ? 'Concepts' : null,
+  ].filter(Boolean);
+  const totalSections = 4;
+  const readyCount = readySections.length;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+
+      {/* ─── Sticky Section Nav ─── */}
+      <div
+        className={cn(
+          'fixed left-0 right-0 top-0 z-50 border-b border-hairline bg-canvas/95 backdrop-blur-lg transition-all duration-300 print:hidden',
+          stickyVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        )}
+      >
+        <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-2 sm:gap-2 sm:px-6">
+          <span className="mr-2 hidden text-sm font-semibold text-ink sm:block">Your plan</span>
+          {SECTION_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => scrollToSection(tab.id)}
+              className={cn(
+                'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm',
+                activeSection === tab.id
+                  ? 'bg-ink text-canvas-50'
+                  : 'text-ink-500 hover:bg-canvas-200 hover:text-ink'
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.id === 'concepts' && hasAnyConcepts && (
+                <span className="ml-1 rounded-full bg-mint/20 px-1.5 text-[10px] font-bold text-ink">{conceptImages.length}</span>
+              )}
+              {tab.id === 'materials' && materials && (
+                <span className="ml-1 rounded-full bg-sand/20 px-1.5 text-[10px] font-bold text-ink">{materials.line_items.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Hero Header ─── */}
       <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-8 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.14),transparent_24%)]" />
         <div className="relative flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
@@ -178,8 +307,8 @@ export default function VisionResultsView({
             <div className="mb-4 flex flex-wrap items-center gap-2">
               <Badge variant="blue" className="border-white/15 bg-white/10 text-white">{project.quality_tier} tier</Badge>
               <Badge variant="gray" className="border-white/15 bg-white/10 text-white">{categoryLabel}</Badge>
-              <Badge variant={estimate || materials || brief ? 'green' : 'amber'}>
-                {estimate || materials || brief ? 'Plan ready' : 'Still generating'}
+              <Badge variant={readyCount === totalSections ? 'green' : 'amber'}>
+                {readyCount === totalSections ? 'Plan ready' : `${readyCount}/${totalSections} sections ready`}
               </Badge>
             </div>
 
@@ -194,7 +323,8 @@ export default function VisionResultsView({
                 <MapPin className="h-4 w-4" /> ZIP {project.zip_code}
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-                <Sparkles className="h-4 w-4" /> {sectionCounts.concepts || 1} concept{(sectionCounts.concepts || 1) !== 1 ? 's' : ''}
+                <Sparkles className="h-4 w-4" /> {sectionCounts.concepts || 0} concept{sectionCounts.concepts !== 1 ? 's' : ''}
+                {!hasAnyConcepts && <Loader2 className="h-3 w-3 animate-spin" />}
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
                 <Wrench className="h-4 w-4" /> {sectionCounts.materialItems} material items
@@ -205,20 +335,32 @@ export default function VisionResultsView({
           <div className="w-full max-w-md rounded-[1.75rem] border border-white/12 bg-white/10 p-5 backdrop-blur-xl">
             <div className="rounded-2xl border border-white/12 bg-white/10 p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Your plan at a glance</div>
-              <h2 className="mt-2 text-2xl font-bold text-white">Estimate, brief, and share link are ready.</h2>
+              <h2 className="mt-2 text-2xl font-bold text-white">
+                {readyCount === totalSections
+                  ? 'Estimate, brief, and concepts are ready.'
+                  : 'Your plan is building...'}
+              </h2>
               <p className="mt-2 text-sm leading-relaxed text-white/78">
-                Use this packet to compare quotes more clearly before you ask anyone to bid.
+                {readyCount === totalSections
+                  ? 'Use this packet to compare quotes more clearly before you ask anyone to bid.'
+                  : 'Some sections are still generating. This page updates automatically.'}
               </p>
+              {readyCount < totalSections && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Auto-refreshing every few seconds</span>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-white/10 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Most likely cost</div>
-                <div className="mt-2 text-2xl font-bold text-sand-light">{estimate ? formatCurrency(estimate.mid_estimate) : 'Pending'}</div>
+                <div className="mt-2 text-2xl font-bold text-sand-light">{estimate ? formatCurrency(estimate.mid_estimate) : 'Pending...'}</div>
               </div>
               <div className="rounded-2xl bg-white/10 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Share-ready brief</div>
-                <div className="mt-2 text-base font-semibold text-white">{brief ? 'Ready now' : 'Generating'}</div>
+                <div className="mt-2 text-base font-semibold text-white">{brief ? 'Ready now' : 'Building...'}</div>
               </div>
             </div>
 
@@ -255,15 +397,16 @@ export default function VisionResultsView({
         </div>
       </section>
 
+      {/* ─── Quick Stats Row ─── */}
       <section className="mt-8 grid gap-4 print:hidden md:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
           <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><Wallet className="h-4 w-4 text-sand-dark" /> Smart estimate</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Still preparing'}</div>
+          <div className="mt-3 text-lg font-semibold text-ink">{estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Building...'}</div>
           <p className="mt-2 text-sm text-ink-600">Photo-aware cost planning grounded in your finish tier and ZIP code.</p>
         </div>
         <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
           <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><FileText className="h-4 w-4 text-sand-dark" /> Contractor brief</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{brief ? 'Ready to share before quotes' : 'Still drafting'}</div>
+          <div className="mt-3 text-lg font-semibold text-ink">{brief ? 'Ready to share before quotes' : 'Drafting...'}</div>
           <p className="mt-2 text-sm text-ink-600">A cleaner walk-through summary, scope notes, and quote questions.</p>
         </div>
         <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
@@ -273,7 +416,8 @@ export default function VisionResultsView({
         </div>
       </section>
 
-      <section className="mt-10 print:hidden">
+      {/* ─── Section: Concept Images ─── */}
+      <section id="section-concepts" className="mt-10 scroll-mt-24 print:hidden">
         <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Concept images</h2>
@@ -295,7 +439,7 @@ export default function VisionResultsView({
                 referenceImageUrl={originalImage}
                 hasImages={hasAnyConcepts}
                 mode="manual"
-                buttonLabel="Regenerate concept"
+                buttonLabel="Generate new concept"
               />
             )}
           </div>
@@ -340,24 +484,36 @@ export default function VisionResultsView({
           </div>
         ) : (
           <div className="rounded-[1.75rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-            <div className="mb-4 flex items-start gap-3 rounded-2xl border border-panel bg-canvas-200/80 p-4 text-sm text-ink">
-              <ImageIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-sand-dark" />
-              <p>Your estimate and brief are ready. Design concepts take a bit longer to generate — you can keep planning while these finish in the background.</p>
+            <div className="flex items-center gap-4 rounded-2xl border border-[rgba(216,185,138,0.22)] bg-[linear-gradient(135deg,rgba(251,248,244,0.96),rgba(246,243,238,0.94))] p-5">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-sand/20">
+                <Loader2 className="h-6 w-6 animate-spin text-sand-dark" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-ink">Your design concepts are rendering</p>
+                <p className="mt-1 text-sm text-ink-600">
+                  This usually takes 30–60 seconds. The page will update automatically when they&apos;re ready — no need to refresh.
+                </p>
+              </div>
             </div>
-            <ConceptsLoader
-              projectId={projectId}
-              category={project.project_category}
-              style={project.style_preference || 'modern'}
-              qualityTier={project.quality_tier}
-              notes={project.notes || undefined}
-              referenceImageUrl={originalImage}
-              hasImages={false}
-            />
+            {originalImage && (
+              <div className="mt-4">
+                <ConceptsLoader
+                  projectId={projectId}
+                  category={project.project_category}
+                  style={project.style_preference || 'modern'}
+                  qualityTier={project.quality_tier}
+                  notes={project.notes || undefined}
+                  referenceImageUrl={originalImage}
+                  hasImages={false}
+                />
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      <section className="mt-10 rounded-[2rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden sm:p-8">
+      {/* ─── Section: Smart Estimate ─── */}
+      <section id="section-estimate" className="mt-10 scroll-mt-24 rounded-[2rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden sm:p-8">
         <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Smart cost estimate</h2>
@@ -415,13 +571,16 @@ export default function VisionResultsView({
             </div>
 
             <details className="mt-6 rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5">
-              <summary className="cursor-pointer list-none text-base font-semibold text-ink">What affects your final cost</summary>
+              <summary className="cursor-pointer list-none text-base font-semibold text-ink flex items-center gap-2">
+                <ChevronDown className="h-4 w-4 text-ink-500" />
+                What affects your final cost
+              </summary>
               <div className="mt-4 grid gap-6 lg:grid-cols-2">
                 <div>
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">Assumptions</h3>
                   <ul className="space-y-2 text-sm text-ink-600">
                     {estimateAssumptions.map((item, index) => (
-                      <li key={index} className="flex gap-2"><span className="text-sand-dark">•</span><span>{item}</span></li>
+                      <li key={index} className="flex gap-2"><span className="text-sand-dark">&#8226;</span><span>{item}</span></li>
                     ))}
                   </ul>
                 </div>
@@ -429,7 +588,7 @@ export default function VisionResultsView({
                   <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">Risk notes</h3>
                   <ul className="space-y-2 text-sm text-ink-600">
                     {riskNotes.map((item, index) => (
-                      <li key={index} className="flex gap-2"><span className="text-sand-dark">•</span><span>{item}</span></li>
+                      <li key={index} className="flex gap-2"><span className="text-sand-dark">&#8226;</span><span>{item}</span></li>
                     ))}
                   </ul>
                 </div>
@@ -439,11 +598,18 @@ export default function VisionResultsView({
             <Disclaimer text={DISCLAIMERS.estimate} className="mt-5" />
           </>
         ) : (
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5 text-sm text-ink-600">Your estimate is being prepared. This usually completes within a few moments — your concept images and brief are ready in the meantime.</div>
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5">
+            <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
+            <div>
+              <p className="text-sm font-semibold text-ink">Your estimate is being calculated</p>
+              <p className="mt-1 text-sm text-ink-600">This page updates automatically — your estimate will appear here in a moment.</p>
+            </div>
+          </div>
         )}
       </section>
 
-      <section className="mt-10 print:hidden">
+      {/* ─── Section: Materials ─── */}
+      <section id="section-materials" className="mt-10 scroll-mt-24 print:hidden">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Materials list</h2>
@@ -454,11 +620,18 @@ export default function VisionResultsView({
         {materials ? (
           <MaterialsAccordion materials={materials} />
         ) : (
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 text-sm text-ink-600 shadow-soft">Your materials list is being finalized. The estimate and contractor brief are ready to use while this completes.</div>
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+            <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
+            <div>
+              <p className="text-sm font-semibold text-ink">Your materials list is being built</p>
+              <p className="mt-1 text-sm text-ink-600">Line items will appear here automatically once ready.</p>
+            </div>
+          </div>
         )}
       </section>
 
-      <section className="mt-10 sm:p-8">
+      {/* ─── Section: Brief ─── */}
+      <section id="section-brief" className="mt-10 scroll-mt-24 sm:p-8">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink print:hidden sm:text-3xl">Project handoff brief</h2>
@@ -472,19 +645,30 @@ export default function VisionResultsView({
           </div>
         </div>
 
-        <ProjectBriefDocument
-          project={project}
-          categoryLabel={categoryLabel}
-          estimate={estimate}
-          materials={materials}
-          brief={brief}
-          likelyTrades={likelyTrades}
-          siteQuestions={siteQuestions}
-          subtitle="Use this version for cleaner bid comparisons, walk-through notes, and handoff conversations."
-        />
+        {brief ? (
+          <ProjectBriefDocument
+            project={project}
+            categoryLabel={categoryLabel}
+            estimate={estimate}
+            materials={materials}
+            brief={brief}
+            likelyTrades={likelyTrades}
+            siteQuestions={siteQuestions}
+            subtitle="Use this version for cleaner bid comparisons, walk-through notes, and handoff conversations."
+          />
+        ) : (
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden">
+            <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
+            <div>
+              <p className="text-sm font-semibold text-ink">Your contractor brief is being written</p>
+              <p className="mt-1 text-sm text-ink-600">The handoff document will appear here automatically once ready.</p>
+            </div>
+          </div>
+        )}
       </section>
 
-      <section className="mt-10 print:hidden">
+      {/* ─── Section: Next Steps ─── */}
+      <section id="section-next" className="mt-10 scroll-mt-24 print:hidden">
         <div className="mb-4">
           <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">What to do next</h2>
           <p className="mt-1 text-sm text-ink-500">Keep the project controlled before any deposit is paid.</p>
@@ -513,6 +697,7 @@ export default function VisionResultsView({
         </div>
       </section>
 
+      {/* ─── CTA Footer ─── */}
       <section className="mt-10 overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_48%,#1b1d22_100%)] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)] print:hidden sm:p-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>

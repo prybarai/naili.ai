@@ -61,9 +61,22 @@ export async function POST(req: NextRequest) {
     });
 
     if (imageUrls.length > 0) {
+      // Append new concepts to existing ones instead of overwriting
+      const { data: existingProject } = await supabaseAdmin
+        .from('projects')
+        .select('generated_image_urls')
+        .eq('id', params.project_id)
+        .single();
+
+      const existingUrls: string[] = Array.isArray(existingProject?.generated_image_urls)
+        ? existingProject.generated_image_urls
+        : [];
+
+      const mergedUrls = [...existingUrls, ...imageUrls];
+
       await supabaseAdmin
         .from('projects')
-        .update({ generated_image_urls: imageUrls })
+        .update({ generated_image_urls: mergedUrls })
         .eq('id', params.project_id);
     }
 

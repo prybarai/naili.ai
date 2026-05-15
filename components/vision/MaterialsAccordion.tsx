@@ -48,7 +48,7 @@ export default function MaterialsAccordion({ materials }: Props) {
             </button>
 
             {openSections[category] && (
-              <div className="grid gap-4 border-t border-slate-100 bg-canvas-50/70 p-5 sm:p-6 lg:grid-cols-2">
+              <div className="grid gap-4 border-t border-hairline bg-canvas-50/70 p-5 sm:p-6 lg:grid-cols-2">
                 {items.map((item, index) => (
                   <div key={`${item.item}-${index}`} className="rounded-[1.25rem] border border-hairline bg-white p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">

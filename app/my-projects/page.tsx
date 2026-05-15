@@ -53,8 +53,11 @@ function friendlyCategory(raw: string) {
 
 function friendlyStatus(raw: string) {
  const map: Record<string, string> = {
-  draft: "In Progress",
+  draft: "Getting Started",
   processing: "Analyzing",
+  estimated: "Estimate Ready",
+  materials_generated: "Almost Done",
+  brief_generated: "Plan Ready",
   complete: "Plan Ready",
   completed: "Plan Ready",
   failed: "Needs Review",
@@ -64,9 +67,12 @@ function friendlyStatus(raw: string) {
 
 function statusColor(raw: string) {
  switch (raw) {
+  case "brief_generated":
   case "complete":
   case "completed":
    return "text-mint";
+  case "estimated":
+  case "materials_generated":
   case "processing":
    return "text-sand-dark";
   case "failed":
