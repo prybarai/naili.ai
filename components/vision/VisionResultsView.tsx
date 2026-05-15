@@ -11,15 +11,12 @@ import {
   Download,
   Eye,
   FileText,
-  FolderOpen,
   ImageIcon,
   Loader2,
   MapPin,
   PenSquare,
-  RefreshCw,
-  ShieldCheck,
+  ShoppingCart,
   Sparkles,
-  TrendingUp,
   Wallet,
   Wrench,
 } from 'lucide-react';
@@ -28,7 +25,6 @@ import { DISCLAIMERS } from '@/lib/disclaimers';
 import { cn, formatCurrency, formatCurrencyRange } from '@/lib/utils';
 import Disclaimer from '@/components/ui/Disclaimer';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import ShareButton from '@/components/vision/ShareButton';
 import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
 import ConceptsLoader from '@/components/vision/ConceptsLoader';
@@ -54,73 +50,80 @@ interface Props {
 
 /* ─── Helpers ─── */
 
-function qualityTierCopy(tier: Project['quality_tier']) {
+function tierLabel(tier: Project['quality_tier']) {
   switch (tier) {
-    case 'budget':
-      return 'Budget finish level, focused on practical materials and faster value.';
-    case 'premium':
-      return 'Premium finish level, leaning into higher-end materials and detail work.';
-    default:
-      return 'Mid-range finish level, balancing quality materials without luxury pricing.';
+    case 'budget': return 'Budget';
+    case 'premium': return 'Premium';
+    default: return 'Mid-range';
   }
 }
 
-function regionSummary(multiplier?: number | null) {
-  if (!multiplier || multiplier === 1) return 'Local pricing is tracking close to the national average.';
+function regionNote(multiplier?: number | null) {
+  if (!multiplier || multiplier === 1) return 'Near national average';
   const pct = Math.round(Math.abs(multiplier - 1) * 100);
-  return multiplier > 1
-    ? `Based on your ZIP code, costs in your area run about ${pct}% above the national average.`
-    : `Based on your ZIP code, costs in your area run about ${pct}% below the national average.`;
+  return multiplier > 1 ? `${pct}% above avg` : `${pct}% below avg`;
 }
 
-function seasonalRecommendation(category: Project['project_category']) {
-  switch (category) {
-    case 'roofing':
-    case 'exterior_paint':
-      return 'Exterior crews book fastest heading into warm weather, so earlier planning usually gets better scheduling.';
-    case 'deck_patio':
-    case 'landscaping':
-      return 'Outdoor projects tend to spike in spring, so locking scope early helps before calendars fill up.';
-    case 'bathroom':
-    case 'kitchen':
-      return 'Interior renovation calendars tend to fill before holiday seasons, so now is a good time to get accurate bids.';
-    default:
-      return 'Getting a tight scope before contractor walk-throughs usually saves the most time and change orders.';
-  }
-}
-
-function relatedProjectLabel(category: Project['project_category']) {
-  switch (category) {
-    case 'bathroom':
-      return 'Many homeowners pairing a bathroom refresh also price tile or flooring upgrades.';
-    case 'kitchen':
-      return 'Kitchen planners often add lighting or flooring scope after seeing the first estimate.';
-    case 'roofing':
-      return 'Roof replacements often trigger gutter, fascia, or exterior paint conversations.';
-    default:
-      return 'Once scope is clear, the next smartest move is comparing contractor bids against the same written brief.';
-  }
-}
-
-function derivePermitAllowance(estimate: Estimate) {
-  return Math.round(estimate.mid_estimate * 0.05);
-}
-
-function deriveContingency(estimate: Estimate) {
-  return Math.round(estimate.mid_estimate * 0.12);
-}
-
-/* ─── Section Nav Tabs ─── */
+/* ─── Section Nav ─── */
 
 type SectionId = 'concepts' | 'estimate' | 'materials' | 'brief' | 'next';
 
 const SECTION_TABS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
   { id: 'concepts', label: 'Concepts', icon: <ImageIcon className="h-4 w-4" /> },
   { id: 'estimate', label: 'Estimate', icon: <Wallet className="h-4 w-4" /> },
-  { id: 'materials', label: 'Materials', icon: <Wrench className="h-4 w-4" /> },
+  { id: 'materials', label: 'Materials', icon: <ShoppingCart className="h-4 w-4" /> },
   { id: 'brief', label: 'Brief', icon: <FileText className="h-4 w-4" /> },
   { id: 'next', label: 'Next Steps', icon: <ArrowRight className="h-4 w-4" /> },
 ];
+
+/* ─── Donut Chart ─── */
+
+function DonutChart({ segments }: { segments: { label: string; value: number; color: string }[] }) {
+  const total = segments.reduce((s, seg) => s + seg.value, 0);
+  if (total === 0) return null;
+  let cumulative = 0;
+  const size = 160;
+  const stroke = 28;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  return (
+    <div className="flex items-center gap-6">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0 -rotate-90">
+        {segments.map((seg) => {
+          const pct = seg.value / total;
+          const dashArray = `${pct * circumference} ${circumference}`;
+          const dashOffset = -(cumulative / total) * circumference;
+          cumulative += seg.value;
+          return (
+            <circle
+              key={seg.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={stroke}
+              strokeDasharray={dashArray}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              className="transition-all duration-700"
+            />
+          );
+        })}
+      </svg>
+      <div className="space-y-2">
+        {segments.map((seg) => (
+          <div key={seg.label} className="flex items-center gap-2 text-sm">
+            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: seg.color }} />
+            <span className="text-ink-600">{seg.label}</span>
+            <span className="ml-auto font-semibold text-ink">{formatCurrency(seg.value)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /* ─── Main Component ─── */
 
@@ -162,25 +165,18 @@ export default function VisionResultsView({
       if (newConcepts.length > conceptImages.length) {
         setConceptImages(newConcepts);
       }
-    } catch {
-      // Silent fail on polling
-    }
-
-    // Also try to refresh server-rendered data
+    } catch { /* silent */ }
     router.refresh();
     setPollCount((c) => c + 1);
   }, [conceptImages.length, projectId, router]);
 
   useEffect(() => {
-    if (!needsPolling || pollCount >= 20) return; // Stop after ~5 minutes
+    if (!needsPolling || pollCount >= 20) return;
     const delay = pollCount < 4 ? 8000 : pollCount < 10 ? 15000 : 30000;
     pollTimerRef.current = setTimeout(pollForData, delay);
-    return () => {
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    };
+    return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
   }, [needsPolling, pollCount, pollForData]);
 
-  // Sync server-rendered props on refresh
   useEffect(() => {
     if (initialEstimate && !estimate) setEstimate(initialEstimate);
     if (initialMaterials && !materials) setMaterials(initialMaterials);
@@ -194,21 +190,14 @@ export default function VisionResultsView({
   const [activeSection, setActiveSection] = useState<SectionId>('concepts');
   const [stickyVisible, setStickyVisible] = useState(false);
 
-  const sectionCounts = useMemo(() => ({
-    concepts: conceptImages.length,
-    materialItems: materials?.line_items?.length || 0,
-  }), [conceptImages.length, materials?.line_items?.length]);
-
-  /* ─── Scroll spy for sticky nav ─── */
+  /* ─── Scroll spy ─── */
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setStickyVisible(scrollY > 400);
-
+      setStickyVisible(window.scrollY > 400);
       const sections: SectionId[] = ['concepts', 'estimate', 'materials', 'brief', 'next'];
       for (let i = sections.length - 1; i >= 0; i--) {
         const el = document.getElementById(`section-${sections[i]}`);
-        if (el && el.offsetTop - 120 <= scrollY) {
+        if (el && el.offsetTop - 120 <= window.scrollY) {
           setActiveSection(sections[i]);
           break;
         }
@@ -220,9 +209,7 @@ export default function VisionResultsView({
 
   const scrollToSection = (id: SectionId) => {
     const el = document.getElementById(`section-${id}`);
-    if (el) {
-      window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
-    }
+    if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
   };
 
   /* ─── Analytics ─── */
@@ -235,12 +222,12 @@ export default function VisionResultsView({
     });
   }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
-  /* ─── Derived values ─── */
+  /* ─── Derived ─── */
   const selectedConceptUrl = conceptImages[selectedConcept] || conceptImages[0] || null;
   const laborMid = estimate?.estimate_breakdown?.labor_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.58) : 0);
   const materialsMid = estimate?.estimate_breakdown?.materials_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
-  const permitsMid = estimate ? derivePermitAllowance(estimate) : 0;
-  const contingencyMid = estimate ? deriveContingency(estimate) : 0;
+  const permitsMid = estimate ? Math.round(estimate.mid_estimate * 0.05) : 0;
+  const contingencyMid = estimate ? Math.round(estimate.mid_estimate * 0.12) : 0;
   const matchHref = `/pro?zip=${encodeURIComponent(project.zip_code)}`;
   const reviseHref = `/vision/start?${new URLSearchParams({
     from: projectId,
@@ -252,15 +239,16 @@ export default function VisionResultsView({
     image: originalImage || '',
   }).toString()}`;
 
-  /* ─── Readiness summary ─── */
-  const readySections = [
-    estimate ? 'Estimate' : null,
-    materials ? 'Materials' : null,
-    brief ? 'Brief' : null,
-    hasAnyConcepts ? 'Concepts' : null,
-  ].filter(Boolean);
-  const totalSections = 4;
+  const readySections = [estimate, materials, brief, hasAnyConcepts ? true : null].filter(Boolean);
   const readyCount = readySections.length;
+  const totalSections = 4;
+
+  const donutSegments = estimate ? [
+    { label: 'Labor', value: laborMid, color: '#D8B98A' },
+    { label: 'Materials', value: materialsMid, color: '#B8D8C8' },
+    { label: 'Permits', value: permitsMid, color: '#93C5FD' },
+    { label: 'Contingency', value: contingencyMid, color: '#E5E7EB' },
+  ] : [];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
@@ -273,7 +261,6 @@ export default function VisionResultsView({
         )}
       >
         <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-2 sm:gap-2 sm:px-6">
-          <span className="mr-2 hidden text-sm font-semibold text-ink sm:block">Your plan</span>
           {SECTION_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -288,321 +275,233 @@ export default function VisionResultsView({
             >
               {tab.icon}
               {tab.label}
-              {tab.id === 'concepts' && hasAnyConcepts && (
-                <span className="ml-1 rounded-full bg-mint/20 px-1.5 text-[10px] font-bold text-ink">{conceptImages.length}</span>
-              )}
-              {tab.id === 'materials' && materials && (
-                <span className="ml-1 rounded-full bg-sand/20 px-1.5 text-[10px] font-bold text-ink">{materials.line_items.length}</span>
-              )}
             </button>
           ))}
+          <div className="ml-auto flex items-center gap-2">
+            <Badge variant={readyCount === totalSections ? 'green' : 'amber'} className="text-[10px]">
+              {readyCount}/{totalSections} ready
+            </Badge>
+          </div>
         </div>
       </div>
 
-      {/* ─── Hero Header ─── */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-8 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.14),transparent_24%)]" />
-        <div className="relative flex flex-col gap-8 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <Badge variant="blue" className="border-white/15 bg-white/10 text-white">{project.quality_tier} tier</Badge>
-              <Badge variant="gray" className="border-white/15 bg-white/10 text-white">{categoryLabel}</Badge>
-              <Badge variant={readyCount === totalSections ? 'green' : 'amber'}>
-                {readyCount === totalSections ? 'Plan ready' : `${readyCount}/${totalSections} sections ready`}
-              </Badge>
+      {/* ─── Hero — Compact, visual, with original photo ─── */}
+      <section className="relative overflow-hidden rounded-[2rem] print:hidden">
+        {/* Background with original photo */}
+        <div className="relative">
+          {originalImage && (
+            <div className="absolute inset-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={originalImage} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#1b1d22]/95 via-[#1b1d22]/85 to-[#1b1d22]/70" />
             </div>
+          )}
+          {!originalImage && (
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)]" />
+          )}
 
-            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-white/70">naili vision</p>
-            <h1 className="text-3xl font-bold leading-tight sm:text-5xl">Nail the vision. Know the cost.</h1>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/78 sm:text-lg">
-              Your {categoryLabel.toLowerCase()} plan is built from your photo, your prompt, your finish level, and your local market. Use it to walk into every contractor conversation with more leverage.
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3 text-sm text-white/80">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-                <MapPin className="h-4 w-4" /> ZIP {project.zip_code}
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-                <Sparkles className="h-4 w-4" /> {sectionCounts.concepts || 0} concept{sectionCounts.concepts !== 1 ? 's' : ''}
-                {!hasAnyConcepts && <Loader2 className="h-3 w-3 animate-spin" />}
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-                <Wrench className="h-4 w-4" /> {sectionCounts.materialItems} material items
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full max-w-md rounded-[1.75rem] border border-white/12 bg-white/10 p-5 backdrop-blur-xl">
-            <div className="rounded-2xl border border-white/12 bg-white/10 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Your plan at a glance</div>
-              <h2 className="mt-2 text-2xl font-bold text-white">
-                {readyCount === totalSections
-                  ? 'Estimate, brief, and concepts are ready.'
-                  : 'Your plan is building...'}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/78">
-                {readyCount === totalSections
-                  ? 'Use this packet to compare quotes more clearly before you ask anyone to bid.'
-                  : 'Some sections are still generating. This page updates automatically.'}
-              </p>
-              {readyCount < totalSections && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-white/60">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Auto-refreshing every few seconds</span>
+          <div className="relative px-6 py-8 text-white sm:px-10 sm:py-12">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              {/* Left — Key info */}
+              <div className="max-w-xl">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge variant="green" className="border-white/15 bg-white/15 text-white">{tierLabel(project.quality_tier)}</Badge>
+                  <Badge variant="gray" className="border-white/15 bg-white/15 text-white">{categoryLabel}</Badge>
+                  <span className="flex items-center gap-1.5 text-xs text-white/60">
+                    <MapPin className="h-3 w-3" /> ZIP {project.zip_code}
+                  </span>
                 </div>
-              )}
+
+                <h1 className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
+                  Your {categoryLabel.toLowerCase()} plan
+                </h1>
+
+                {estimate && (
+                  <div className="mt-4 flex items-baseline gap-3">
+                    <span className="text-4xl font-bold text-sand-light sm:text-5xl">{formatCurrency(estimate.mid_estimate)}</span>
+                    <span className="text-sm text-white/60">estimated &middot; {regionNote(estimate.region_multiplier)}</span>
+                  </div>
+                )}
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition-all hover:shadow-xl">
+                    <Download className="h-4 w-4" /> Print / PDF
+                  </button>
+                  <div className="w-48">
+                    <ShareButton shareUrl={shareUrl} variant="dark" projectTitle={`${categoryLabel} plan`} />
+                  </div>
+                  <Link
+                    href={reviseHref}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+                  >
+                    <PenSquare className="h-4 w-4" /> Revise
+                  </Link>
+                </div>
+              </div>
+
+              {/* Right — Quick stats */}
+              <div className="grid grid-cols-2 gap-3 lg:w-72">
+                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                  <ImageIcon className="mb-1 h-4 w-4 text-white/50" />
+                  <div className="text-2xl font-bold">{conceptImages.length}</div>
+                  <div className="text-xs text-white/60">Concepts{!hasAnyConcepts && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}</div>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                  <ShoppingCart className="mb-1 h-4 w-4 text-white/50" />
+                  <div className="text-2xl font-bold">{materials?.line_items?.length || '—'}</div>
+                  <div className="text-xs text-white/60">Materials</div>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                  <FileText className="mb-1 h-4 w-4 text-white/50" />
+                  <div className="text-lg font-bold">{brief ? 'Ready' : '...'}</div>
+                  <div className="text-xs text-white/60">Brief</div>
+                </div>
+                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
+                  <Sparkles className="mb-1 h-4 w-4 text-white/50" />
+                  <div className="text-lg font-bold">{readyCount}/{totalSections}</div>
+                  <div className="text-xs text-white/60">Sections ready</div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-white/10 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Most likely cost</div>
-                <div className="mt-2 text-2xl font-bold text-sand-light">{estimate ? formatCurrency(estimate.mid_estimate) : 'Pending...'}</div>
+            {readyCount < totalSections && (
+              <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Some sections are still generating. This page updates automatically.</span>
               </div>
-              <div className="rounded-2xl bg-white/10 p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Share-ready brief</div>
-                <div className="mt-2 text-base font-semibold text-white">{brief ? 'Ready now' : 'Building...'}</div>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button className="w-full border border-white/20 bg-white/10 text-white hover:bg-white/15" onClick={() => window.print()}>
-                  <Download className="mr-2 h-4 w-4" /> Print brief
-                </Button>
-                <Link
-                  href={reviseHref}
-                  className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-                >
-                  <PenSquare className="mr-2 h-4 w-4" /> Refine this plan
-                </Link>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <ShareButton shareUrl={shareUrl} variant="dark" />
-                <Link
-                  href="/my-projects"
-                  className="inline-flex w-full items-center justify-center rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-                >
-                  <FolderOpen className="mr-2 h-4 w-4" /> Open saved projects
-                </Link>
-              </div>
-              <Link
-                href={matchHref}
-                onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'hero_link' })}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-white/78 transition-colors hover:text-white"
-              >
-                Request local contractor options later <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* ─── Quick Stats Row ─── */}
-      <section className="mt-8 grid gap-4 print:hidden md:grid-cols-3">
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><Wallet className="h-4 w-4 text-sand-dark" /> Smart estimate</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Building...'}</div>
-          <p className="mt-2 text-sm text-ink-600">Photo-aware cost planning grounded in your finish tier and ZIP code.</p>
-        </div>
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><FileText className="h-4 w-4 text-sand-dark" /> Contractor brief</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{brief ? 'Ready to share before quotes' : 'Drafting...'}</div>
-          <p className="mt-2 text-sm text-ink-600">A cleaner walk-through summary, scope notes, and quote questions.</p>
-        </div>
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><TrendingUp className="h-4 w-4 text-mint" /> Local context</div>
-          <div className="mt-3 text-lg font-semibold text-ink">{regionSummary(estimate?.region_multiplier)}</div>
-          <p className="mt-2 text-sm text-ink-600">{qualityTierCopy(project.quality_tier)}</p>
         </div>
       </section>
 
       {/* ─── Section: Concept Images ─── */}
       <section id="section-concepts" className="mt-10 scroll-mt-24 print:hidden">
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Concept images</h2>
-            <p className="mt-1 text-sm text-ink-500">A visual direction grounded in the original photo, not a generic style template.</p>
+            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Design concepts</h2>
+            <p className="mt-1 text-sm text-ink-500">AI-generated visuals based on your photo and style preferences.</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {hasAnyConcepts && selectedConceptUrl && (
-              <a href={selectedConceptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink">
-                <Eye className="h-4 w-4" /> Open selected concept
-              </a>
-            )}
-            {originalImage && (
-              <ConceptsLoader
-                projectId={projectId}
-                category={project.project_category}
-                style={project.style_preference || 'modern'}
-                qualityTier={project.quality_tier}
-                notes={project.notes || undefined}
-                referenceImageUrl={originalImage}
-                hasImages={hasAnyConcepts}
-                mode="manual"
-                buttonLabel="Generate new concept"
-              />
-            )}
-          </div>
+          {originalImage && (
+            <ConceptsLoader
+              projectId={projectId}
+              category={project.project_category}
+              style={project.style_preference || 'modern'}
+              qualityTier={project.quality_tier}
+              notes={project.notes || undefined}
+              referenceImageUrl={originalImage}
+              hasImages={hasAnyConcepts}
+              mode="manual"
+              buttonLabel="+ New concept"
+            />
+          )}
         </div>
 
         {hasAnyConcepts && selectedConceptUrl && originalImage ? (
           <div className="space-y-5">
-            <BeforeAfterSlider beforeImage={originalImage} afterImage={selectedConceptUrl} beforeLabel="Original photo" afterLabel={`Concept ${selectedConcept + 1}`} />
-            <div className="grid gap-4 md:grid-cols-3">
-              {conceptImages.map((url, index) => (
-                <button
-                  key={url}
-                  type="button"
-                  onClick={() => setSelectedConcept(index)}
-                  className={cn(
-                    'overflow-hidden rounded-[1.5rem] border bg-canvas-50 text-left shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lift',
-                    selectedConcept === index ? 'border-[rgba(216,185,138,0.45)] ring-2 ring-[rgba(216,185,138,0.16)]' : 'border-hairline'
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt={`Concept ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <div>
-                      <div className="text-sm font-semibold text-ink">Concept {index + 1}</div>
-                      <div className="text-xs text-ink-500">Same layout, new finish direction</div>
-                    </div>
-                    {selectedConcept === index && <CheckCircle2 className="h-5 w-5 text-sand-dark" />}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <BeforeAfterSlider beforeImage={originalImage} afterImage={selectedConceptUrl} beforeLabel="Your photo" afterLabel={`Concept ${selectedConcept + 1}`} />
+            {conceptImages.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {conceptImages.map((url, index) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setSelectedConcept(index)}
+                    className={cn(
+                      'flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all',
+                      selectedConcept === index ? 'border-sand-dark shadow-lg scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                    )}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={`Concept ${index + 1}`} className="h-20 w-28 object-cover sm:h-24 sm:w-36" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : hasAnyConcepts ? (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             {conceptImages.map((url, index) => (
-              <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="overflow-hidden rounded-[1.5rem] border border-hairline bg-canvas-50 shadow-soft">
+              <div key={url} className="overflow-hidden rounded-[1.5rem] border border-hairline shadow-soft">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`Concept ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-                <div className="px-4 py-3 text-sm font-semibold text-ink">Concept {index + 1}</div>
-              </a>
+              </div>
             ))}
           </div>
         ) : (
-          <div className="rounded-[1.75rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-            <div className="flex items-center gap-4 rounded-2xl border border-[rgba(216,185,138,0.22)] bg-[linear-gradient(135deg,rgba(251,248,244,0.96),rgba(246,243,238,0.94))] p-5">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-sand/20">
-                <Loader2 className="h-6 w-6 animate-spin text-sand-dark" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-ink">Your design concepts are rendering</p>
-                <p className="mt-1 text-sm text-ink-600">
-                  This usually takes 30–60 seconds. The page will update automatically when they&apos;re ready — no need to refresh.
-                </p>
-              </div>
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-sand/20">
+              <Loader2 className="h-6 w-6 animate-spin text-sand-dark" />
             </div>
-            {originalImage && (
-              <div className="mt-4">
-                <ConceptsLoader
-                  projectId={projectId}
-                  category={project.project_category}
-                  style={project.style_preference || 'modern'}
-                  qualityTier={project.quality_tier}
-                  notes={project.notes || undefined}
-                  referenceImageUrl={originalImage}
-                  hasImages={false}
-                />
-              </div>
-            )}
+            <div>
+              <p className="font-semibold text-ink">Generating your design concepts...</p>
+              <p className="mt-1 text-sm text-ink-500">Usually takes 30–60 seconds. This page updates automatically.</p>
+            </div>
           </div>
         )}
       </section>
 
-      {/* ─── Section: Smart Estimate ─── */}
-      <section id="section-estimate" className="mt-10 scroll-mt-24 rounded-[2rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden sm:p-8">
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Smart cost estimate</h2>
-            <p className="mt-1 text-sm text-ink-500">A planning estimate built from the visible scope, your notes, and local pricing, not a generic benchmark.</p>
-          </div>
-          {estimate && <Badge variant="amber" className="w-fit">{qualityTierCopy(project.quality_tier)}</Badge>}
-        </div>
+      {/* ─── Section: Cost Estimate ─── */}
+      <section id="section-estimate" className="mt-10 scroll-mt-24 print:hidden">
+        <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Cost estimate</h2>
+        <p className="mt-1 text-sm text-ink-500">Based on your photo, finish tier, and ZIP code.</p>
 
         {estimate ? (
-          <>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-[1.5rem] bg-canvas-200/70 p-5 text-center">
-                <div className="text-sm font-medium text-ink-500">Low</div>
-                <div className="mt-2 text-3xl font-bold text-ink">{formatCurrency(estimate.low_estimate)}</div>
+          <div className="mt-5 space-y-5">
+            {/* Range bar */}
+            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+              <div className="flex items-center justify-between text-sm text-ink-500">
+                <span>Low</span>
+                <span className="text-base font-bold text-ink">Most likely</span>
+                <span>High</span>
               </div>
-              <div className="rounded-[1.5rem] border border-[rgba(216,185,138,0.28)] bg-[linear-gradient(135deg,rgba(216,185,138,0.14),rgba(184,216,200,0.14))] p-5 text-center shadow-soft">
-                <div className="text-sm font-semibold text-ink">Mid, most likely</div>
-                <div className="mt-2 text-3xl font-bold text-ink">{formatCurrency(estimate.mid_estimate)}</div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xl font-bold text-ink-600">{formatCurrency(estimate.low_estimate)}</span>
+                <span className="text-3xl font-bold text-ink">{formatCurrency(estimate.mid_estimate)}</span>
+                <span className="text-xl font-bold text-ink-600">{formatCurrency(estimate.high_estimate)}</span>
               </div>
-              <div className="rounded-[1.5rem] bg-canvas-200/70 p-5 text-center">
-                <div className="text-sm font-medium text-ink-500">High</div>
-                <div className="mt-2 text-3xl font-bold text-ink">{formatCurrency(estimate.high_estimate)}</div>
+              <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-canvas-200">
+                <div className="absolute inset-0 bg-gradient-to-r from-sand/60 via-sand-dark to-mint/60" />
+                <div className="absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-[3px] border-white bg-ink shadow-lg" style={{ left: 'calc(50% - 12px)' }} />
               </div>
+              <div className="mt-3 text-center text-xs text-ink-500">{regionNote(estimate.region_multiplier)}</div>
             </div>
 
-            <div className="mt-6 rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5">
-              <div className="mb-3 flex items-center justify-between text-sm font-medium text-ink-500">
-                <span>{formatCurrency(estimate.low_estimate)}</span>
-                <span>{formatCurrency(estimate.high_estimate)}</span>
+            {/* Donut + breakdown */}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">Cost breakdown</h3>
+                <DonutChart segments={donutSegments} />
               </div>
-              <div className="relative h-4 overflow-hidden rounded-full bg-canvas-50 shadow-inner">
-                <div className="absolute inset-0 bg-[linear-gradient(90deg,#cbb69a_0%,#d8b98a_50%,#b8d8c8_100%)]" />
-                <div className="absolute top-1/2 h-8 w-8 -translate-y-1/2 rounded-full border-4 border-canvas-50 bg-graphite-700 shadow-soft" style={{ left: 'calc(50% - 16px)' }} />
-              </div>
-              <p className="mt-3 text-sm text-ink-600">Regional adjustment: {regionSummary(estimate.region_multiplier)}</p>
-            </div>
-
-            <div className="mt-6 grid gap-4 md:grid-cols-4">
-              <div className="rounded-[1.5rem] border border-hairline p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">Labor</div>
-                <div className="mt-2 text-2xl font-bold text-ink">{formatCurrency(laborMid)}</div>
-              </div>
-              <div className="rounded-[1.5rem] border border-hairline p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">Materials</div>
-                <div className="mt-2 text-2xl font-bold text-ink">{formatCurrency(materialsMid)}</div>
-              </div>
-              <div className="rounded-[1.5rem] border border-hairline p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">Permits / fees</div>
-                <div className="mt-2 text-2xl font-bold text-ink">{formatCurrency(permitsMid)}</div>
-              </div>
-              <div className="rounded-[1.5rem] border border-hairline p-4">
-                <div className="text-xs font-semibold uppercase tracking-wide text-ink-500">Contingency</div>
-                <div className="mt-2 text-2xl font-bold text-ink">{formatCurrency(contingencyMid)}</div>
-              </div>
-            </div>
-
-            <details className="mt-6 rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5">
-              <summary className="cursor-pointer list-none text-base font-semibold text-ink flex items-center gap-2">
-                <ChevronDown className="h-4 w-4 text-ink-500" />
-                What affects your final cost
-              </summary>
-              <div className="mt-4 grid gap-6 lg:grid-cols-2">
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">Assumptions</h3>
-                  <ul className="space-y-2 text-sm text-ink-600">
-                    {estimateAssumptions.map((item, index) => (
-                      <li key={index} className="flex gap-2"><span className="text-sand-dark">&#8226;</span><span>{item}</span></li>
-                    ))}
-                  </ul>
+              <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">What affects your cost</h3>
+                <div className="space-y-3 text-sm text-ink-600">
+                  {estimateAssumptions.slice(0, 4).map((item, i) => (
+                    <div key={i} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-mint" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                  {riskNotes.slice(0, 2).map((item, i) => (
+                    <div key={i} className="flex gap-2">
+                      <CalendarClock className="mt-0.5 h-4 w-4 flex-shrink-0 text-sand-dark" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-500">Risk notes</h3>
-                  <ul className="space-y-2 text-sm text-ink-600">
-                    {riskNotes.map((item, index) => (
-                      <li key={index} className="flex gap-2"><span className="text-sand-dark">&#8226;</span><span>{item}</span></li>
-                    ))}
-                  </ul>
-                </div>
+                {estimate.estimate_basis && (
+                  <p className="mt-4 rounded-xl bg-canvas-50 p-3 text-xs text-ink-500">{estimate.estimate_basis}</p>
+                )}
               </div>
-              {estimate.estimate_basis && <p className="mt-4 text-sm text-ink-600">Estimate basis: {estimate.estimate_basis}</p>}
-            </details>
-            <Disclaimer text={DISCLAIMERS.estimate} className="mt-5" />
-          </>
+            </div>
+
+            <Disclaimer text={DISCLAIMERS.estimate} />
+          </div>
         ) : (
-          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-200/70 p-5">
+          <div className="mt-5 flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
             <div>
-              <p className="text-sm font-semibold text-ink">Your estimate is being calculated</p>
-              <p className="mt-1 text-sm text-ink-600">This page updates automatically — your estimate will appear here in a moment.</p>
+              <p className="font-semibold text-ink">Calculating your estimate...</p>
+              <p className="mt-1 text-sm text-ink-500">This page updates automatically.</p>
             </div>
           </div>
         )}
@@ -610,38 +509,42 @@ export default function VisionResultsView({
 
       {/* ─── Section: Materials ─── */}
       <section id="section-materials" className="mt-10 scroll-mt-24 print:hidden">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Materials list</h2>
-            <p className="mt-1 text-sm text-ink-500">Specific line items to keep allowances, bids, and shopping conversations grounded.</p>
+            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Materials &amp; shopping list</h2>
+            <p className="mt-1 text-sm text-ink-500">Real products with prices and links. Ready to shop or hand to a contractor.</p>
           </div>
-          {materials && <Badge variant="blue">{materials.line_items.length} line items</Badge>}
+          {materials && (
+            <Badge variant="green">{materials.line_items.length} items</Badge>
+          )}
         </div>
         {materials ? (
           <MaterialsAccordion materials={materials} />
         ) : (
-          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
             <div>
-              <p className="text-sm font-semibold text-ink">Your materials list is being built</p>
-              <p className="mt-1 text-sm text-ink-600">Line items will appear here automatically once ready.</p>
+              <p className="font-semibold text-ink">Building your materials list...</p>
+              <p className="mt-1 text-sm text-ink-500">Real products with prices will appear here automatically.</p>
             </div>
           </div>
         )}
       </section>
 
       {/* ─── Section: Brief ─── */}
-      <section id="section-brief" className="mt-10 scroll-mt-24 sm:p-8">
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section id="section-brief" className="mt-10 scroll-mt-24">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink print:hidden sm:text-3xl">Project handoff brief</h2>
-            <p className="mt-1 text-sm text-ink-500 print:hidden">Share or print this version when you want a cleaner contractor walk-through.</p>
+            <h2 className="font-display text-2xl tracking-tight text-ink print:hidden sm:text-3xl">Contractor handoff brief</h2>
+            <p className="mt-1 text-sm text-ink-500 print:hidden">Print or share this with your contractor for accurate quotes.</p>
           </div>
-          <div className="flex flex-col gap-3 print:hidden sm:flex-row">
-            <Button className="border-0 bg-ink text-canvas-50 shadow-soft hover:opacity-95" onClick={() => window.print()}>
-              <Download className="mr-2 h-4 w-4" /> Print handoff brief
-            </Button>
-            <ShareButton shareUrl={shareUrl} variant="light" />
+          <div className="flex gap-2 print:hidden">
+            <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90">
+              <Download className="h-4 w-4" /> Print
+            </button>
+            <div className="w-44">
+              <ShareButton shareUrl={shareUrl} variant="light" projectTitle={`${categoryLabel} brief`} />
+            </div>
           </div>
         </div>
 
@@ -654,14 +557,14 @@ export default function VisionResultsView({
             brief={brief}
             likelyTrades={likelyTrades}
             siteQuestions={siteQuestions}
-            subtitle="Use this version for cleaner bid comparisons, walk-through notes, and handoff conversations."
+            subtitle="Share this with your contractor for accurate, comparable quotes."
           />
         ) : (
-          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden">
+          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
             <div>
-              <p className="text-sm font-semibold text-ink">Your contractor brief is being written</p>
-              <p className="mt-1 text-sm text-ink-600">The handoff document will appear here automatically once ready.</p>
+              <p className="font-semibold text-ink">Writing your contractor brief...</p>
+              <p className="mt-1 text-sm text-ink-500">This will appear automatically when ready.</p>
             </div>
           </div>
         )}
@@ -669,58 +572,58 @@ export default function VisionResultsView({
 
       {/* ─── Section: Next Steps ─── */}
       <section id="section-next" className="mt-10 scroll-mt-24 print:hidden">
-        <div className="mb-4">
-          <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">What to do next</h2>
-          <p className="mt-1 text-sm text-ink-500">Keep the project controlled before any deposit is paid.</p>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-4">
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-            <ShieldCheck className="h-5 w-5 text-sand-dark" />
-            <h3 className="mt-3 font-semibold text-ink">Before you hire</h3>
-            <p className="mt-2 text-sm text-ink-600">Run a shield check before you sign anything, especially if the quote or payment schedule feels rushed.</p>
+        <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">What to do next</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-sand/15">
+              <ShoppingCart className="h-5 w-5 text-sand-dark" />
+            </div>
+            <h3 className="font-semibold text-ink">Shop materials yourself</h3>
+            <p className="mt-2 text-sm text-ink-600">Use the materials list above to order everything you need. Each item has a direct link to buy.</p>
           </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-            <Wrench className="h-5 w-5 text-sand-dark" />
-            <h3 className="mt-3 font-semibold text-ink">Homeowners also add</h3>
-            <p className="mt-2 text-sm text-ink-600">{relatedProjectLabel(project.project_category)}</p>
+          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-mint/15">
+              <Wrench className="h-5 w-5 text-[#5BA88C]" />
+            </div>
+            <h3 className="font-semibold text-ink">Send to a contractor</h3>
+            <p className="mt-2 text-sm text-ink-600">Share the handoff brief above for accurate, comparable quotes. The scope is already written.</p>
           </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-            <CalendarClock className="h-5 w-5 text-mint" />
-            <h3 className="mt-3 font-semibold text-ink">Best time to book</h3>
-            <p className="mt-2 text-sm text-ink-600">{seasonalRecommendation(project.project_category)}</p>
-          </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-            <TrendingUp className="h-5 w-5 text-sand-dark" />
-            <h3 className="mt-3 font-semibold text-ink">Trending in your area</h3>
-            <p className="mt-2 text-sm text-ink-600">Projects with clear scope and a shareable brief usually get cleaner, faster bid comparisons.</p>
+          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#93C5FD]/15">
+              <Eye className="h-5 w-5 text-[#2563EB]" />
+            </div>
+            <h3 className="font-semibold text-ink">Get a second opinion</h3>
+            <p className="mt-2 text-sm text-ink-600">Share this plan with your spouse, partner, or a friend. They can see everything you see.</p>
           </div>
         </div>
       </section>
 
       {/* ─── CTA Footer ─── */}
-      <section className="mt-10 overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_48%,#1b1d22_100%)] p-6 text-white shadow-[0_24px_80px_rgba(15,23,42,0.24)] print:hidden sm:p-8">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+      <section className="mt-10 overflow-hidden rounded-[2rem] bg-gradient-to-r from-sand-dark to-sand p-8 text-white shadow-lg print:hidden sm:p-10">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">When you&apos;re ready</p>
-            <h2 className="mt-2 text-3xl font-bold">Request local contractor options.</h2>
-            <p className="mt-3 max-w-2xl text-white/75">Use the brief first. If helpful, we can line up 2–3 local pros who can quote from the same scope.</p>
+            <h2 className="text-2xl font-bold sm:text-3xl">Ready to get started?</h2>
+            <p className="mt-2 text-white/80">Upload another photo or find a contractor in your area.</p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-base font-semibold text-ink shadow-lg transition-all hover:shadow-xl"
+            >
+              New project <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
               href={matchHref}
               onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
-              className="inline-flex items-center justify-center rounded-xl bg-canvas-50 px-6 py-3 text-base font-semibold text-ink shadow-soft transition-opacity hover:opacity-95"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10"
             >
-              Request local contractor options <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-            <Link href="/pro" className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/15">
-              Explore pro support
+              Find a contractor
             </Link>
           </div>
         </div>
       </section>
 
-      <Disclaimer text="Design concepts are optional inspiration only and may not reflect final buildable dimensions, code requirements, or contractor scope." className="mt-8 print:hidden" />
+      <Disclaimer text="Design concepts are AI-generated inspiration. Final costs depend on contractor quotes, site conditions, and material availability." className="mt-8 print:hidden" />
     </div>
   );
 }

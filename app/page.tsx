@@ -7,15 +7,15 @@ import TrustBand from "@/components/TrustBand";
 import AddictiveFlow from "@/components/AddictiveFlow";
 
 export default function HomePage() {
- return (
- <main className="relative z-10 bg-canvas">
- <Nav />
- <Hero />
- <TrustBand />
- <UploadStage />
- <AddictiveFlow />
- <Showcase />
- <Footer />
- </main>
- );
+  return (
+    <main className="relative z-10 bg-canvas">
+      <Nav />
+      <Hero />
+      <TrustBand />
+      <AddictiveFlow />
+      <UploadStage />
+      <Showcase />
+      <Footer />
+    </main>
+  );
 }

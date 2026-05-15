@@ -1,189 +1,184 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowRight, Camera, ScanSearch, ClipboardList } from "lucide-react";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Camera, Sparkles, DollarSign, FileText, Palette } from 'lucide-react';
+
+/* ── Before / After showcase pairs ── */
+const SHOWCASE_PAIRS = [
+  {
+    label: 'Kitchen Refresh',
+    before: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&h=400&fit=crop',
+    after: 'https://images.unsplash.com/photo-1556909114-44e3e70034e2?w=600&h=400&fit=crop',
+  },
+  {
+    label: 'Bathroom Remodel',
+    before: 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600&h=400&fit=crop',
+    after: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=600&h=400&fit=crop',
+  },
+  {
+    label: 'Outdoor Living',
+    before: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=400&fit=crop',
+    after: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
+  },
+];
+
+const RESULTS = [
+  { icon: Palette, label: 'AI design concepts', value: 'Personalized' },
+  { icon: DollarSign, label: 'Cost estimate', value: 'Localized' },
+  { icon: FileText, label: 'Materials list', value: 'Shoppable' },
+];
 
 export default function Hero() {
- return (
-  <section className="relative overflow-hidden px-6 pb-20 pt-32 md:px-10 md:pt-40">
-   <div className="absolute inset-0 -z-10">
-    <div className="absolute left-1/2 top-0 h-full w-[120%] -translate-x-1/2 bg-radial-warm opacity-80" />
-    <div
-     className="absolute inset-0 opacity-30"
-     style={{
-      backgroundImage:
-       "linear-gradient(rgba(124,144,176,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(124,144,176,0.05) 1px, transparent 1px)",
-      backgroundSize: "64px 64px",
-      maskImage:
-       "radial-gradient(ellipse at center, black 20%, transparent 70%)",
-      WebkitMaskImage:
-       "radial-gradient(ellipse at center, black 20%, transparent 70%)",
-     }}
-    />
-   </div>
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [showAfter, setShowAfter] = useState(false);
 
-   <div className="mx-auto grid max-w-7xl items-center gap-12 md:grid-cols-[1.05fr_1fr] lg:gap-20">
-    <div>
-     <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.7, delay: 0.1 }}
-      className="mb-6 flex items-center gap-2.5"
-     >
-      <div className="ai-pulse" />
-      <span className="mono-label">
-       AI-powered home planning
-      </span>
-     </motion.div>
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setShowAfter(false);
+      setTimeout(() => {
+        setActiveIdx((i) => (i + 1) % SHOWCASE_PAIRS.length);
+        setTimeout(() => setShowAfter(true), 400);
+      }, 300);
+    }, 5000);
+    setTimeout(() => setShowAfter(true), 800);
+    return () => clearInterval(timer);
+  }, []);
 
-     <motion.h1
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
-      className="font-display text-5xl leading-[1.02] tracking-tight text-ink md:text-6xl lg:text-7xl"
-     >
-      The AI that understands
-      <br />
-      <span className="italic bg-gradient-to-r from-sand-dark to-sand bg-clip-text text-transparent">
-       your home
-      </span>
-      <span className="text-ink">.</span>
-      <br />
-      <span className="text-ink-600">
-       Diagnose, plan, price — then DIY or hire.
-      </span>
-     </motion.h1>
+  const pair = SHOWCASE_PAIRS[activeIdx];
 
-     <motion.p
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.9, delay: 0.3 }}
-      className="mt-6 max-w-lg text-lg leading-relaxed text-ink-600 md:text-xl"
-     >
-      Upload a photo of your space. Our AI creates a realistic renovation
-      plan with cost estimates, material lists, and visual concepts — then
-      helps you decide between DIY or hiring a pro.
-     </motion.p>
-
-     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay: 0.45 }}
-      className="mt-8 flex flex-wrap items-center gap-3"
-     >
-      <Link
-       href="#upload"
-       className="btn-primary bg-gradient-to-r from-sand-dark to-sand border-0 text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
-      >
-       Start your transformation
-       <ArrowRight className="ml-2 h-5 w-5" />
-      </Link>
-      <Link
-       href="#how"
-       className="btn-ghost border-hairline text-ink-600 hover:border-panel hover:text-ink"
-      >
-       See how it works
-      </Link>
-     </motion.div>
-
-     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1, delay: 0.7 }}
-      className="mt-10 flex flex-wrap items-center gap-3"
-     >
-      <TruthChip label="Any home project" />
-      <TruthChip label="AI diagnosis" />
-      <TruthChip label="DIY vs Pro options" />
-      <TruthChip label="Materials + pricing" />
-     </motion.div>
-    </div>
-
-    <motion.div
-     initial={{ opacity: 0, y: 20 }}
-     animate={{ opacity: 1, y: 0 }}
-     transition={{ duration: 1.1, delay: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
-     className="relative"
-    >
-     <HeroPreview />
-    </motion.div>
-   </div>
-  </section>
- );
-}
-
-function TruthChip({ label }: { label: string }) {
- return (
-  <div className="inline-flex items-center gap-2 rounded-full border border-hairline bg-canvas-50 px-4 py-2 text-sm font-medium text-ink-600 shadow-soft">
-   <span className="h-2 w-2 rounded-full bg-mint" />
-   <span>{label}</span>
-  </div>
- );
-}
-
-function HeroPreview() {
- return (
-  <div className="relative">
-   <div className="pointer-events-none absolute -inset-10 rounded-full bg-sand/20 blur-3xl" />
-
-   <div
-    className="relative aspect-[4/3.2] overflow-hidden rounded-3xl bg-graphite-700 p-8"
-    style={{
-     boxShadow:
-      "0 40px 80px rgba(23,24,28,0.20), 0 0 0 1px rgba(23,24,28,0.08)",
-    }}
-   >
-    <div className="flex h-full flex-col items-center justify-center text-center text-canvas-50">
-     <div className="mb-6">
-      <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sand/20 to-mint/20 px-4 py-2">
-       <span className="text-sm font-semibold text-sand-light">
-        How it works
-       </span>
-      </div>
-      <h3 className="text-2xl font-bold">
-       Photo → AI Analysis → Complete Plan
-      </h3>
-     </div>
-
-     <div className="grid w-full max-w-md grid-cols-3 gap-4">
-      <div className="flex flex-col items-center">
-       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-graphite-600">
-        <Camera className="h-5 w-5 text-sand" />
-       </div>
-       <span className="text-sm font-medium">Upload photo</span>
+  return (
+    <section className="relative overflow-hidden pb-8 pt-24 md:pb-16 md:pt-32">
+      {/* Ambient glow */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute left-1/2 top-0 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/4 rounded-full bg-gradient-to-b from-sand/20 via-mint/10 to-transparent blur-[100px]" />
       </div>
 
-      <div className="flex flex-col items-center">
-       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-graphite-600">
-        <ScanSearch className="h-5 w-5 text-sand" />
-       </div>
-       <span className="text-sm font-medium">AI analyzes</span>
+      <div className="mx-auto max-w-7xl px-5">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Left — Copy */}
+          <div className="max-w-xl">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-panel bg-canvas-50/80 px-4 py-2 backdrop-blur-sm">
+              <div className="ai-pulse" />
+              <span className="text-sm font-semibold text-ink-600">AI-powered renovation planning</span>
+            </div>
+
+            <h1 className="font-display text-4xl leading-[1.1] tracking-tight text-ink sm:text-5xl lg:text-[3.5rem]">
+              Snap a photo.
+              <br />
+              <span className="text-signature">Get a complete plan.</span>
+            </h1>
+
+            <p className="mt-5 text-lg leading-relaxed text-ink-600 md:text-xl">
+              Upload a photo of any room or space. Naili gives you AI design concepts,
+              a localized cost estimate, and a shoppable materials list — in minutes.
+            </p>
+
+            {/* What you get */}
+            <div className="mt-8 grid grid-cols-3 gap-3">
+              {RESULTS.map(({ icon: Icon, label, value }) => (
+                <div key={label} className="rounded-2xl border border-hairline bg-white/80 p-3.5 text-center shadow-sm backdrop-blur-sm">
+                  <Icon className="mx-auto mb-2 h-5 w-5 text-sand-dark" />
+                  <div className="text-xs font-bold uppercase tracking-wider text-ink">{value}</div>
+                  <div className="mt-0.5 text-[11px] text-ink-500">{label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="#upload"
+                className="btn-primary justify-center text-base !py-4 !px-8"
+              >
+                <Camera className="h-5 w-5" />
+                Upload your photo
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link href="#how-it-works" className="btn-ghost justify-center">
+                See how it works
+              </Link>
+            </div>
+
+            <p className="mt-4 text-xs text-ink-400">
+              Free to start &middot; No account needed &middot; Results in minutes
+            </p>
+          </div>
+
+          {/* Right — Before / After visual */}
+          <div className="relative mx-auto w-full max-w-lg lg:mx-0">
+            {/* Floating label */}
+            <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2">
+              <div className="rounded-full border border-hairline bg-white/90 px-4 py-1.5 text-sm font-semibold text-ink shadow-soft backdrop-blur-sm">
+                <Sparkles className="mr-1.5 inline h-4 w-4 text-sand-dark" />
+                {pair.label}
+              </div>
+            </div>
+
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-hairline bg-canvas-200 shadow-[0_24px_64px_rgba(0,0,0,0.12)]">
+              {/* Before image */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pair.before}
+                alt={`${pair.label} before`}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+
+              {/* After image — slides in */}
+              <div
+                className={`absolute inset-0 transition-all duration-700 ease-out ${
+                  showAfter ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pair.after}
+                  alt={`${pair.label} after`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+
+              {/* Before / After labels */}
+              <div className="absolute bottom-4 left-4 z-10">
+                <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider shadow-lg backdrop-blur-sm transition-all duration-500 ${
+                  showAfter ? 'bg-mint/90 text-ink' : 'bg-white/90 text-ink'
+                }`}>
+                  {showAfter ? 'After' : 'Before'}
+                </span>
+              </div>
+
+              {/* Dot indicators */}
+              <div className="absolute bottom-4 right-4 z-10 flex gap-1.5">
+                {SHOWCASE_PAIRS.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setShowAfter(false);
+                      setTimeout(() => {
+                        setActiveIdx(i);
+                        setTimeout(() => setShowAfter(true), 400);
+                      }, 300);
+                    }}
+                    className={`h-2 rounded-full transition-all ${
+                      i === activeIdx ? 'w-6 bg-white' : 'w-2 bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Floating stat cards */}
+            <div className="absolute -bottom-4 -left-4 z-10 rounded-2xl border border-hairline bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+              <div className="text-xs font-medium text-ink-500">Estimated cost</div>
+              <div className="text-lg font-bold text-ink">$4,200 – $6,800</div>
+            </div>
+            <div className="absolute -right-4 top-1/3 z-10 rounded-2xl border border-hairline bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+              <div className="text-xs font-medium text-ink-500">Materials</div>
+              <div className="text-lg font-bold text-ink">12 items</div>
+              <div className="text-xs text-mint font-semibold">Shop ready</div>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div className="flex flex-col items-center">
-       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-graphite-600">
-        <ClipboardList className="h-5 w-5 text-sand" />
-       </div>
-       <span className="text-sm font-medium">Get your plan</span>
-      </div>
-     </div>
-
-     <div className="mt-8 max-w-md text-sm text-canvas-50/70">
-      <p>
-       Our AI examines your photo, understands the space, and creates a
-       complete renovation plan with estimates, materials, and visual
-       concepts.
-      </p>
-     </div>
-
-     <div className="mt-6 rounded-full border border-white/10 bg-white/5 px-4 py-2">
-      <span className="mono-label !text-canvas-50/80">
-       Real AI analysis, not stock templates
-      </span>
-     </div>
-    </div>
-   </div>
-  </div>
- );
+    </section>
+  );
 }

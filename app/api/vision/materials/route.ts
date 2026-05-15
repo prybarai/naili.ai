@@ -22,192 +22,312 @@ function getAnalysis(input: unknown): VisionAnalysis | undefined {
   return input as VisionAnalysis;
 }
 
-function lineItem(category: string, item: string, description: string, quantity: number, unit: string, finish_tier: string, low: number, high: number, sourcing_notes: string) {
-  return { category, item, description, quantity, unit, finish_tier, estimated_cost_low: low, estimated_cost_high: high, sourcing_notes };
+/* ── Build the AI prompt that demands REAL products ── */
+
+function buildRealProductsPrompt(params: z.infer<typeof schema>, analysis?: VisionAnalysis, visualDescription?: string) {
+  const tierGuide = params.quality_tier === 'budget'
+    ? 'Focus on best-value products: store brands, builder-grade, and reliable budget picks from Home Depot, Lowe\'s, and Amazon.'
+    : params.quality_tier === 'premium'
+      ? 'Focus on premium products: designer brands, professional-grade, and high-end selections from specialty retailers, Build.com, Ferguson, and premium lines at Home Depot/Lowe\'s.'
+      : 'Focus on solid mid-range products: well-reviewed name brands from Home Depot, Lowe\'s, and Amazon that balance quality and value.';
+
+  const retailerGuide = `
+RETAILER URL RULES (critical):
+- Home Depot: https://www.homedepot.com/s/{product+name}
+- Lowe's: https://www.lowes.com/search?searchTerm={product+name}
+- Amazon: https://www.amazon.com/s?k={product+name}
+- Build.com: https://www.build.com/search?term={product+name}
+- Use SEARCH URLs, not direct product URLs, so the link always works.
+- Every single line item MUST have a retailer and retailer_url.`;
+
+  const analysisContext = analysis ? `
+PHOTO ANALYSIS (use this to pick specific products that match):
+- Space: ${analysis.space_type || 'unknown'}, ~${analysis.estimated_sqft || 'unknown'} sq ft
+- Current materials: ${analysis.current_materials.join(', ') || 'none noted'}
+- Current condition: ${analysis.current_condition || 'unknown'}
+- Style: ${analysis.existing_style || 'unknown'}
+- Features: ${analysis.architectural_features.join(', ') || 'none noted'}
+- Scope: ${analysis.renovation_scope || 'unknown'}
+- Challenges: ${analysis.key_challenges.join(', ') || 'none noted'}
+- Observations: ${analysis.photo_observations || 'none noted'}
+- Dimensions: ${JSON.stringify(analysis.estimated_dimensions)}
+- Area signals: ${JSON.stringify(analysis.area_signals)}
+- Scope signals: ${JSON.stringify(analysis.scope_signals)}` : '';
+
+  return `You are a contractor and materials expert helping a homeowner build a REAL, shoppable materials list.
+
+PROJECT:
+- Category: ${params.category.replace(/_/g, ' ')}
+- Style: ${params.style}
+- Quality tier: ${params.quality_tier}
+- Planning budget: $${params.estimate_mid.toLocaleString()}
+${params.notes ? `- Homeowner notes: ${params.notes}` : ''}
+${analysisContext}
+${visualDescription ? `\nDESIGN CONCEPT shows: ${visualDescription}` : ''}
+
+${tierGuide}
+
+REQUIREMENTS:
+1. Return 8-12 SPECIFIC, REAL products — not generic allowances or placeholders.
+2. Every item must be a real product that exists and can be purchased:
+   - REAL brand name (e.g., "Delta", "Behr", "LifeProof", "Pergo")
+   - REAL product name (e.g., "Trinsic Single-Handle Pull-Down Faucet")
+   - Specific color/finish (e.g., "Champagne Bronze", "Matte Black")
+   - Real per-unit price
+   - Real retailer name and search URL
+3. Group items into these categories: "Primary Materials", "Fixtures & Hardware", "Finishes & Accessories", "Tools & Supplies"
+4. For labor items, still include them but mark is_diy_friendly appropriately
+5. Include a mix of materials AND the tools/supplies needed for DIY
+6. install_note should be a 1-sentence DIY tip or pro recommendation
+7. Make quantities realistic for the visible space size
+
+${retailerGuide}
+
+OUTPUT FORMAT — ONLY valid JSON, no markdown:
+{
+  "line_items": [
+    {
+      "category": "Primary Materials",
+      "item": "LifeProof Sterling Oak Luxury Vinyl Plank",
+      "brand": "LifeProof",
+      "model": "Sterling Oak 8.7 in. W Waterproof LVP",
+      "color_finish": "Sterling Oak",
+      "quantity": 280,
+      "unit": "sq ft",
+      "unit_price": 3.69,
+      "finish_tier": "${params.quality_tier}",
+      "estimated_cost_low": 930,
+      "estimated_cost_high": 1100,
+      "retailer": "Home Depot",
+      "retailer_url": "https://www.homedepot.com/s/LifeProof+Sterling+Oak+LVP",
+      "is_diy_friendly": true,
+      "install_note": "Click-lock install over existing subfloor — no glue needed.",
+      "sourcing_notes": "Top-rated waterproof LVP. Order 10% extra for cuts and waste."
+    }
+  ],
+  "sourcing_notes": "Complete shopping list for a mid-range bathroom refresh. All items available at Home Depot and Lowe's. Budget includes materials only — add $X–$Y for professional installation if not DIY."
+}`;
 }
 
-function distributeBudget(total: number, weights: number[]) {
-  const sum = weights.reduce((a, b) => a + b, 0) || 1;
-  return weights.map(weight => Math.round((total * weight) / sum));
-}
+/* ── Fallback with real product examples ── */
 
-function quantityMultiplier(analysis?: VisionAnalysis, kind?: 'wall' | 'floor' | 'roof' | 'yard') {
-  const bucket = kind === 'wall'
-    ? analysis?.area_signals.wall_area_bucket
-    : kind === 'floor'
-      ? analysis?.area_signals.floor_area_bucket
-      : kind === 'roof'
-        ? analysis?.area_signals.roof_area_bucket
-        : analysis?.area_signals.yard_area_bucket;
+function fallbackMaterials(category: string, style: string, qualityTier: string, estimateMid: number, analysis?: VisionAnalysis) {
+  const tier = qualityTier;
 
-  if (bucket === 'low') return 0.85;
-  if (bucket === 'high') return 1.2;
-  return 1;
-}
-
-function customTradeHint(analysis?: VisionAnalysis, notes?: string) {
-  const trades = new Set<string>();
-  if (analysis?.suggested_trade && analysis.suggested_trade !== 'unknown') {
-    trades.add(analysis.suggested_trade.replace(/_/g, ' '));
-  }
-
-  const noteText = notes?.toLowerCase() || '';
-  if (noteText.includes('tile')) trades.add('tile installer');
-  if (noteText.includes('paint')) trades.add('painting contractor');
-  if (noteText.includes('cabinet')) trades.add('cabinet installer');
-  if (noteText.includes('floor')) trades.add('flooring installer');
-  if (noteText.includes('electrical') || noteText.includes('lighting')) trades.add('electrician');
-  if (noteText.includes('plumb')) trades.add('plumber');
-  if (noteText.includes('wall') || noteText.includes('framing')) trades.add('carpenter or framer');
-
-  return Array.from(trades);
-}
-
-function fallbackMaterials(category: string, style: string, qualityTier: string, estimateMid: number, analysis?: VisionAnalysis, notes?: string) {
-  const tradeHint = customTradeHint(analysis, notes);
-
-  if (category === 'interior_paint') {
-    const wallMultiplier = quantityMultiplier(analysis, 'wall');
-    const roomMultiplier = analysis?.scope_signals.room_size === 'small' ? 0.85 : analysis?.scope_signals.room_size === 'large' ? 1.2 : 1;
-    const gallons = Math.max(2, Math.round(3 * wallMultiplier * roomMultiplier));
-    const trimGallons = Math.max(1, Math.round(1.5 * Math.max(1, wallMultiplier * 0.9)));
-    const values = distributeBudget(estimateMid, [18, 20, 14, 28, 20]);
+  if (category === 'bathroom') {
+    const isBudget = tier === 'budget';
+    const isPremium = tier === 'premium';
     return {
       line_items: [
-        lineItem('Prep & Demo', 'Protection, masking, and prep package', 'Floor protection, masking, patching, sanding, caulk touch-up, and standard room setup before paint begins.', 1, 'lot', qualityTier, values[0] * 0.82, values[0], 'Confirm whether furniture moving, wallpaper removal, stain blocking, or skim coating are excluded.'),
-        lineItem('Core Materials', 'Primer and wall paint system', `${qualityTier} interior primer and wall paint sized to the visible room scope and assumed repaint coverage.`, gallons, 'gallons', qualityTier, values[1] * 0.82, values[1], 'Final quantity depends on measured wall area, color change, and number of coats.'),
-        lineItem('Finish Materials', 'Trim and door enamel allowance', `${qualityTier} enamel allowance for base, casing, doors, and other included trim surfaces.`, trimGallons, 'gallons', qualityTier, values[2] * 0.82, values[2], 'Reduce if trim is excluded. Increase for heavy trim packages or more doors.'),
-        lineItem('Labor', 'Interior painting labor', 'Production labor for cut-in, rolling, detail work, punch touch-ups, and daily cleanup for the defined room scope.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Assumes occupied residential access with standard room conditions.'),
-        lineItem('Permits / Misc', 'Cleanup and disposal allowance', 'Final debris removal, used masking disposal, and punch-list cleanup after completion.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Usually no permit required, but include as a miscellaneous closeout bucket.'),
+        {
+          category: 'Primary Materials',
+          item: isPremium ? 'Daltile RevoTile Marble Look Porcelain' : isBudget ? 'MSI Carrara White 12x24 Ceramic Tile' : 'Marazzi Developed by Nature Calacatta Porcelain',
+          brand: isPremium ? 'Daltile' : isBudget ? 'MSI' : 'Marazzi',
+          model: isPremium ? 'RevoTile 12x24 Marble Look' : isBudget ? 'Carrara White 12x24' : 'Developed by Nature 12x24',
+          color_finish: 'White / Marble Look',
+          quantity: 80,
+          unit: 'sq ft',
+          unit_price: isPremium ? 6.49 : isBudget ? 1.99 : 3.49,
+          finish_tier: tier,
+          estimated_cost_low: Math.round(80 * (isPremium ? 5.5 : isBudget ? 1.7 : 2.9)),
+          estimated_cost_high: Math.round(80 * (isPremium ? 7.0 : isBudget ? 2.3 : 3.8)),
+          retailer: 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Daltile RevoTile marble porcelain' : isBudget ? 'MSI Carrara White ceramic tile' : 'Marazzi Calacatta porcelain tile')}`,
+          is_diy_friendly: true,
+          install_note: 'Use a 1/4" notched trowel and tile spacers for even grout lines.',
+          sourcing_notes: 'Order 15% extra for cuts around fixtures. Check lot numbers match for consistent color.',
+        },
+        {
+          category: 'Fixtures & Hardware',
+          item: isPremium ? 'Kohler Composed Single-Handle Faucet' : isBudget ? 'Glacier Bay Constructor Centerset Faucet' : 'Delta Trinsic Single Hole Faucet',
+          brand: isPremium ? 'Kohler' : isBudget ? 'Glacier Bay' : 'Delta',
+          model: isPremium ? 'Composed K-73167' : isBudget ? 'Constructor HD67091W-6A01' : 'Trinsic 559LF',
+          color_finish: isPremium ? 'Vibrant Brushed Moderne Brass' : isBudget ? 'Chrome' : 'Matte Black',
+          quantity: 1,
+          unit: 'each',
+          unit_price: isPremium ? 589 : isBudget ? 49 : 229,
+          finish_tier: tier,
+          estimated_cost_low: isPremium ? 520 : isBudget ? 42 : 199,
+          estimated_cost_high: isPremium ? 620 : isBudget ? 55 : 249,
+          retailer: isPremium ? 'Build.com' : 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Kohler Composed faucet brass' : isBudget ? 'Glacier Bay Constructor faucet chrome' : 'Delta Trinsic faucet matte black')}`,
+          is_diy_friendly: true,
+          install_note: 'Shut off water supply valves under the sink before removing the old faucet.',
+          sourcing_notes: 'Includes supply lines. Confirm sink hole count matches before ordering.',
+        },
+        {
+          category: 'Fixtures & Hardware',
+          item: isPremium ? 'Kohler Veil Intelligent Toilet' : isBudget ? 'Glacier Bay 2-Piece Round Toilet' : 'TOTO Drake II Two-Piece Elongated Toilet',
+          brand: isPremium ? 'Kohler' : isBudget ? 'Glacier Bay' : 'TOTO',
+          model: isPremium ? 'Veil K-5401' : isBudget ? 'N2316' : 'Drake II CST454CEFG',
+          color_finish: 'White',
+          quantity: 1,
+          unit: 'each',
+          unit_price: isPremium ? 2800 : isBudget ? 139 : 389,
+          finish_tier: tier,
+          estimated_cost_low: isPremium ? 2500 : isBudget ? 119 : 349,
+          estimated_cost_high: isPremium ? 3100 : isBudget ? 159 : 429,
+          retailer: 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Kohler Veil intelligent toilet' : isBudget ? 'Glacier Bay round toilet' : 'TOTO Drake II elongated toilet')}`,
+          is_diy_friendly: false,
+          install_note: 'Hire a plumber for new rough-in work. DIY-able if replacing same-footprint toilet.',
+          sourcing_notes: 'Includes wax ring and bolts. Measure rough-in distance (10" or 12") before ordering.',
+        },
+        {
+          category: 'Fixtures & Hardware',
+          item: isPremium ? 'Kohler Verdera Lighted Medicine Cabinet' : isBudget ? 'Glacier Bay 24 in. Frameless Mirror' : 'Home Decorators Sonoma 36 in. Vanity Mirror',
+          brand: isPremium ? 'Kohler' : isBudget ? 'Glacier Bay' : 'Home Decorators',
+          model: isPremium ? 'Verdera 34" Lighted' : isBudget ? '24 in. Beveled Frameless' : 'Sonoma 36 in.',
+          color_finish: isPremium ? 'Anodized Aluminum' : isBudget ? 'Frameless' : 'Dark Charcoal',
+          quantity: 1,
+          unit: 'each',
+          unit_price: isPremium ? 899 : isBudget ? 49 : 179,
+          finish_tier: tier,
+          estimated_cost_low: isPremium ? 799 : isBudget ? 39 : 149,
+          estimated_cost_high: isPremium ? 949 : isBudget ? 55 : 199,
+          retailer: 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Kohler Verdera lighted medicine cabinet' : isBudget ? 'Glacier Bay frameless mirror 24' : 'Home Decorators Sonoma vanity mirror')}`,
+          is_diy_friendly: true,
+          install_note: 'Use a stud finder and toggle bolts for secure wall mounting.',
+          sourcing_notes: 'Measure vanity width first to ensure mirror proportions look right.',
+        },
+        {
+          category: 'Finishes & Accessories',
+          item: isPremium ? 'Mapei Keracolor U Premium Unsanded Grout' : isBudget ? 'Custom Building Products Polyblend Sanded Grout' : 'Mapei Keracolor S Sanded Grout',
+          brand: isPremium ? 'Mapei' : isBudget ? 'Custom Building Products' : 'Mapei',
+          model: isPremium ? 'Keracolor U 10 lb.' : isBudget ? 'Polyblend #381 Bright White' : 'Keracolor S 25 lb.',
+          color_finish: 'White / Bright White',
+          quantity: 2,
+          unit: 'bags',
+          unit_price: isPremium ? 28 : isBudget ? 12 : 18,
+          finish_tier: tier,
+          estimated_cost_low: isPremium ? 48 : isBudget ? 20 : 30,
+          estimated_cost_high: isPremium ? 62 : isBudget ? 28 : 42,
+          retailer: 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Mapei Keracolor unsanded grout' : isBudget ? 'Polyblend sanded grout bright white' : 'Mapei Keracolor sanded grout')}`,
+          is_diy_friendly: true,
+          install_note: 'Use unsanded for joints under 1/8", sanded for wider joints.',
+          sourcing_notes: 'Seal grout after 72 hours for stain resistance.',
+        },
+        {
+          category: 'Finishes & Accessories',
+          item: isPremium ? 'Schluter DITRA Uncoupling Membrane' : isBudget ? 'Custom Building Products RedGard Waterproofing' : 'Custom Building Products RedGard Waterproofing',
+          brand: isPremium ? 'Schluter' : 'Custom Building Products',
+          model: isPremium ? 'DITRA 54 sq ft Roll' : 'RedGard 1 Gallon',
+          color_finish: 'N/A',
+          quantity: 1,
+          unit: isPremium ? 'roll' : 'gallon',
+          unit_price: isPremium ? 165 : isBudget ? 32 : 32,
+          finish_tier: tier,
+          estimated_cost_low: isPremium ? 145 : isBudget ? 28 : 28,
+          estimated_cost_high: isPremium ? 185 : isBudget ? 38 : 38,
+          retailer: 'Home Depot',
+          retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(isPremium ? 'Schluter DITRA uncoupling membrane' : 'RedGard waterproofing membrane')}`,
+          is_diy_friendly: true,
+          install_note: 'Apply waterproofing to all wet areas before tiling — shower walls, floor, and curb.',
+          sourcing_notes: 'Critical for preventing water damage. Do not skip this step.',
+        },
+        {
+          category: 'Tools & Supplies',
+          item: 'QEP 24 in. Tile Cutter with Tungsten Carbide Wheel',
+          brand: 'QEP',
+          model: '10630Q 24 in. Manual Tile Cutter',
+          color_finish: 'N/A',
+          quantity: 1,
+          unit: 'each',
+          unit_price: 59,
+          finish_tier: tier,
+          estimated_cost_low: 49,
+          estimated_cost_high: 65,
+          retailer: 'Home Depot',
+          retailer_url: 'https://www.homedepot.com/s/QEP+24+inch+tile+cutter',
+          is_diy_friendly: true,
+          install_note: 'Score once firmly and snap — don\'t go back and forth on the same line.',
+          sourcing_notes: 'Rent a wet saw from Home Depot ($50/day) for L-cuts and notches around pipes.',
+        },
+        {
+          category: 'Tools & Supplies',
+          item: 'DAP Kwik Seal Ultra Kitchen & Bath Caulk',
+          brand: 'DAP',
+          model: 'Kwik Seal Ultra 10.1 oz.',
+          color_finish: 'White',
+          quantity: 3,
+          unit: 'tubes',
+          unit_price: 7,
+          finish_tier: tier,
+          estimated_cost_low: 18,
+          estimated_cost_high: 24,
+          retailer: 'Home Depot',
+          retailer_url: 'https://www.homedepot.com/s/DAP+Kwik+Seal+Ultra+caulk',
+          is_diy_friendly: true,
+          install_note: 'Cut the tip at 45 degrees and use painter\'s tape for clean lines.',
+          sourcing_notes: 'Use silicone-based caulk in wet areas. Latex caulk for dry trim.',
+        },
       ],
-      sourcing_notes: 'Planning-grade interior paint scope sheet sized from visible wall-area cues. This keeps the list closer to a contractor walk-through outline than a shopping list. Verify exact wall and ceiling area, opening count, trim inclusion, and prep severity onsite.',
+      sourcing_notes: `Complete shopping list for a ${tier}-tier bathroom refresh. All items available at major retailers. Prices are approximate and may vary by location. Add $2,000–$5,000 for professional installation if not doing DIY.`,
     };
   }
 
-  if (category === 'exterior_paint') {
-    const wallMultiplier = quantityMultiplier(analysis, 'wall');
-    const bodyGallons = Math.max(4, Math.round(6 * wallMultiplier));
-    const trimGallons = Math.max(2, Math.round(3 * Math.max(0.9, wallMultiplier)));
-    const values = distributeBudget(estimateMid, [18, 18, 14, 30, 20]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Wash, scrape, and surface-prep package', 'Pressure washing, scraping, sanding, spot repairs, caulking, and prep of visible elevations before coating.', 1, 'lot', qualityTier, values[0] * 0.82, values[0], 'Increase if widespread peeling, failing caulk, or repair carpentry is present.'),
-        lineItem('Core Materials', 'Exterior field paint system', `${qualityTier} body paint, primer, and sundry materials sized to the visible exterior scope.`, bodyGallons, 'gallons', qualityTier, values[1] * 0.82, values[1], 'Confirm exact elevations, color count, and whether primer is full-coat or spot only.'),
-        lineItem('Finish Materials', 'Trim, fascia, and accent coating package', 'Trim paint and finish materials for fascia, soffits, window trim, doors, and accent elements included in scope.', trimGallons, 'gallons', qualityTier, values[2] * 0.82, values[2], 'Useful when body and trim colors differ or detailed trim work is present.'),
-        lineItem('Labor', 'Exterior painting and detail labor', 'Field labor for coating body surfaces, cutting around trim, protecting openings, and managing ladder or lift work.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Story height, access, and trim detail will swing this number the most.'),
-        lineItem('Permits / Misc', 'Access, protection, and cleanup allowance', 'Masking, protection of hardscape and landscaping, access equipment, and final cleanup.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Verify if lift rental or scaffold is needed rather than ladder-only access.'),
-      ],
-      sourcing_notes: 'Exterior paint fallback is structured like a field estimate summary, not a retail materials cart. Visible facade cues were used conservatively. Verify exact elevations, prep severity, access method, and trim scope onsite.',
-    };
-  }
-
-  if (category === 'flooring') {
-    const floorMultiplier = quantityMultiplier(analysis, 'floor');
-    const baseArea = analysis?.scope_signals.room_size === 'small' ? 110 : analysis?.scope_signals.room_size === 'large' ? 420 : 220;
-    const floorArea = Math.round(baseArea * floorMultiplier);
-    const values = distributeBudget(estimateMid, [16, 24, 12, 32, 16]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Existing flooring demo and subfloor prep', 'Removal of existing finish flooring, disposal, minor scrape/patch work, and basic subfloor prep for new installation.', floorArea, 'sq ft', qualityTier, values[0] * 0.82, values[0], 'Major leveling, moisture mitigation, or structural subfloor repair is typically separate.'),
-        lineItem('Core Materials', 'Main flooring material package', `${qualityTier} ${style} flooring allowance sized to the inferred project area, including waste for cuts.`, floorArea, 'sq ft', qualityTier, values[1] * 0.82, values[1], 'Confirm exact product, thickness, wear layer, tile size, or wood grade before ordering.'),
-        lineItem('Finish Materials', 'Underlayment, transitions, and trim accessories', 'Underlayment, moisture barrier, transition profiles, stair noses if needed, and trim-reset accessories.', floorArea, 'sq ft', qualityTier, values[2] * 0.82, values[2], 'Transition lengths and stair details should be measured at the site visit.'),
-        lineItem('Labor', 'Floor installation labor', 'Layout, fitting, install labor, cuts, threshold work, and finish adjustments for the defined flooring area.', floorArea, 'sq ft', qualityTier, values[3] * 0.82, values[3], 'Pattern work, stairs, and tight layouts can materially increase labor.'),
-        lineItem('Permits / Misc', 'Protection, cleanup, and reset allowance', 'Surface protection, debris haul-off, and closeout labor after installation is complete.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Furniture moving and appliance disconnect/reconnect should be confirmed separately.'),
-      ],
-      sourcing_notes: 'Flooring fallback is organized like a contractor-prep scope sheet. Visible floor-area cues drive quantities conservatively. Verify net square footage, subfloor condition, transitions, moisture, and stair conditions onsite.',
-    };
-  }
-
-  if (category === 'deck_patio') {
-    const yardMultiplier = quantityMultiplier(analysis, 'yard');
-    const baseArea = analysis?.scope_signals.yard_size === 'small' ? 110 : analysis?.scope_signals.yard_size === 'large' ? 380 : 220;
-    const deckArea = Math.round(baseArea * yardMultiplier);
-    const values = distributeBudget(estimateMid, [18, 24, 14, 28, 16]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Site prep and demolition allowance', 'Layout, selective demo, excavation, and basic site prep for the proposed deck or patio footprint.', 1, 'lot', qualityTier, values[0] * 0.82, values[0], 'Grade correction, drainage work, or major haul-off may increase this bucket.'),
-        lineItem('Core Materials', 'Structural framing and footing package', 'Footings, posts, beams, joists, base materials, and connectors sized to an inferred outdoor living footprint.', deckArea, 'sq ft', qualityTier, values[1] * 0.82, values[1], 'Final spans, footing count, and attachment details must be field-verified.'),
-        lineItem('Finish Materials', 'Decking or patio finish package', `${qualityTier} exterior finish materials in the selected ${style} direction, including visible walking surfaces and railing parts if assumed.`, deckArea, 'sq ft', qualityTier, values[2] * 0.82, values[2], 'Confirm decking line, paver spec, railing style, skirting, and stair inclusion.'),
-        lineItem('Labor', 'Build and installation labor', 'Crew labor for layout, footing work, framing, finish installation, fastening, and final adjustments.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Stairs, height off grade, access, and code railing needs can materially shift labor.'),
-        lineItem('Permits / Misc', 'Permit, inspection, and cleanup allowance', 'Permit/admin allowance, inspection coordination, and final site cleanup after construction.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Important to confirm early for elevated decks or structural patio work.'),
-      ],
-      sourcing_notes: 'Deck and patio fallback is grouped the way many contractors mentally scope outdoor jobs. Visible yard cues help size the footprint conservatively. Verify footprint, footings, rails, stairs, drainage, and permit path onsite.',
-    };
-  }
-
-  if (category === 'roofing') {
-    const roofMultiplier = quantityMultiplier(analysis, 'roof');
-    const baseRoofArea = analysis?.estimated_size_bucket === 'small' ? 1300 : analysis?.estimated_size_bucket === 'large' ? 3200 : 2100;
-    const roofArea = Math.round(baseRoofArea * roofMultiplier);
-    const values = distributeBudget(estimateMid, [18, 28, 12, 28, 14]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Tear-off, protection, and disposal package', 'Removal of existing roofing, site protection, dump fees, and cleanup associated with standard tear-off work.', roofArea, 'sq ft', qualityTier, values[0] * 0.82, values[0], 'Overlay scopes or multiple layers should be confirmed separately.'),
-        lineItem('Core Materials', 'Primary roofing system', `${qualityTier} roofing material package sized to the inferred roof area, including underlayment and primary field material.`, roofArea, 'sq ft', qualityTier, values[1] * 0.82, values[1], 'Confirm shingle line, metal profile, warranty tier, and waste factor after measurement.'),
-        lineItem('Finish Materials', 'Flashing, ventilation, and edge accessory package', 'Flashings, drip edge, boots, vents, ridge accessories, and leak-prone detail components.', Math.max(6, Math.round(roofArea / 250)), 'allowances', qualityTier, values[2] * 0.82, values[2], 'Chimneys, skylights, complex valleys, and gutter tie-ins can push this up.'),
-        lineItem('Labor', 'Roof installation labor', 'Crew labor for tear-off, dry-in, install, flashing details, ridge work, and jobsite cleanup.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Pitch, story height, access, and complexity are the main labor variables.'),
-        lineItem('Permits / Misc', 'Deck repair allowance and final closeout', 'Minor decking replacement allowance, permit/admin handling where needed, magnet sweep, and closeout cleanup.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Rotten decking beyond a light allowance should be treated as a change item.'),
-      ],
-      sourcing_notes: 'Roofing fallback is intentionally tighter and more professional than a broad materials list. It follows common bid buckets: tear-off, roofing system, accessories, labor, and closeout. Verify measurements, layers, deck condition, flashing details, and ventilation onsite.',
-    };
-  }
-
-  if (category === 'landscaping') {
-    const yardMultiplier = quantityMultiplier(analysis, 'yard');
-    const visibleConstraintText = analysis?.visible_constraints?.length
-      ? ` Preserve existing fixed-site features like ${analysis.visible_constraints.slice(0, 3).join(', ')} unless explicitly requested otherwise.`
-      : '';
-    const baseBedArea = analysis?.scope_signals.yard_size === 'small' ? 140 : analysis?.scope_signals.yard_size === 'large' ? 650 : 320;
-    const plantingArea = Math.round(baseBedArea * yardMultiplier);
-    const values = distributeBudget(estimateMid, [16, 26, 18, 24, 16]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Site cleanup and bed-definition package', `Basic cleanup, weed removal, bed shaping, edge refresh, and prep work tied to the visible landscape scope.${visibleConstraintText}`, 1, 'lot', qualityTier, values[0] * 0.82, values[0], 'Assumes existing driveway and major hardscape stay in place unless the homeowner requested otherwise.'),
-        lineItem('Core Materials', 'Plant material allowance', `${qualityTier} allowance for shrubs, ornamental plantings, and accent material sized to about ${plantingArea} sq ft of visible planting area.`, plantingArea, 'sq ft', qualityTier, values[1] * 0.82, values[1], 'Final plant count depends on mature spacing, sun exposure, and species selection.'),
-        lineItem('Finish Materials', 'Soil, mulch, edging, and amendment package', 'Mulch, soil amendments, compost, edging touch-ups, and finishing materials that make the planting work look complete.', plantingArea, 'sq ft', qualityTier, values[2] * 0.82, values[2], 'Stone, steel edging, decorative rock, or premium specialty finishes may increase this bucket.'),
-        lineItem('Labor', 'Landscape installation labor', 'Crew labor for layout, planting, bed work, shaping, cleanup, and final detail work across the visible yard scope.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Drainage work, major grading, tree work, or hardscape rebuilds are typically separate.'),
-        lineItem('Permits / Misc', 'Irrigation, lighting, and closeout allowance', 'Planning allowance for minor irrigation adjustments, low-voltage lighting prep, haul-off, and closeout.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'If full irrigation or new hardscape is part of the project, confirm that scope separately during the site visit.'),
-      ],
-      sourcing_notes: `Planning-grade landscaping scope sheet organized around visible planting areas rather than a loose shopping list.${visibleConstraintText} Verify exact planting bed square footage, irrigation needs, sun exposure, drainage, edging, and any requested hardscape changes onsite.`,
-    };
-  }
-
-  if (category === 'custom_project') {
-    const values = distributeBudget(estimateMid, [16, 24, 14, 30, 16]);
-    return {
-      line_items: [
-        lineItem('Prep & Demo', 'Protection, demolition, and access prep', 'Planning allowance for setup, selective demolition, debris handling, and site protection tied to the custom scope.', 1, 'lot', qualityTier, values[0] * 0.82, values[0], 'Tighten after the field visit defines what stays, what goes, and how access works.'),
-        lineItem('Core Materials', 'Primary build materials allowance', `Planning allowance for the main materials driving the custom scope${tradeHint.length ? `, with likely trade focus on ${tradeHint.join(', ')}` : ''}.`, 1, 'lot', qualityTier, values[1] * 0.82, values[1], 'Use this as a placeholder until exact assemblies, products, and quantities are verified.'),
-        lineItem('Finish Materials', 'Finish selections and hardware allowance', 'Allowance for finish-facing materials, trim, hardware, and visible detail items that shape the final look.', 1, 'lot', qualityTier, values[2] * 0.82, values[2], 'Often the most variable category in mixed custom scopes.'),
-        lineItem('Labor', 'Trade labor and coordination allowance', 'Combined labor allowance for installation, specialty trade work, sequencing, and jobsite coordination.', 1, 'lot', qualityTier, values[3] * 0.82, values[3], 'Split into individual trade bids once scope is field-verified.'),
-        lineItem('Permits / Misc', 'Permits, engineering, and contingency allowance', 'Permit/admin placeholder plus a modest planning contingency for unknown conditions in a mixed custom scope.', 1, 'lot', qualityTier, values[4] * 0.82, values[4], 'Useful for scopes that may trigger design, code, or inspection requirements.'),
-      ],
-      sourcing_notes: `Planning-grade custom project scope sheet${tradeHint.length ? ` built around likely trade focus: ${tradeHint.join(', ')}` : ''}. This is intentionally grouped into contractor-style buckets so a field visit can convert it into a real scope and trade split.${notes ? ` Homeowner notes considered: ${notes}` : ''}`,
-    };
-  }
-
-  const rows = [
-    ['Prep & Demo', 'Protection, prep, and demolition allowance', 1, 'lot'],
-    ['Core Materials', `${style} primary materials allowance`, 1, 'lot'],
-    ['Finish Materials', 'Finish-facing materials and accessories', 1, 'lot'],
-    ['Labor', `${category.replace(/_/g, ' ')} labor allowance`, 1, 'lot'],
-    ['Permits / Misc', 'Miscellaneous allowances and closeout', 1, 'lot'],
-  ] as Array<[string, string, number, string]>;
-
-  const base = Math.max(estimateMid / Math.max(rows.length, 1), 500);
+  // Generic fallback for other categories — still uses real brands
+  const budget = estimateMid;
   return {
-    line_items: rows.map(([cat, item, quantity, unit], i) => ({
-      category: cat,
-      item,
-      description: `${qualityTier} planning allowance for ${item.toLowerCase()}.`,
-      quantity,
-      unit,
-      finish_tier: qualityTier,
-      estimated_cost_low: Math.round(base * (0.78 + i * 0.03)),
-      estimated_cost_high: Math.round(base * (1.0 + i * 0.05)),
-      sourcing_notes: 'Confirm exact trade scope, product specs, and measured quantities during contractor quoting.',
-    })),
-    sourcing_notes: 'Planning-grade materials outline organized into contractor-friendly estimate buckets. Final selections and quantities should be field-verified onsite.',
+    line_items: [
+      {
+        category: 'Primary Materials',
+        item: `${tier === 'premium' ? 'Premium' : tier === 'budget' ? 'Builder-grade' : 'Mid-range'} ${category.replace(/_/g, ' ')} materials package`,
+        brand: 'Various',
+        model: 'See sourcing notes',
+        color_finish: style,
+        quantity: 1,
+        unit: 'lot',
+        unit_price: Math.round(budget * 0.35),
+        finish_tier: tier,
+        estimated_cost_low: Math.round(budget * 0.28),
+        estimated_cost_high: Math.round(budget * 0.4),
+        retailer: 'Home Depot',
+        retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(category.replace(/_/g, ' ') + ' materials')}`,
+        is_diy_friendly: false,
+        install_note: 'Get 3 contractor quotes using your Naili brief for the best price.',
+        sourcing_notes: 'Planning-grade allowance. The AI will generate specific products once more project details are available.',
+      },
+      {
+        category: 'Fixtures & Hardware',
+        item: `${category.replace(/_/g, ' ')} fixtures and hardware`,
+        brand: 'Various',
+        model: 'See sourcing notes',
+        color_finish: style,
+        quantity: 1,
+        unit: 'lot',
+        unit_price: Math.round(budget * 0.15),
+        finish_tier: tier,
+        estimated_cost_low: Math.round(budget * 0.1),
+        estimated_cost_high: Math.round(budget * 0.2),
+        retailer: 'Home Depot',
+        retailer_url: `https://www.homedepot.com/s/${encodeURIComponent(category.replace(/_/g, ' ') + ' fixtures')}`,
+        is_diy_friendly: true,
+        install_note: 'Most fixture swaps are beginner-friendly DIY projects.',
+        sourcing_notes: 'Specific fixtures will be recommended based on your style preference.',
+      },
+      {
+        category: 'Tools & Supplies',
+        item: 'Installation supplies and consumables',
+        brand: 'Various',
+        model: 'Adhesives, fasteners, protection, cleanup',
+        color_finish: 'N/A',
+        quantity: 1,
+        unit: 'lot',
+        unit_price: Math.round(budget * 0.05),
+        finish_tier: tier,
+        estimated_cost_low: Math.round(budget * 0.03),
+        estimated_cost_high: Math.round(budget * 0.07),
+        retailer: 'Home Depot',
+        retailer_url: 'https://www.homedepot.com/s/renovation+supplies',
+        is_diy_friendly: true,
+        install_note: 'Buy drop cloths, painter\'s tape, and a good utility knife before starting.',
+        sourcing_notes: 'Budget for consumables that get used up during the project.',
+      },
+    ],
+    sourcing_notes: `Planning-grade materials list for a ${tier}-tier ${category.replace(/_/g, ' ')} project. AI-generated specific products will replace these allowances once the full analysis is complete.`,
   };
 }
 
@@ -217,6 +337,7 @@ export async function POST(req: NextRequest) {
     const params = schema.parse(body);
     const analysis = getAnalysis(params.analysis);
 
+    // Optional: describe the concept image for better product matching
     let visualDescription = '';
     if (params.generated_image_url && !params.generated_image_url.startsWith('data:')) {
       try {
@@ -226,7 +347,7 @@ export async function POST(req: NextRequest) {
           messages: [{
             role: 'user',
             content: [
-              { type: 'text', text: `Describe the visible materials, finishes, and fixtures in this ${params.category} design concept in 3 short sentences.` },
+              { type: 'text', text: `Describe the visible materials, finishes, colors, and fixtures in this ${params.category} design concept in 3 short sentences. Be specific about brands if recognizable.` },
               { type: 'image', source: { type: 'url', url: params.generated_image_url } },
             ],
           }],
@@ -234,79 +355,18 @@ export async function POST(req: NextRequest) {
         const content = visionResponse.content[0];
         if (content.type === 'text') visualDescription = content.text;
       } catch (e) {
-        console.error('Vision analysis failed:', e);
+        console.error('Vision analysis for materials failed:', e);
       }
     }
 
     let materials: { line_items: unknown[]; sourcing_notes: string };
     try {
-      const prompt = `Generate a contractor-usable materials list for a ${params.quality_tier}-tier ${params.category} renovation in ${params.style} style with an estimated planning budget of $${params.estimate_mid.toLocaleString()}.
-
-Requirements:
-- Return 5 to 8 strong line items only. No filler.
-- Group line items using these categories when practical: Prep & Demo, Core Materials, Finish Materials, Labor, Permits / Misc.
-- Make the list feel like a contractor-prep scope sheet, not a retail shopping list.
-- Keep the line items aligned to the visible scope and the estimate size. Avoid whole-home quantities unless the scope clearly suggests whole-home work.
-- If category is paint, flooring, deck/patio, or roofing, make the list trade-specific.
-- Include labor-oriented line items where useful, not just materials.
-- Keep everything clearly planning-grade, but still concrete.
-- Use size signals conservatively. Do not invent exact measurements, only plausible planning quantities consistent with visible scale.
-- Prefer fewer, stronger items over many vague items.
-- Each description should explain what the item is for.
-
-${analysis ? `Uploaded photo analysis context:
-- Space type: ${analysis.space_type || 'unknown'}
-- Estimated project size: ${analysis.estimated_sqft || 'unknown'}
-- Current materials: ${analysis.current_materials.join(', ') || 'none noted'}
-- Current condition: ${analysis.current_condition || 'unknown'}
-- Architectural features: ${analysis.architectural_features.join(', ') || 'none noted'}
-- Existing style: ${analysis.existing_style || 'unknown'}
-- Renovation scope: ${analysis.renovation_scope || 'unknown'}
-- Key challenges: ${analysis.key_challenges.join(', ') || 'none noted'}
-- Photo observations: ${analysis.photo_observations || 'none noted'}
-- Customization notes: ${analysis.customization_notes || 'none noted'}
-- Visible constraints: ${analysis.visible_constraints?.join(', ') || 'none noted'}
-- Visible features: ${analysis.visible_features.join(', ') || 'none noted'}
-- Size reasoning: ${analysis.size_reasoning.join(', ') || 'none noted'}
-- Materials signals: ${analysis.materials_signals.join(', ') || 'none noted'}
-- Estimation notes: ${analysis.estimation_notes.join(', ') || 'none noted'}
-- Scope signals: ${JSON.stringify(analysis.scope_signals)}
-- Estimated dimensions: ${JSON.stringify(analysis.estimated_dimensions)}
-- Area signals: ${JSON.stringify(analysis.area_signals)}
-- Confidence: ${analysis.confidence || 'unknown'}
-- Suggested trade: ${analysis.suggested_trade || 'unknown'}
-- Suggested location type: ${analysis.suggested_location_type || 'unknown'}
-- Complexity: ${analysis.complexity || 'moderate'}` : ''}
-
-${params.notes ? `Homeowner notes: ${params.notes}` : ''}
-
-${visualDescription ? `The design concept shows: ${visualDescription}
-Match visible finishes and materials where practical.` : analysis ? 'No generated concept image is available yet, so use the uploaded photo analysis and homeowner request as the main visual context.' : ''}
-
-Output ONLY valid JSON:
-{
-  "line_items": [
-    {
-      "category": string,
-      "item": string,
-      "description": string,
-      "quantity": number,
-      "unit": string,
-      "finish_tier": string,
-      "estimated_cost_low": number,
-      "estimated_cost_high": number,
-      "sourcing_notes": string
-    }
-  ],
-  "sourcing_notes": string
-}
-
-If category is custom_project, make the list useful for planning mixed scope work. Mention likely trade focus if it can be inferred from notes or image analysis.`;
+      const prompt = buildRealProductsPrompt(params, analysis, visualDescription);
 
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2200,
-        system: 'You are a licensed general contractor and materials estimator. Output ONLY valid JSON with no markdown.',
+        max_tokens: 4000,
+        system: 'You are a licensed contractor and materials expert. You know real products, real brands, real prices, and real retailers. Output ONLY valid JSON with no markdown fences.',
         messages: [{ role: 'user', content: prompt }],
       });
 
@@ -316,7 +376,7 @@ If category is custom_project, make the list useful for planning mixed scope wor
       materials = JSON.parse(jsonStr) as { line_items: unknown[]; sourcing_notes: string };
     } catch (aiError) {
       console.error('materials ai fallback:', aiError);
-      materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis, params.notes);
+      materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis);
     }
 
     const { data, error } = await supabaseAdmin
@@ -331,7 +391,6 @@ If category is custom_project, make the list useful for planning mixed scope wor
 
     if (error) throw error;
 
-    // Advance project status so the lifecycle stays consistent
     await supabaseAdmin.from('projects').update({ status: 'materials_generated' }).eq('id', params.project_id);
 
     return NextResponse.json({ materials: data });

@@ -56,6 +56,15 @@ export interface MaterialLineItem {
   estimated_cost_low: number;
   estimated_cost_high: number;
   sourcing_notes: string;
+  /* ── enriched product fields (optional for backward compat) ── */
+  brand?: string;
+  model?: string;
+  unit_price?: number;
+  retailer?: string;
+  retailer_url?: string;
+  color_finish?: string;
+  is_diy_friendly?: boolean;
+  install_note?: string;
 }
 
 export interface MaterialList {
