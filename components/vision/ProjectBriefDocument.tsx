@@ -21,6 +21,50 @@ function formatDate(value?: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
+function tierLabel(tier: string) {
+  switch (tier) {
+    case 'budget': return 'Budget';
+    case 'premium': return 'Premium';
+    default: return 'Mid-range';
+  }
+}
+
+/* ── Humanize material names for the brief snapshot ── */
+function humanizeMaterialName(name: string): string {
+  let cleaned = name
+    .replace(/\bwarm_natural\b/gi, '')
+    .replace(/\bcool_modern\b/gi, '')
+    .replace(/\bclassic_traditional\b/gi, '')
+    .replace(/\bminimalist_clean\b/gi, '')
+    .replace(/\bbold_dramatic\b/gi, '')
+    .replace(/\bcoastal_relaxed\b/gi, '')
+    .replace(/\brusstic_farmhouse\b/gi, '')
+    .replace(/\bmid_century\b/gi, '')
+    .trim();
+
+  const lc = cleaned.toLowerCase();
+  if (/primary materials? allowance/i.test(lc)) return 'Primary Materials — Fixtures & Surfaces';
+  if (/finish.*(material|facing).*allowance/i.test(lc) || /finish-facing/i.test(lc)) return 'Finish Materials — Hardware & Accessories';
+  if (/bathroom labor allowance/i.test(lc)) return 'Professional Labor';
+  if (/kitchen labor allowance/i.test(lc)) return 'Professional Labor';
+  if (/labor allowance/i.test(lc)) return 'Professional Labor';
+  if (/protection.*prep.*demo/i.test(lc)) return 'Prep & Demo';
+  if (/miscellaneous.*allowance.*closeout/i.test(lc)) return 'Permits & Closeout';
+  if (/allowance/i.test(lc)) {
+    cleaned = cleaned.replace(/\s*allowance\s*/gi, ' ').trim();
+    cleaned = cleaned.replace(/\b\w/g, (c) => c.toUpperCase());
+    return cleaned || name;
+  }
+  return cleaned || name;
+}
+
+/* ── Humanize sourcing notes ── */
+function humanizeSourcingNote(note: string | undefined | null): string {
+  if (!note) return '';
+  if (/confirm exact trade scope/i.test(note)) return 'Confirm specs and quantities with your contractor.';
+  return note;
+}
+
 export default function ProjectBriefDocument({
   project,
   categoryLabel,
@@ -31,7 +75,7 @@ export default function ProjectBriefDocument({
   siteQuestions,
   className,
   title = 'Project handoff brief',
-  subtitle = 'A cleaner planning packet to compare bids and walk a contractor through the same scope.',
+  subtitle = 'Share this with your contractor for accurate, comparable quotes.',
 }: Props) {
   const displayTrades = likelyTrades?.length ? likelyTrades : brief?.likely_trades || [];
   const displayQuestions = siteQuestions?.length ? siteQuestions : brief?.site_verification_questions || [];
@@ -50,7 +94,7 @@ export default function ProjectBriefDocument({
         </div>
         <div className="grid gap-2 text-sm text-ink-600 sm:min-w-[220px]">
           <div className="rounded-2xl bg-canvas-200/70 px-4 py-3"><span className="font-semibold text-ink">Project:</span> {categoryLabel}</div>
-          <div className="rounded-2xl bg-canvas-200/70 px-4 py-3"><span className="font-semibold text-ink">Finish tier:</span> {project.quality_tier}</div>
+          <div className="rounded-2xl bg-canvas-200/70 px-4 py-3"><span className="font-semibold text-ink">Finish tier:</span> {tierLabel(project.quality_tier)}</div>
           <div className="rounded-2xl bg-canvas-200/70 px-4 py-3"><span className="font-semibold text-ink">ZIP:</span> {project.zip_code}</div>
           {documentDate && <div className="rounded-2xl bg-canvas-200/70 px-4 py-3"><span className="font-semibold text-ink">Prepared:</span> {documentDate}</div>}
         </div>
@@ -90,10 +134,12 @@ export default function ProjectBriefDocument({
             <p className="mt-3 text-base leading-relaxed text-ink">{brief?.summary || 'The estimate is ready. The written project summary is still finishing in the background.'}</p>
           </section>
 
-          <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Homeowner goals</p>
-            <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink">{brief?.homeowner_goals || project.notes || 'No extra homeowner notes were added yet.'}</p>
-          </section>
+          {brief?.homeowner_goals && (
+            <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Homeowner goals</p>
+              <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-ink">{brief.homeowner_goals}</p>
+            </section>
+          )}
 
           <section className="brief-page-break-inside-avoid rounded-[1.5rem] bg-canvas-200/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Walk-through notes</p>
@@ -111,12 +157,12 @@ export default function ProjectBriefDocument({
                   <div key={`${item.item}-${index}`} className="rounded-2xl bg-canvas-200/70 px-4 py-3">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <div className="text-sm font-semibold text-ink">{item.item}</div>
-                        <div className="text-xs uppercase tracking-wide text-ink-500">{item.category} • {item.finish_tier}</div>
+                        <div className="text-sm font-semibold text-ink">{humanizeMaterialName(item.item)}</div>
+                        <div className="text-xs uppercase tracking-wide text-ink-500">{item.category} &bull; {tierLabel(item.finish_tier)}</div>
                       </div>
                       <div className="text-sm font-semibold text-ink-600">{formatCurrencyRange(item.estimated_cost_low, item.estimated_cost_high)}</div>
                     </div>
-                    {item.sourcing_notes && <p className="mt-2 text-sm text-ink-600">{item.sourcing_notes}</p>}
+                    {item.sourcing_notes && <p className="mt-2 text-sm text-ink-600">{humanizeSourcingNote(item.sourcing_notes)}</p>}
                   </div>
                 ))}
               </div>
@@ -134,7 +180,7 @@ export default function ProjectBriefDocument({
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-sm text-ink-600">Likely trades are still being inferred from the project scope.</p>
+              <p className="mt-3 text-sm text-ink-600">Trades will be inferred once the full brief is ready.</p>
             )}
           </section>
 
@@ -159,7 +205,7 @@ export default function ProjectBriefDocument({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Unknowns to verify onsite</p>
               <ul className="mt-3 space-y-2 text-sm text-ink-600">
                 {displayUnknowns.map((item, index) => (
-                  <li key={`${item}-${index}`} className="flex gap-2"><span className="text-sand-dark">•</span><span>{item}</span></li>
+                  <li key={`${item}-${index}`} className="flex gap-2"><span className="text-sand-dark">&bull;</span><span>{item}</span></li>
                 ))}
               </ul>
             </section>
@@ -170,7 +216,7 @@ export default function ProjectBriefDocument({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-500">Measurements to confirm</p>
               <ul className="mt-3 space-y-2 text-sm text-ink-600">
                 {displayMeasurements.map((item, index) => (
-                  <li key={`${item}-${index}`} className="flex gap-2"><span className="text-sand-dark">•</span><span>{item}</span></li>
+                  <li key={`${item}-${index}`} className="flex gap-2"><span className="text-sand-dark">&bull;</span><span>{item}</span></li>
                 ))}
               </ul>
             </section>
