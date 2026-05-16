@@ -286,26 +286,26 @@ export default function VisionResultsView({
   ] : [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-10">
 
       {/* ─── Sticky Section Nav ─── */}
       <div
         className={cn(
-          'fixed left-0 right-0 top-0 z-50 border-b border-hairline bg-canvas/95 backdrop-blur-lg transition-all duration-300 print:hidden',
+          'fixed left-0 right-0 top-0 z-50 border-b border-stone-200 bg-white/95 backdrop-blur-lg transition-all duration-300 print:hidden',
           stickyVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
         )}
       >
-        <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-2 sm:gap-2 sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-3 py-2 sm:gap-2 sm:px-6 scrollbar-none">
           {SECTION_TABS.map((tab) => (
             <button
               key={tab.id}
               type="button"
               onClick={() => scrollToSection(tab.id)}
               className={cn(
-                'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm',
+                'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm active:scale-95',
                 activeSection === tab.id
-                  ? 'bg-ink text-canvas-50'
-                  : 'text-ink-500 hover:bg-canvas-200 hover:text-ink'
+                  ? 'bg-stone-800 text-white shadow-sm'
+                  : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
               )}
             >
               {tab.icon}
@@ -321,7 +321,7 @@ export default function VisionResultsView({
       </div>
 
       {/* ─── Hero — Compact, visual, with original photo ─── */}
-      <section className="relative overflow-hidden rounded-[2rem] print:hidden">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] print:hidden">
         {/* Background with original photo */}
         <div className="relative">
           {originalImage && (
@@ -335,7 +335,7 @@ export default function VisionResultsView({
             <div className="absolute inset-0 bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)]" />
           )}
 
-          <div className="relative px-6 py-8 text-white sm:px-10 sm:py-12">
+          <div className="relative px-4 py-6 text-white sm:px-10 sm:py-12">
             <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
               {/* Left — Key info */}
               <div className="max-w-xl">
@@ -347,7 +347,7 @@ export default function VisionResultsView({
                   </span>
                 </div>
 
-                <h1 className="text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
+                <h1 className="text-2xl font-bold leading-tight sm:text-3xl lg:text-5xl">
                   Your {categoryLabel.toLowerCase()} plan
                 </h1>
 
@@ -358,16 +358,16 @@ export default function VisionResultsView({
                   </div>
                 )}
 
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-ink shadow-lg transition-all hover:shadow-xl">
+                  <div className="mt-4 sm:mt-6 flex flex-wrap gap-2">
+                  <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 sm:px-5 sm:py-3 text-sm font-semibold text-stone-800 shadow-lg transition-all hover:shadow-xl active:scale-95">
                     <Download className="h-4 w-4" /> Print / PDF
                   </button>
-                  <div className="w-48">
+                  <div className="w-36 sm:w-48">
                     <ShareButton shareUrl={shareUrl} variant="dark" projectTitle={`${categoryLabel} plan`} />
                   </div>
                   <Link
                     href={reviseHref}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 sm:px-5 sm:py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 active:scale-95"
                   >
                     <PenSquare className="h-4 w-4" /> Revise
                   </Link>
@@ -650,7 +650,7 @@ export default function VisionResultsView({
       </section>
 
       {/* ─── CTA Footer ─── */}
-      <section className="mt-10 overflow-hidden rounded-[2rem] bg-gradient-to-r from-sand-dark to-sand p-8 text-white shadow-lg print:hidden sm:p-10">
+      <section className="mt-10 overflow-hidden rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-stone-800 to-stone-900 p-6 text-white shadow-lg print:hidden sm:p-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl font-bold sm:text-3xl">Ready to get started?</h2>
@@ -659,14 +659,14 @@ export default function VisionResultsView({
           <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-base font-semibold text-ink shadow-lg transition-all hover:shadow-xl"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-stone-800 shadow-lg transition-all hover:shadow-xl active:scale-95"
             >
               New project <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href={matchHref}
               onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/30 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-white/10"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
             >
               Find a contractor
             </Link>

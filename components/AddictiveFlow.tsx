@@ -70,48 +70,50 @@ const STEPS = [
 
 export default function AddictiveFlow() {
   return (
-    <section id="how-it-works" className="section relative bg-canvas">
+    <section id="how-it-works" className="py-16 sm:py-24 px-4 sm:px-6 relative bg-canvas">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-16 text-center">
-          <p className="mono-label mb-3">How it works</p>
-          <h2 className="font-display text-3xl tracking-tight text-ink md:text-4xl lg:text-5xl">
+        <div className="mb-10 sm:mb-16 text-center">
+          <p className="mono-label mb-2 sm:mb-3">How it works</p>
+          <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl md:text-4xl lg:text-5xl">
             Photo to plan in minutes
           </h2>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-ink-600">
+          <p className="mx-auto mt-3 sm:mt-4 max-w-xl text-base sm:text-lg text-ink-600">
             One photo. Six steps. A complete renovation plan you can act on today.
           </p>
         </div>
 
         {/* Steps grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {STEPS.map(({ num, icon: Icon, title, body, gradient, iconBg, iconColor }) => (
             <div
               key={num}
-              className="group relative overflow-hidden rounded-[1.5rem] border border-hairline bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
+              className="group relative overflow-hidden rounded-2xl sm:rounded-[1.5rem] border border-stone-200 bg-white p-5 sm:p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
             >
               {/* Hover gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
 
-              <div className="relative">
-                <div className="mb-5 flex items-center justify-between">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconBg}`}>
-                    <Icon className={`h-5 w-5 ${iconColor}`} />
+              <div className="relative flex gap-4 sm:block">
+                <div className="flex-shrink-0 sm:mb-5 flex items-start sm:items-center justify-between">
+                  <div className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl ${iconBg}`}>
+                    <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${iconColor}`} />
                   </div>
-                  <span className="font-display text-4xl font-light text-ink/[0.06]">{num}</span>
+                  <span className="hidden sm:block font-display text-4xl font-light text-ink/[0.06]">{num}</span>
                 </div>
-                <h3 className="mb-2 text-lg font-semibold tracking-tight text-ink">{title}</h3>
-                <p className="text-[15px] leading-relaxed text-ink-600">{body}</p>
+                <div className="flex-1">
+                  <h3 className="mb-1 sm:mb-2 text-base sm:text-lg font-semibold tracking-tight text-stone-800">{title}</h3>
+                  <p className="text-sm sm:text-[15px] leading-relaxed text-stone-500">{body}</p>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
         {/* CTA */}
-        <div className="mt-14 text-center">
+        <div className="mt-10 sm:mt-14 text-center">
           <Link
             href="#upload"
-            className="btn-primary inline-flex items-center text-base !py-4 !px-8"
+            className="inline-flex items-center gap-2 rounded-full bg-stone-800 px-6 py-3.5 sm:px-8 sm:py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-stone-900 hover:shadow-xl active:scale-95"
           >
             <Camera className="h-5 w-5" />
             Try it now — it&apos;s free

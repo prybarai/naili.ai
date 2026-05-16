@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (project) {
-          // Get estimate data (non-blocking — ok if missing)
           const { data: estimate } = await supabaseAdmin
             .from("estimates")
             .select("*")
@@ -45,7 +44,6 @@ export async function POST(req: NextRequest) {
             .limit(1)
             .single();
 
-          // Get brief data (non-blocking — ok if missing)
           const { data: brief } = await supabaseAdmin
             .from("project_briefs")
             .select("*")
@@ -66,7 +64,6 @@ export async function POST(req: NextRequest) {
             brief_summary: brief?.summary || null,
           };
 
-          // Update project status (non-blocking — ok if fails)
           await supabaseAdmin
             .from("projects")
             .update({
@@ -77,7 +74,6 @@ export async function POST(req: NextRequest) {
             .then(() => {});
         }
       } catch {
-        // Project enrichment failed — continue without it
         console.warn("Project enrichment failed, continuing without it");
       }
     }
@@ -93,8 +89,8 @@ export async function POST(req: NextRequest) {
       else budget_range = "50k_plus";
     }
 
-    /* ── Build the lead record ── */
-    const leadCore = {
+    /* ── Minimal lead record (only columns guaranteed to exist in original schema) ── */
+    const leadMinimal: Record<string, unknown> = {
       first_name: parsed.first_name,
       last_name: parsed.last_name,
       email: parsed.email,
@@ -104,15 +100,21 @@ export async function POST(req: NextRequest) {
       budget_range,
       priority: parsed.priority,
       status: "new",
-      source: parsed.source,
       notes: parsed.notes || null,
-      address: parsed.address || null,
       project_id: parsed.project_id || null,
-      project_type: (enrichment.project_type as string) || parsed.project_type || null,
     };
 
-    /* ── Try inserting with full enrichment first ── */
-    let insertData: Record<string, unknown> = {
+    /* ── Core lead record (adds columns from add_leads_columns migration) ── */
+    const leadCore: Record<string, unknown> = {
+      ...leadMinimal,
+      source: parsed.source,
+      address: parsed.address || null,
+      project_type:
+        (enrichment.project_type as string) || parsed.project_type || null,
+    };
+
+    /* ── Full enriched record ── */
+    const leadFull: Record<string, unknown> = {
       ...leadCore,
       scope_summary: enrichment.scope_summary || null,
       photo_urls: enrichment.photo_urls || [],
@@ -122,34 +124,45 @@ export async function POST(req: NextRequest) {
       brief_summary: enrichment.brief_summary || null,
     };
 
+    /* ── Try full → core → minimal (graceful degradation) ── */
     let { data, error } = await supabaseAdmin
       .from("leads")
-      .insert(insertData)
+      .insert(leadFull)
       .select()
       .single();
 
-    /* ── If full insert fails (e.g. missing columns), try core-only ── */
     if (error) {
-      console.warn("Full lead insert failed, trying core-only:", error.message);
-
-      const { data: coreData, error: coreError } = await supabaseAdmin
+      console.warn("Full lead insert failed, trying core:", error.message);
+      const r2 = await supabaseAdmin
         .from("leads")
         .insert(leadCore)
         .select()
         .single();
+      data = r2.data;
+      error = r2.error;
+    }
 
-      if (coreError) {
-        console.error("Lead insert error (core):", coreError);
-        return NextResponse.json(
-          {
-            error:
-              "We couldn't save your request right now. Please try again in a moment.",
-            detail: coreError.message,
-          },
-          { status: 500 }
-        );
-      }
-      data = coreData;
+    if (error) {
+      console.warn("Core lead insert failed, trying minimal:", error.message);
+      const r3 = await supabaseAdmin
+        .from("leads")
+        .insert(leadMinimal)
+        .select()
+        .single();
+      data = r3.data;
+      error = r3.error;
+    }
+
+    if (error) {
+      console.error("Lead insert error (all tiers failed):", error);
+      return NextResponse.json(
+        {
+          error:
+            "We couldn't save your request right now. Please try again in a moment.",
+          detail: error.message,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ lead: data, success: true });
@@ -157,7 +170,11 @@ export async function POST(req: NextRequest) {
     if (err instanceof z.ZodError) {
       const issues = err.issues || [];
       return NextResponse.json(
-        { error: issues[0]?.message || "Please check your information and try again." },
+        {
+          error:
+            issues[0]?.message ||
+            "Please check your information and try again.",
+        },
         { status: 400 }
       );
     }

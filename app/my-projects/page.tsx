@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Plus, Sparkles, ArrowRight } from 'lucide-react';
+import { Plus, Sparkles, ArrowRight, Upload } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -51,29 +51,26 @@ function friendlyCategory(raw: string) {
 
 function friendlyStatus(raw: string) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
-    draft: { label: 'Getting Started', color: 'text-ink-500', bg: 'bg-canvas-200' },
-    processing: { label: 'Analyzing', color: 'text-sand-dark', bg: 'bg-sand/15' },
-    estimated: { label: 'Estimate Ready', color: 'text-sand-dark', bg: 'bg-sand/15' },
-    materials_generated: { label: 'Almost Done', color: 'text-[#5BA88C]', bg: 'bg-mint/15' },
-    brief_generated: { label: 'Plan Ready', color: 'text-[#5BA88C]', bg: 'bg-mint/15' },
-    complete: { label: 'Plan Ready', color: 'text-[#5BA88C]', bg: 'bg-mint/15' },
-    completed: { label: 'Plan Ready', color: 'text-[#5BA88C]', bg: 'bg-mint/15' },
+    draft: { label: 'Getting Started', color: 'text-stone-500', bg: 'bg-stone-100' },
+    processing: { label: 'Analyzing', color: 'text-amber-700', bg: 'bg-amber-50' },
+    estimated: { label: 'Estimate Ready', color: 'text-amber-700', bg: 'bg-amber-50' },
+    materials_generated: { label: 'Almost Done', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    brief_generated: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    complete: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    completed: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
     failed: { label: 'Needs Review', color: 'text-red-600', bg: 'bg-red-50' },
   };
-  return map[raw] || { label: raw.replace(/_/g, ' '), color: 'text-ink-500', bg: 'bg-canvas-200' };
+  return map[raw] || { label: raw.replace(/_/g, ' '), color: 'text-stone-500', bg: 'bg-stone-100' };
 }
 
 export default async function MyProjectsPage() {
-  // Get the current authenticated user
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // If not authenticated, redirect to login (middleware should catch this, but double-check)
   if (!user) {
     redirect('/auth/login?redirect=/my-projects');
   }
 
-  // Only fetch projects belonging to this user
   const { data: projectsData } = await supabaseAdmin
     .from('projects')
     .select('id, project_category, zip_code, quality_tier, status, created_at, uploaded_image_urls, generated_image_urls, notes')
@@ -99,41 +96,49 @@ export default async function MyProjectsPage() {
   });
 
   return (
-    <main className="relative z-10 min-h-screen bg-canvas">
+    <main className="relative z-10 min-h-screen bg-stone-50">
       <Nav />
-      <section className="px-6 pb-8 pt-28 sm:px-10 sm:pt-36">
+      <section className="px-4 pb-6 pt-20 sm:px-6 sm:pb-8 sm:pt-28 md:pt-36">
         <div className="mx-auto max-w-6xl">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="font-display text-4xl tracking-tight text-ink sm:text-5xl">My projects</h1>
-              <p className="mt-2 text-lg text-ink-600">
+              <h1 className="text-2xl font-bold tracking-tight text-stone-800 sm:text-4xl md:text-5xl">My projects</h1>
+              <p className="mt-1 sm:mt-2 text-sm sm:text-lg text-stone-500">
                 {projects.length > 0
-                  ? `${projects.length} project${projects.length !== 1 ? 's' : ''} — open any card to view your full plan.`
+                  ? `${projects.length} project${projects.length !== 1 ? 's' : ''} — tap any card to view your full plan.`
                   : 'Upload a photo to start your first project.'}
               </p>
             </div>
-            <Link href="/#upload" className="btn-primary flex-shrink-0">
-              <Plus className="mr-2 h-4 w-4" /> New project
+            <Link
+              href="/#upload"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-stone-900 active:scale-95 flex-shrink-0"
+            >
+              <Plus className="h-4 w-4" /> New project
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="px-6 pb-16 sm:px-10">
+      <section className="px-4 pb-12 sm:px-6 sm:pb-16">
         <div className="mx-auto max-w-6xl">
           {projects.length === 0 ? (
-            <div className="rounded-[2rem] border border-hairline bg-white p-16 text-center shadow-soft">
-              <Sparkles className="mx-auto mb-4 h-10 w-10 text-sand-dark" />
-              <h2 className="text-2xl font-semibold text-ink">No projects yet</h2>
-              <p className="mx-auto mt-3 max-w-md text-ink-600">
+            <div className="rounded-2xl sm:rounded-[2rem] border border-stone-200 bg-white p-10 sm:p-16 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-stone-100">
+                <Upload className="h-7 w-7 text-stone-400" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-semibold text-stone-800">No projects yet</h2>
+              <p className="mx-auto mt-2 sm:mt-3 max-w-md text-sm sm:text-base text-stone-500">
                 Upload a photo of any room or space and Naili will create a complete renovation plan with cost estimates, materials, and design concepts.
               </p>
-              <Link href="/#upload" className="btn-primary mt-8 inline-flex">
-                Start your first project <ArrowRight className="ml-2 h-4 w-4" />
+              <Link
+                href="/#upload"
+                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-xl bg-stone-800 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition hover:bg-stone-900 active:scale-95"
+              >
+                Start your first project <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {projects.map((project) => {
                 const estimate = estimateByProject.get(project.id);
                 const previewImage = project.generated_image_urls?.[0] || project.uploaded_image_urls?.[0] || null;
@@ -144,9 +149,9 @@ export default async function MyProjectsPage() {
                   <Link
                     key={project.id}
                     href={`/vision/results/${project.id}`}
-                    className="group overflow-hidden rounded-[1.5rem] border border-hairline bg-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-1"
+                    className="group overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-canvas-200">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
                       {previewImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -156,19 +161,19 @@ export default async function MyProjectsPage() {
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Sparkles className="h-8 w-8 text-ink-400 animate-pulse" />
+                          <Sparkles className="h-8 w-8 text-stone-300 animate-pulse" />
                         </div>
                       )}
-                      <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-ink shadow-sm backdrop-blur-sm">
+                      <div className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-stone-700 shadow-sm backdrop-blur-sm">
                         {category}
                       </div>
-                      <div className={`absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold backdrop-blur-sm ${status.bg} ${status.color}`}>
+                      <div className={`absolute right-2.5 top-2.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${status.bg} ${status.color}`}>
                         {status.label}
                       </div>
                     </div>
 
-                    <div className="p-5">
-                      <div className="flex items-center justify-between text-xs text-ink-400">
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-center justify-between text-xs text-stone-400">
                         <span>ZIP {project.zip_code}</span>
                         <span>
                           {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -176,20 +181,20 @@ export default async function MyProjectsPage() {
                       </div>
 
                       {estimate ? (
-                        <div className="mt-3 flex items-center justify-between rounded-xl bg-canvas-50 px-4 py-3">
-                          <span className="text-xs font-medium text-ink-500">Estimated cost</span>
-                          <span className="text-sm font-bold text-ink">
+                        <div className="mt-2.5 flex items-center justify-between rounded-xl bg-stone-50 px-3.5 py-2.5">
+                          <span className="text-xs font-medium text-stone-500">Estimated cost</span>
+                          <span className="text-sm font-bold text-stone-800">
                             {formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}
                           </span>
                         </div>
                       ) : (
-                        <div className="mt-3 rounded-xl bg-canvas-50 px-4 py-3 text-center text-xs text-ink-400">
+                        <div className="mt-2.5 rounded-xl bg-stone-50 px-3.5 py-2.5 text-center text-xs text-stone-400">
                           Estimate pending...
                         </div>
                       )}
 
-                      <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-sand-dark">
-                        View plan <ArrowRight className="h-3.5 w-3.5" />
+                      <div className="mt-2.5 flex items-center gap-1 text-sm font-semibold text-stone-600 group-hover:text-stone-800">
+                        View plan <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </div>
                   </Link>

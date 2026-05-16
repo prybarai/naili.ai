@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   ArrowRight,
-  CheckCircle2,
+  CheckCircle,
   Clock,
   DollarSign,
   Sparkles,
@@ -16,6 +17,7 @@ import {
   Home,
   Loader2,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Props {
   projectId?: string;
@@ -31,9 +33,9 @@ const TIMING_OPTIONS = [
 ] as const;
 
 const PRIORITY_OPTIONS = [
-  { value: "budget", label: "Best price", desc: "I want the most competitive quote" },
-  { value: "speed", label: "Fastest timeline", desc: "I need this done quickly" },
-  { value: "quality", label: "Highest quality", desc: "I want premium craftsmanship" },
+  { value: "budget", label: "Best price", desc: "Most competitive quote" },
+  { value: "speed", label: "Fastest timeline", desc: "Need this done quickly" },
+  { value: "quality", label: "Highest quality", desc: "Premium craftsmanship" },
 ] as const;
 
 function formatCategory(cat?: string): string {
@@ -52,13 +54,64 @@ function formatCategory(cat?: string): string {
   return map[cat] || cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/* ── Shared input style ── */
+function FormInput({
+  icon: Icon,
+  ...props
+}: {
+  icon?: typeof User;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="relative">
+      {Icon && (
+        <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none" />
+      )}
+      <input
+        {...props}
+        className={cn(
+          "w-full rounded-xl border border-stone-200 bg-white text-stone-800 placeholder:text-stone-400",
+          "focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all",
+          "py-3.5 text-base",
+          Icon ? "pl-10 pr-4" : "px-4"
+        )}
+      />
+    </div>
+  );
+}
+
+/* ── Selectable option ── */
+function SelectOption({
+  selected,
+  onClick,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-all duration-200 active:scale-[0.98]",
+        selected
+          ? "border-stone-800 bg-stone-50 shadow-sm"
+          : "border-stone-200 bg-white hover:border-stone-300"
+      )}
+    >
+      {children}
+      {selected && <CheckCircle className="w-4 h-4 ml-auto text-stone-800 flex-shrink-0" />}
+    </button>
+  );
+}
+
 export default function LeadCaptureForm({ projectId, zip, category, estimate }: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  /* ── form state ── */
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -69,7 +122,6 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
   const [priority, setPriority] = useState<string>("quality");
   const [notes, setNotes] = useState("");
 
-  /* ── auto-format phone ── */
   function handlePhoneChange(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 10);
     if (digits.length >= 7) {
@@ -81,23 +133,17 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
     }
   }
 
-  /* ── validation ── */
   function canAdvance(): boolean {
-    if (step === 1) {
-      return firstName.trim().length > 0 && lastName.trim().length > 0;
-    }
+    if (step === 1) return firstName.trim().length > 0 && lastName.trim().length > 0;
     if (step === 2) {
       const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       const phoneDigits = phone.replace(/\D/g, "");
       return emailValid && phoneDigits.length === 10;
     }
-    if (step === 3) {
-      return zipCode.replace(/\D/g, "").length === 5;
-    }
+    if (step === 3) return zipCode.replace(/\D/g, "").length === 5;
     return true;
   }
 
-  /* ── submit ── */
   async function handleSubmit() {
     setSubmitting(true);
     setError("");
@@ -121,15 +167,12 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
           source: "naili_get_quotes",
         }),
       });
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         const msg = data.error || "Something went wrong. Please try again.";
         const detail = data.detail ? ` (${data.detail})` : "";
         throw new Error(msg + detail);
       }
-
-      const data = await res.json();
       router.push(`/get-quotes/success?name=${encodeURIComponent(firstName)}&category=${encodeURIComponent(category || "")}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
@@ -139,225 +182,190 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
 
   const estimateNum = estimate ? parseFloat(estimate) : null;
   const categoryLabel = formatCategory(category);
+  const STEP_LABELS = ["Name", "Contact", "Location", "Preferences"];
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12 sm:py-20">
+    <div className="mx-auto max-w-lg px-4 py-8 sm:py-16">
       {/* ── Header ── */}
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-ink/5 text-sm font-medium text-ink/70 mb-4">
-          <ShieldCheck className="w-4 h-4" />
-          Free · No obligation · No spam
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-100 text-xs font-medium text-stone-500 mb-4">
+          <ShieldCheck className="w-3.5 h-3.5" />
+          Free &middot; No obligation
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-ink tracking-tight">
-          Get matched with the right contractor
+        <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+          Get matched with local pros
         </h1>
-        <p className="mt-3 text-lg text-ink/60 max-w-lg mx-auto">
-          Tell us a little about yourself and we&apos;ll connect you with vetted local pros
-          who specialize in your type of project.
+        <p className="mt-2 text-sm sm:text-base text-stone-500 max-w-sm mx-auto">
+          Tell us about yourself and we&apos;ll connect you with vetted contractors.
         </p>
       </div>
 
-      {/* ── Project context card ── */}
+      {/* ── Project context ── */}
       {(category || estimateNum) && (
-        <div className="mb-8 p-4 rounded-2xl bg-white border border-hairline flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-ink/5 flex items-center justify-center shrink-0">
-            <Home className="w-6 h-6 text-ink/50" />
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3.5">
+          <div className="w-10 h-10 rounded-lg bg-white border border-stone-200 flex items-center justify-center flex-shrink-0">
+            <Home className="w-5 h-5 text-stone-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-ink">{categoryLabel}</p>
+            <p className="font-semibold text-stone-800 text-sm">{categoryLabel}</p>
             {estimateNum && (
-              <p className="text-sm text-ink/50">
-                Estimated budget: ${estimateNum.toLocaleString()}
-              </p>
+              <p className="text-xs text-stone-500">Budget: ${estimateNum.toLocaleString()}</p>
             )}
           </div>
           {zip && (
-            <div className="text-sm text-ink/50 flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5" />
+            <div className="text-xs text-stone-400 flex items-center gap-1">
+              <MapPin className="w-3 h-3" />
               {zip}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Progress bar ── */}
-      <div className="flex gap-2 mb-8">
-        {[1, 2, 3, 4].map((s) => (
-          <div
-            key={s}
-            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-              s <= step ? "bg-ink" : "bg-ink/10"
-            }`}
-          />
+      {/* ── Step progress ── */}
+      <div className="flex items-center justify-center gap-0 mb-8">
+        {STEP_LABELS.map((label, i) => (
+          <div key={label} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all duration-300",
+                  i + 1 < step
+                    ? "bg-emerald-500 text-white"
+                    : i + 1 === step
+                    ? "bg-stone-800 text-white ring-[3px] ring-amber-200/40"
+                    : "bg-stone-200 text-stone-400"
+                )}
+              >
+                {i + 1 < step ? <CheckCircle className="h-3.5 w-3.5" /> : i + 1}
+              </div>
+              <span className={cn(
+                "text-[10px] font-medium",
+                i + 1 <= step ? "text-stone-600" : "text-stone-400"
+              )}>
+                {label}
+              </span>
+            </div>
+            {i < STEP_LABELS.length - 1 && (
+              <div className={cn(
+                "mx-1.5 h-0.5 w-6 sm:w-8 rounded-full transition-colors",
+                i + 1 < step ? "bg-emerald-400" : "bg-stone-200"
+              )} />
+            )}
+          </div>
         ))}
       </div>
 
       {/* ── Step 1: Name ── */}
       {step === 1 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1.5">
-              What&apos;s your name?
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30" />
-                <input
-                  type="text"
-                  placeholder="First name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-                  autoFocus
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-              />
-            </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-stone-800">What&apos;s your name?</h2>
+          <div className="grid grid-cols-2 gap-3">
+            <FormInput
+              icon={User}
+              type="text"
+              placeholder="First name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              autoFocus
+            />
+            <FormInput
+              type="text"
+              placeholder="Last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </div>
         </div>
       )}
 
       {/* ── Step 2: Contact ── */}
       {step === 2 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1.5">
-              How should contractors reach you?
-            </label>
-            <div className="space-y-3">
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30" />
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-                  autoFocus
-                />
-              </div>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30" />
-                <input
-                  type="tel"
-                  placeholder="Phone number"
-                  value={phone}
-                  onChange={(e) => handlePhoneChange(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-                />
-              </div>
-            </div>
-          </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-stone-800">How should contractors reach you?</h2>
+          <FormInput
+            icon={Mail}
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoFocus
+          />
+          <FormInput
+            icon={Phone}
+            type="tel"
+            placeholder="Phone number"
+            value={phone}
+            onChange={(e) => handlePhoneChange(e.target.value)}
+          />
         </div>
       )}
 
-      {/* ── Step 3: Address / ZIP ── */}
+      {/* ── Step 3: Location ── */}
       {step === 3 && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1.5">
-              Where is the project?
-            </label>
-            <div className="space-y-3">
-              <div className="relative">
-                <Home className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30" />
-                <input
-                  type="text"
-                  placeholder="Street address (optional)"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-                  autoFocus
-                />
-              </div>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/30" />
-                <input
-                  type="text"
-                  placeholder="ZIP code"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition"
-                />
-              </div>
-            </div>
-          </div>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-stone-800">Where is the project?</h2>
+          <FormInput
+            icon={Home}
+            type="text"
+            placeholder="Street address (optional)"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            autoFocus
+          />
+          <FormInput
+            icon={MapPin}
+            type="text"
+            inputMode="numeric"
+            placeholder="ZIP code"
+            value={zipCode}
+            onChange={(e) => setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
+          />
         </div>
       )}
 
       {/* ── Step 4: Timing & Priority ── */}
       {step === 4 && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+        <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-ink/70 mb-3">
-              When do you want to start?
-            </label>
-            <div className="grid gap-2">
+            <h2 className="text-lg font-semibold text-stone-800 mb-3">When do you want to start?</h2>
+            <div className="space-y-2">
               {TIMING_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setTiming(opt.value)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition ${
-                    timing === opt.value
-                      ? "border-ink bg-ink/5 text-ink font-medium"
-                      : "border-hairline bg-white text-ink/70 hover:border-ink/30"
-                  }`}
-                >
+                <SelectOption key={opt.value} selected={timing === opt.value} onClick={() => setTiming(opt.value)}>
                   <span className="text-lg">{opt.icon}</span>
-                  <span>{opt.label}</span>
-                  {timing === opt.value && (
-                    <CheckCircle2 className="w-4 h-4 ml-auto text-ink" />
-                  )}
-                </button>
+                  <span className={cn("text-sm", timing === opt.value ? "font-medium text-stone-800" : "text-stone-600")}>
+                    {opt.label}
+                  </span>
+                </SelectOption>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink/70 mb-3">
-              What matters most to you?
-            </label>
-            <div className="grid gap-2">
+            <h2 className="text-lg font-semibold text-stone-800 mb-3">What matters most?</h2>
+            <div className="space-y-2">
               {PRIORITY_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setPriority(opt.value)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition ${
-                    priority === opt.value
-                      ? "border-ink bg-ink/5 text-ink"
-                      : "border-hairline bg-white text-ink/70 hover:border-ink/30"
-                  }`}
-                >
-                  <div>
-                    <p className={`font-medium ${priority === opt.value ? "text-ink" : ""}`}>
+                <SelectOption key={opt.value} selected={priority === opt.value} onClick={() => setPriority(opt.value)}>
+                  <div className="flex-1">
+                    <p className={cn("text-sm", priority === opt.value ? "font-medium text-stone-800" : "text-stone-600")}>
                       {opt.label}
                     </p>
-                    <p className="text-xs text-ink/50">{opt.desc}</p>
+                    <p className="text-xs text-stone-400">{opt.desc}</p>
                   </div>
-                  {priority === opt.value && (
-                    <CheckCircle2 className="w-4 h-4 ml-auto text-ink shrink-0" />
-                  )}
-                </button>
+                </SelectOption>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1.5">
-              Anything else the contractor should know? <span className="text-ink/30">(optional)</span>
+            <label className="block text-sm font-medium text-stone-600 mb-1.5">
+              Anything else? <span className="text-stone-400">(optional)</span>
             </label>
             <textarea
               placeholder="e.g., I'd like to keep the existing layout but upgrade all fixtures..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border border-hairline bg-white text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-ink/20 focus:border-ink/30 transition resize-none"
+              className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all resize-none text-base"
             />
           </div>
         </div>
@@ -365,7 +373,7 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
 
       {/* ── Error ── */}
       {error && (
-        <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -374,26 +382,40 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
       <div className="mt-8 flex gap-3">
         {step > 1 && (
           <button
+            type="button"
             onClick={() => setStep(step - 1)}
-            className="px-6 py-3 rounded-xl border border-hairline text-ink/70 hover:bg-ink/5 transition font-medium"
+            className="flex items-center justify-center gap-1.5 px-5 py-3.5 rounded-xl border border-stone-200 text-stone-600 font-medium hover:bg-stone-50 transition-all active:scale-[0.98]"
           >
+            <ArrowLeft className="w-4 h-4" />
             Back
           </button>
         )}
         {step < 4 ? (
           <button
+            type="button"
             onClick={() => canAdvance() && setStep(step + 1)}
             disabled={!canAdvance()}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-ink text-white font-semibold hover:bg-ink/90 transition disabled:opacity-30 disabled:cursor-not-allowed"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 text-base",
+              canAdvance()
+                ? "bg-stone-800 text-white hover:bg-stone-900 active:scale-[0.98] shadow-lg shadow-stone-800/20"
+                : "bg-stone-200 text-stone-400 cursor-not-allowed"
+            )}
           >
             Continue
             <ArrowRight className="w-4 h-4" />
           </button>
         ) : (
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting || !canAdvance()}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-ink text-white font-semibold hover:bg-ink/90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-semibold transition-all duration-200 text-base",
+              submitting || !canAdvance()
+                ? "bg-stone-200 text-stone-400 cursor-not-allowed"
+                : "bg-stone-800 text-white hover:bg-stone-900 active:scale-[0.98] shadow-lg shadow-stone-800/20"
+            )}
           >
             {submitting ? (
               <>
@@ -411,15 +433,15 @@ export default function LeadCaptureForm({ projectId, zip, category, estimate }: 
       </div>
 
       {/* ── Trust signals ── */}
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-ink/40">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-stone-400">
         <span className="flex items-center gap-1">
-          <ShieldCheck className="w-3.5 h-3.5" /> Your info is never sold
+          <ShieldCheck className="w-3.5 h-3.5" /> Info never sold
         </span>
         <span className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" /> Contractors respond within 24 hrs
+          <Clock className="w-3.5 h-3.5" /> Response within 24 hrs
         </span>
         <span className="flex items-center gap-1">
-          <DollarSign className="w-3.5 h-3.5" /> 100% free, no obligation
+          <DollarSign className="w-3.5 h-3.5" /> 100% free
         </span>
       </div>
     </div>

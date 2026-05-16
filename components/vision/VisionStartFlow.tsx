@@ -5,19 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
   ArrowLeft,
+  ArrowRight,
+  Camera,
   CheckCircle,
+  ChevronRight,
   ImagePlus,
-  Info,
   Loader2,
-  ShieldCheck,
   Sparkles,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type StylePreference, type QualityTier } from '@/types';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Input from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { buildLoadingObservations, FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '@/lib/visionAnalysis';
@@ -49,14 +47,12 @@ function revokePreviewUrl(url: string | null) {
 async function readApiError(response: Response, fallback: string) {
   try {
     const contentType = response.headers.get('content-type') || '';
-
     if (contentType.includes('application/json')) {
       const data = await response.json() as { error?: string; message?: string };
       const message = data.error || data.message;
       if (message?.trim()) return message.trim();
       return fallback;
     }
-
     const text = (await response.text()).trim();
     return text.length > 0 ? text : fallback;
   } catch {
@@ -66,253 +62,114 @@ async function readApiError(response: Response, fallback: string) {
 
 function getFileRejectionMessage(rejections: FileRejection[]) {
   const firstError = rejections[0]?.errors[0];
-
-  if (!firstError) {
-    return `Please upload a supported image, ${SUPPORTED_IMAGE_LABEL}.`;
-  }
-
-  if (firstError.code === 'file-too-large') {
-    return 'That photo is too large. Please use an image under 10MB.';
-  }
-
-  if (firstError.code === 'file-invalid-type') {
-    return `That photo format is not supported yet. Please use ${SUPPORTED_IMAGE_LABEL}.`;
-  }
-
-  if (firstError.code === 'too-many-files') {
-    return 'Please upload just one photo.';
-  }
-
+  if (!firstError) return `Please upload a supported image, ${SUPPORTED_IMAGE_LABEL}.`;
+  if (firstError.code === 'file-too-large') return 'That photo is too large. Please use an image under 10MB.';
+  if (firstError.code === 'file-invalid-type') return `That photo format is not supported yet. Please use ${SUPPORTED_IMAGE_LABEL}.`;
+  if (firstError.code === 'too-many-files') return 'Please upload just one photo.';
   return firstError.message || `Please upload a supported image, ${SUPPORTED_IMAGE_LABEL}.`;
 }
 
+/* ── Scope questions per category ── */
 const SCOPE_QUESTIONS: Partial<Record<ProjectCategory, ScopeQuestion[]>> = {
   interior_paint: [
-    {
-      key: 'room_size',
-      label: 'Room size',
-      options: [
-        { value: 'small', label: 'Small', description: 'Small bedroom or office' },
-        { value: 'medium', label: 'Medium', description: 'Standard bedroom or dining room' },
-        { value: 'large', label: 'Large', description: 'Living room or open room' },
-      ],
-    },
-    {
-      key: 'paint_scope',
-      label: 'What are you painting?',
-      options: [
-        { value: 'walls_only', label: 'Walls only' },
-        { value: 'walls_and_ceiling', label: 'Walls + ceiling' },
-        { value: 'walls_ceiling_trim', label: 'Walls + ceiling + trim' },
-      ],
-    },
-    {
-      key: 'prep_level',
-      label: 'Prep needed',
-      options: [
-        { value: 'light', label: 'Light', description: 'Minor patching, clean walls' },
-        { value: 'medium', label: 'Medium', description: 'Some repairs and sanding' },
-        { value: 'heavy', label: 'Heavy', description: 'Significant repair or old damage' },
-      ],
-    },
-    {
-      key: 'window_coverage',
-      label: 'Window coverage',
-      options: [
-        { value: 'normal_windows', label: 'Normal windows' },
-        { value: 'many_windows', label: 'Many windows' },
-      ],
-    },
+    { key: 'room_size', label: 'Room size', options: [
+      { value: 'small', label: 'Small', description: 'Bedroom or office' },
+      { value: 'medium', label: 'Medium', description: 'Standard room' },
+      { value: 'large', label: 'Large', description: 'Living room or open plan' },
+    ]},
+    { key: 'paint_scope', label: 'What are you painting?', options: [
+      { value: 'walls_only', label: 'Walls only' },
+      { value: 'walls_and_ceiling', label: 'Walls + ceiling' },
+      { value: 'walls_ceiling_trim', label: 'Walls + ceiling + trim' },
+    ]},
+    { key: 'prep_level', label: 'Prep needed', options: [
+      { value: 'light', label: 'Light', description: 'Minor patching' },
+      { value: 'medium', label: 'Medium', description: 'Some repairs' },
+      { value: 'heavy', label: 'Heavy', description: 'Significant repair' },
+    ]},
+    { key: 'window_coverage', label: 'Window coverage', options: [
+      { value: 'normal_windows', label: 'Normal windows' },
+      { value: 'many_windows', label: 'Many windows' },
+    ]},
   ],
   flooring: [
-    {
-      key: 'room_size',
-      label: 'Room size',
-      options: [
-        { value: 'small', label: 'Small' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'large', label: 'Large' },
-      ],
-    },
-    {
-      key: 'material_type',
-      label: 'Material',
-      options: [
-        { value: 'lvp', label: 'LVP' },
-        { value: 'laminate', label: 'Laminate' },
-        { value: 'engineered_hardwood', label: 'Engineered hardwood' },
-        { value: 'tile', label: 'Tile' },
-      ],
-    },
-    {
-      key: 'demo_required',
-      label: 'Remove existing flooring?',
-      options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' },
-      ],
-    },
+    { key: 'room_size', label: 'Room size', options: [
+      { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
+    ]},
+    { key: 'material_type', label: 'Material', options: [
+      { value: 'lvp', label: 'LVP' }, { value: 'laminate', label: 'Laminate' },
+      { value: 'engineered_hardwood', label: 'Engineered hardwood' }, { value: 'tile', label: 'Tile' },
+    ]},
+    { key: 'demo_required', label: 'Remove existing flooring?', options: [
+      { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
+    ]},
   ],
   bathroom: [
-    {
-      key: 'scope_level',
-      label: 'Project scope',
-      options: [
-        { value: 'cosmetic', label: 'Cosmetic' },
-        { value: 'mid_refresh', label: 'Mid refresh' },
-        { value: 'full_remodel', label: 'Full remodel' },
-      ],
-    },
-    {
-      key: 'bathroom_size',
-      label: 'Bathroom size',
-      options: [
-        { value: 'small', label: 'Small' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'large', label: 'Large' },
-      ],
-    },
+    { key: 'scope_level', label: 'Project scope', options: [
+      { value: 'cosmetic', label: 'Cosmetic' }, { value: 'mid_refresh', label: 'Mid refresh' }, { value: 'full_remodel', label: 'Full remodel' },
+    ]},
+    { key: 'bathroom_size', label: 'Bathroom size', options: [
+      { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
+    ]},
   ],
   kitchen: [
-    {
-      key: 'scope_level',
-      label: 'Project scope',
-      options: [
-        { value: 'cosmetic', label: 'Cosmetic' },
-        { value: 'mid_refresh', label: 'Mid refresh' },
-        { value: 'full_remodel', label: 'Full remodel' },
-      ],
-    },
-    {
-      key: 'kitchen_size',
-      label: 'Kitchen size',
-      options: [
-        { value: 'small', label: 'Small' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'large', label: 'Large' },
-      ],
-    },
+    { key: 'scope_level', label: 'Project scope', options: [
+      { value: 'cosmetic', label: 'Cosmetic' }, { value: 'mid_refresh', label: 'Mid refresh' }, { value: 'full_remodel', label: 'Full remodel' },
+    ]},
+    { key: 'kitchen_size', label: 'Kitchen size', options: [
+      { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
+    ]},
   ],
   deck_patio: [
-    {
-      key: 'deck_size',
-      label: 'Deck or patio size',
-      options: [
-        { value: 'small', label: 'Small' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'large', label: 'Large' },
-      ],
-    },
-    {
-      key: 'material_type',
-      label: 'Material',
-      options: [
-        { value: 'pressure_treated', label: 'Pressure treated' },
-        { value: 'composite', label: 'Composite' },
-        { value: 'cedar_redwood', label: 'Cedar / Redwood' },
-      ],
-    },
-    {
-      key: 'railing',
-      label: 'Include railing?',
-      options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' },
-      ],
-    },
+    { key: 'deck_size', label: 'Deck or patio size', options: [
+      { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
+    ]},
+    { key: 'material_type', label: 'Material', options: [
+      { value: 'pressure_treated', label: 'Pressure treated' }, { value: 'composite', label: 'Composite' }, { value: 'cedar_redwood', label: 'Cedar / Redwood' },
+    ]},
+    { key: 'railing', label: 'Include railing?', options: [
+      { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
+    ]},
   ],
   landscaping: [
-    {
-      key: 'yard_size',
-      label: 'Area size',
-      helper: 'Choose the part of the yard you actually want priced, not the whole lot unless that is the plan.',
-      options: [
-        { value: 'small', label: 'Small', description: 'Single bed refresh or a compact front area' },
-        { value: 'medium', label: 'Medium', description: 'Most front-yard landscaping projects' },
-        { value: 'large', label: 'Large', description: 'Large frontage or multi-zone yard work' },
-      ],
-    },
-    {
-      key: 'landscape_scope',
-      label: 'What kind of landscape work?',
-      options: [
-        { value: 'refresh_beds', label: 'Planting bed refresh', description: 'Mostly beds, shrubs, cleanup, mulch, edging' },
-        { value: 'lawn_and_beds', label: 'Lawn + beds', description: 'Grass plus beds and broader curb appeal work' },
-        { value: 'full_yard', label: 'Full landscape makeover', description: 'Bigger redesign across most visible yard areas' },
-      ],
-    },
-    {
-      key: 'hardscape_scope',
-      label: 'What about hardscape?',
-      helper: 'This helps naili avoid planting over driveways or assuming new paving when that is not part of the job.',
-      options: [
-        { value: 'preserve_existing', label: 'Preserve existing hardscape', description: 'Keep driveway, walks, and existing paved areas as-is' },
-        { value: 'light_updates', label: 'Light hardscape updates', description: 'Minor edging, borders, or small path touches only' },
-        { value: 'new_hardscape', label: 'New hardscape included', description: 'Adding or reworking paths, patio, pavers, or similar' },
-      ],
-    },
-    {
-      key: 'irrigation_lighting',
-      label: 'Include irrigation or lighting?',
-      options: [
-        { value: 'none', label: 'No, plants only' },
-        { value: 'irrigation', label: 'Irrigation only' },
-        { value: 'irrigation_and_lighting', label: 'Irrigation + lighting' },
-      ],
-    },
+    { key: 'yard_size', label: 'Area size', helper: 'Choose the part of the yard you want priced.', options: [
+      { value: 'small', label: 'Small', description: 'Single bed or compact area' },
+      { value: 'medium', label: 'Medium', description: 'Most front-yard projects' },
+      { value: 'large', label: 'Large', description: 'Large frontage or multi-zone' },
+    ]},
+    { key: 'landscape_scope', label: 'What kind of landscape work?', options: [
+      { value: 'refresh_beds', label: 'Planting bed refresh', description: 'Beds, shrubs, mulch, edging' },
+      { value: 'lawn_and_beds', label: 'Lawn + beds', description: 'Grass plus beds and curb appeal' },
+      { value: 'full_yard', label: 'Full landscape makeover', description: 'Bigger redesign across yard' },
+    ]},
+    { key: 'hardscape_scope', label: 'What about hardscape?', options: [
+      { value: 'preserve_existing', label: 'Preserve existing', description: 'Keep current hardscape as-is' },
+      { value: 'light_updates', label: 'Light updates', description: 'Minor edging or borders' },
+      { value: 'new_hardscape', label: 'New hardscape', description: 'Adding paths, patio, or pavers' },
+    ]},
+    { key: 'irrigation_lighting', label: 'Include irrigation or lighting?', options: [
+      { value: 'none', label: 'No, plants only' },
+      { value: 'irrigation', label: 'Irrigation only' },
+      { value: 'irrigation_and_lighting', label: 'Irrigation + lighting' },
+    ]},
   ],
   roofing: [
-    {
-      key: 'roof_size',
-      label: 'Roof size',
-      options: [
-        { value: 'small', label: 'Small' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'large', label: 'Large' },
-      ],
-    },
-    {
-      key: 'material_type',
-      label: 'Material',
-      options: [
-        { value: 'asphalt', label: 'Asphalt' },
-        { value: 'architectural_shingle', label: 'Architectural shingle' },
-        { value: 'metal', label: 'Metal' },
-      ],
-    },
-    {
-      key: 'tear_off',
-      label: 'Tear-off required?',
-      options: [
-        { value: 'yes', label: 'Yes' },
-        { value: 'no', label: 'No' },
-      ],
-    },
+    { key: 'roof_size', label: 'Roof size', options: [
+      { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
+    ]},
+    { key: 'material_type', label: 'Material', options: [
+      { value: 'asphalt', label: 'Asphalt' }, { value: 'architectural_shingle', label: 'Architectural shingle' }, { value: 'metal', label: 'Metal' },
+    ]},
+    { key: 'tear_off', label: 'Tear-off required?', options: [
+      { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
+    ]},
   ],
 };
 
 const QUALITY_TIERS = [
-  {
-    value: 'budget' as QualityTier,
-    label: 'Budget',
-    emoji: '💰',
-    desc: 'Cost-conscious materials and simpler finishes, good for rentals, resale prep, or quick cleanups.',
-    modifier: 'Typically 0.6–0.8x average',
-  },
-  {
-    value: 'mid' as QualityTier,
-    label: 'Mid-range',
-    emoji: '⭐',
-    desc: 'The safest default for most homeowners, balancing durability, looks, and resale value.',
-    modifier: 'Typically around average market pricing',
-  },
-  {
-    value: 'premium' as QualityTier,
-    label: 'Premium',
-    emoji: '💎',
-    desc: 'Higher-end finishes, more custom detailing, and upgraded materials where aesthetics matter more.',
-    modifier: 'Typically 1.4–1.8x average',
-  },
+  { value: 'budget' as QualityTier, label: 'Budget', emoji: '💰', desc: 'Cost-conscious materials and simpler finishes.', modifier: '0.6–0.8x average' },
+  { value: 'mid' as QualityTier, label: 'Mid-range', emoji: '⭐', desc: 'Balanced durability, looks, and resale value.', modifier: 'Around average' },
+  { value: 'premium' as QualityTier, label: 'Premium', emoji: '💎', desc: 'Higher-end finishes and upgraded materials.', modifier: '1.4–1.8x average' },
 ];
 
 const PROGRESS_STEPS = [
@@ -323,13 +180,7 @@ const PROGRESS_STEPS = [
   'Finalizing your plan...',
 ];
 
-const PHOTO_TIPS = [
-  'Use one straight-on photo with good lighting',
-  'Include as much of the space as you can in frame',
-  'Avoid heavy filters, screenshots, or blurry images',
-];
-
-const STEP_DISPLAY_LABELS: Record<Step, string> = {
+const STEP_LABELS: Record<Step, string> = {
   entry: 'Photo',
   category: 'Project',
   scope: 'Scope',
@@ -348,6 +199,141 @@ type VisionStartPrefill = {
   image?: string;
 };
 
+/* ═══════════════════════════════════════════════════════════════════
+   Step Progress Bar — clean numbered circles like GrowGardens
+   ═══════════════════════════════════════════════════════════════════ */
+function StepProgress({ steps, currentIndex }: { steps: Step[]; currentIndex: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0 py-4">
+      {steps.map((s, i) => (
+        <div key={s} className="flex items-center">
+          <div className="flex flex-col items-center gap-1.5">
+            <div
+              className={cn(
+                'flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-bold transition-all duration-300',
+                currentIndex > i
+                  ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/25'
+                  : currentIndex === i
+                  ? 'bg-stone-800 text-white shadow-lg shadow-stone-800/20 ring-[3px] ring-amber-200/40'
+                  : 'bg-stone-200 text-stone-400'
+              )}
+            >
+              {currentIndex > i ? <CheckCircle className="h-4 w-4" /> : i + 1}
+            </div>
+            <span className={cn(
+              'text-[10px] sm:text-xs font-medium transition-colors',
+              currentIndex >= i ? 'text-stone-700' : 'text-stone-400'
+            )}>
+              {STEP_LABELS[s]}
+            </span>
+          </div>
+          {i < steps.length - 1 && (
+            <div className={cn(
+              'mx-1 sm:mx-2 h-0.5 w-6 sm:w-10 rounded-full transition-colors duration-300',
+              currentIndex > i ? 'bg-emerald-400' : 'bg-stone-200'
+            )} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Selectable Option Card — mobile-friendly tap target
+   ═══════════════════════════════════════════════════════════════════ */
+function OptionCard({
+  selected,
+  onClick,
+  children,
+  className,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full text-left rounded-2xl border-2 p-4 transition-all duration-200 active:scale-[0.98]',
+        selected
+          ? 'border-stone-800 bg-stone-50 shadow-md ring-1 ring-stone-800/10'
+          : 'border-stone-200 bg-white hover:border-stone-300 hover:shadow-sm',
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Primary CTA Button — full-width, prominent, mobile-friendly
+   ═══════════════════════════════════════════════════════════════════ */
+function PrimaryCTA({
+  onClick,
+  disabled,
+  children,
+  loading,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+  loading?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={cn(
+        'w-full flex items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-semibold transition-all duration-200',
+        disabled
+          ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
+          : 'bg-stone-800 text-white hover:bg-stone-900 active:scale-[0.98] shadow-lg shadow-stone-800/20'
+      )}
+    >
+      {loading && <Loader2 className="h-5 w-5 animate-spin" />}
+      {children}
+      {!loading && !disabled && <ArrowRight className="h-4 w-4" />}
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Back Button — consistent across steps
+   ═══════════════════════════════════════════════════════════════════ */
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-700 transition-colors mb-4 active:scale-95"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Back
+    </button>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Step Header — title + subtitle for each step
+   ═══════════════════════════════════════════════════════════════════ */
+function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">{title}</h2>
+      <p className="mt-2 text-sm sm:text-base text-stone-500 leading-relaxed">{subtitle}</p>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════════ */
 export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: VisionStartPrefill }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>('entry');
@@ -366,34 +352,29 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
   const prefillProjectId = initialPrefill?.from?.trim() || '';
   const prefillStartedRef = useRef(false);
 
-  // Effect 1: Apply simple prefill values (zip, category, style, etc.) — runs once
+  // Effect 1: Apply simple prefill values — runs once
   useEffect(() => {
     const nextZip = initialPrefill?.zip?.trim();
     const nextCategory = initialPrefill?.category?.trim();
     const nextStyle = initialPrefill?.style?.trim();
     const nextQuality = initialPrefill?.quality?.trim();
     const nextNotes = initialPrefill?.notes?.trim();
-
     if (nextZip) setZipCode(nextZip);
     if (nextCategory && nextCategory in PROJECT_CATEGORIES) setCategory(nextCategory as ProjectCategory);
     if (nextStyle && nextStyle in STYLE_OPTIONS) setStyle(nextStyle as StylePreference);
-    if (nextQuality && QUALITY_TIERS.some((tier) => tier.value === nextQuality)) {
-      setQualityTier(nextQuality as QualityTier);
-    }
+    if (nextQuality && QUALITY_TIERS.some((tier) => tier.value === nextQuality)) setQualityTier(nextQuality as QualityTier);
     if (nextNotes) setNotes(nextNotes);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Effect 2: Fetch image from project ID — isolated to prevent cancelled-flag race condition
+  // Effect 2: Fetch image from project ID — isolated to prevent race condition
   useEffect(() => {
     if (!prefillProjectId || prefillStartedRef.current) return;
     const directImage = initialPrefill?.image?.trim();
-    if (directImage) return; // handled by Effect 3
-
+    if (directImage) return;
     prefillStartedRef.current = true;
     let cancelled = false;
     setPrefillStatus('loading');
-
     void fetch(`/api/projects/get?id=${encodeURIComponent(prefillProjectId)}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed to fetch project');
@@ -401,20 +382,16 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         const imageUrl = data.project?.image_url;
         if (!imageUrl) throw new Error('No image URL in project');
         if (cancelled) return;
-
-        // Now fetch the actual image to create a File object
         const imgRes = await fetch(imageUrl);
         if (!imgRes.ok) throw new Error(`Image fetch failed with ${imgRes.status}`);
         const blob = await imgRes.blob();
         const fileType = SUPPORTED_IMAGE_TYPES.includes(blob.type) ? blob.type : 'image/jpeg';
         const extension = fileType === 'image/jpeg' ? 'jpg' : fileType.split('/')[1] || 'jpg';
         const file = new File([blob], `naili-source.${extension}`, { type: fileType });
-
         if (cancelled) return;
         setUploadedFile(file);
         setUploadPreview(imageUrl);
         setPrefillStatus('loaded');
-        // Auto-advance past entry step since photo is already uploaded
         setStep('category');
       })
       .catch((err) => {
@@ -422,20 +399,17 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         if (cancelled) return;
         setPrefillStatus('error');
       });
-
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillProjectId]);
 
-  // Effect 3: Fetch direct image URL (when ?image= is in the URL)
+  // Effect 3: Fetch direct image URL
   useEffect(() => {
     const nextImage = initialPrefill?.image?.trim();
     if (!nextImage || prefillStartedRef.current) return;
-
     prefillStartedRef.current = true;
     let cancelled = false;
     setPrefillStatus('loading');
-
     void fetch(nextImage)
       .then(async (response) => {
         if (!response.ok) throw new Error(`Image fetch failed with ${response.status}`);
@@ -443,7 +417,6 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         const fileType = SUPPORTED_IMAGE_TYPES.includes(blob.type) ? blob.type : 'image/jpeg';
         const extension = fileType === 'image/jpeg' ? 'jpg' : fileType.split('/')[1] || 'jpg';
         const file = new File([blob], `naili-source.${extension}`, { type: fileType });
-
         if (cancelled) return;
         setUploadedFile(file);
         setUploadPreview(nextImage);
@@ -454,10 +427,7 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         if (cancelled) return;
         setPrefillStatus('error');
       });
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -468,34 +438,24 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         setError(`That photo format is not supported yet. Please use ${SUPPORTED_IMAGE_LABEL}.`);
         return;
       }
-
-      if (file.size > MAX_UPLOAD_BYTES) {
-        setError('That photo is too large. Please use an image under 10MB.');
-        return;
-      }
-
+      setError(null);
       revokePreviewUrl(uploadPreview);
       setUploadedFile(file);
-      const url = URL.createObjectURL(file);
-      setUploadPreview(url);
-      setError(null);
-      posthog.capture('naili_photo_uploaded', {
-        file_type: file.type,
-        file_size: file.size,
-      });
+      setUploadPreview(URL.createObjectURL(file));
+      if (prefillStatus === 'error') setPrefillStatus('dismissed');
     }
-  }, [uploadPreview]);
+  }, [uploadPreview, prefillStatus]);
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
     setError(getFileRejectionMessage(rejections));
   }, []);
 
-  const removeUpload = () => {
+  const removeUpload = useCallback(() => {
     revokePreviewUrl(uploadPreview);
     setUploadedFile(null);
     setUploadPreview(null);
-    setPrefillStatus((current) => (current === 'loading' ? current : 'dismissed'));
-  };
+    setError(null);
+  }, [uploadPreview]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -512,65 +472,31 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
   const currentVisibleStepIndex = visibleSteps.indexOf(step);
   const allScopeAnswered = scopeQuestions.every(question => Boolean(scopeAnswers[question.key]));
 
-  const handleEntryNext = () => {
-    if (!uploadedFile || !zipCode.trim()) return;
-    setError(null);
-    setStep('category');
-  };
-
-  const handleCategoryNext = () => {
-    if (!category) return;
-    setError(null);
-    setStep(hasScopeStep ? 'scope' : 'style');
-  };
-
-  const handleScopeNext = () => {
-    if (!allScopeAnswered) return;
-    setError(null);
-    setStep('style');
-  };
-
-  const handleStyleNext = () => {
-    if (!style) return;
-    setError(null);
-    setStep('quality');
-  };
-
-  const handleScopeSkip = () => {
-    setError(null);
-    setStep('style');
-  };
-
-  const updateScopeAnswer = (key: string, value: string) => {
-    setScopeAnswers(prev => ({ ...prev, [key]: value }));
-  };
+  const handleEntryNext = () => { if (!uploadedFile || !zipCode.trim()) return; setError(null); setStep('category'); };
+  const handleCategoryNext = () => { if (!category) return; setError(null); setStep(hasScopeStep ? 'scope' : 'style'); };
+  const handleScopeNext = () => { if (!allScopeAnswered) return; setError(null); setStep('style'); };
+  const handleStyleNext = () => { if (!style) return; setError(null); setStep('quality'); };
+  const handleScopeSkip = () => { setError(null); setStep('style'); };
+  const updateScopeAnswer = (key: string, value: string) => { setScopeAnswers(prev => ({ ...prev, [key]: value })); };
+  const isCustomProject = category === 'custom_project';
 
   const buildNotesWithScope = (rawNotes: string, answers: Record<string, string>) => {
     const entries = Object.entries(answers).filter(([, value]) => Boolean(value));
-
-    if (entries.length === 0) {
-      return rawNotes.length > 0 ? rawNotes : undefined;
-    }
-
+    if (entries.length === 0) return rawNotes.length > 0 ? rawNotes : undefined;
     const scopeLines = entries.map(([key, value]) => `- ${key.replace(/_/g, ' ')}: ${value.replace(/_/g, ' ')}`);
     const scopeBlock = `Scope answers:\n${scopeLines.join('\n')}`;
-
     return rawNotes.length > 0 ? `${rawNotes}\n\n${scopeBlock}` : scopeBlock;
   };
-
-  const isCustomProject = category === 'custom_project';
 
   const handleStart = async () => {
     if (!category || !style || !zipCode.trim() || !uploadedFile) {
       setError('Please upload a photo and complete the required steps.');
       return;
     }
-
     if (isCustomProject && !notes.trim()) {
       setError('Please describe the custom project before continuing.');
       return;
     }
-
     setStep('loading');
     setError(null);
     setAnalysisHighlights([]);
@@ -580,51 +506,25 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
 
     try {
       if (notesWithScope) {
-        posthog.capture('naili_prompt_entered', {
-          category,
-          has_scope_answers: Object.keys(scopeAnswers).length > 0,
-          is_custom_project: isCustomProject,
-        });
+        posthog.capture('naili_prompt_entered', { category, has_scope_answers: Object.keys(scopeAnswers).length > 0, is_custom_project: isCustomProject });
       }
-
-      posthog.capture('naili_generation_started', {
-        category,
-        style,
-        quality_tier: qualityTier,
-        has_scope_questions: hasScopeStep,
-        has_scope_answers: Object.keys(scopeAnswers).length > 0,
-        is_custom_project: isCustomProject,
-      });
-
+      posthog.capture('naili_generation_started', { category, style, quality_tier: qualityTier, has_scope_questions: hasScopeStep, has_scope_answers: Object.keys(scopeAnswers).length > 0, is_custom_project: isCustomProject });
       setProgressStep(0);
 
       let projectId: string;
       let referenceImageUrl: string;
 
-      // If we came from BulletproofUploadFlow with an existing project, reuse it
       if (prefillProjectId && prefillStatus === 'loaded') {
         projectId = prefillProjectId;
-
-        // Update the existing project with the user's selections
         await fetch('/api/projects/update', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            project_id: projectId,
-            project_category: category,
-            style_preference: style,
-            quality_tier: qualityTier,
-            notes: notesWithScope,
-          }),
+          body: JSON.stringify({ project_id: projectId, project_category: category, style_preference: style, quality_tier: qualityTier, notes: notesWithScope }),
         });
-
-        // Get the existing image URL from the project
         const projRes = await fetch(`/api/projects/get?id=${encodeURIComponent(projectId)}`);
         if (!projRes.ok) throw new Error('Could not load your project. Please try again.');
         const projData = await projRes.json();
         referenceImageUrl = projData.project?.image_url || '';
-
-        // If no image URL exists, re-upload
         if (!referenceImageUrl) {
           const formData = new FormData();
           formData.append('file', uploadedFile);
@@ -634,38 +534,21 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
           const uploadData = await uploadRes.json() as { url: string };
           referenceImageUrl = uploadData.url;
         }
-
         recoveryStep = 'entry';
       } else {
-        // Create a new project
         const projectRes = await fetch('/api/projects/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location_type: PROJECT_CATEGORIES[category].type,
-            project_category: category,
-            zip_code: zipCode.trim(),
-            style_preference: style,
-            quality_tier: qualityTier,
-            notes: notesWithScope,
-            session_id: sessionId,
-          }),
+          body: JSON.stringify({ location_type: PROJECT_CATEGORIES[category].type, project_category: category, zip_code: zipCode.trim(), style_preference: style, quality_tier: qualityTier, notes: notesWithScope, session_id: sessionId }),
         });
-
         if (!projectRes.ok) throw new Error(await readApiError(projectRes, 'We could not set up your project. Please try again.'));
         recoveryStep = 'entry';
         const { project } = await projectRes.json() as { project: { id: string } };
         projectId = project.id;
-
         const formData = new FormData();
         formData.append('file', uploadedFile);
         formData.append('project_id', projectId);
-
-        const uploadRes = await fetch('/api/projects/upload-image', {
-          method: 'POST',
-          body: formData,
-        });
-
+        const uploadRes = await fetch('/api/projects/upload-image', { method: 'POST', body: formData });
         if (!uploadRes.ok) throw new Error(await readApiError(uploadRes, `We could not upload that photo. Please use ${SUPPORTED_IMAGE_LABEL}.`));
         const uploadData = await uploadRes.json() as { url: string };
         referenceImageUrl = uploadData.url;
@@ -676,14 +559,8 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
         const analysisRes = await fetch('/api/vision/analyze-photo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image_url: referenceImageUrl,
-            category,
-            zip_code: zipCode.trim(),
-            notes: notesWithScope,
-          }),
+          body: JSON.stringify({ image_url: referenceImageUrl, category, zip_code: zipCode.trim(), notes: notesWithScope }),
         });
-
         if (analysisRes.ok) {
           const data = await analysisRes.json() as { analysis?: VisionAnalysis };
           analysis = data.analysis || FALLBACK_VISION_ANALYSIS;
@@ -694,549 +571,371 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
       }
 
       setProgressStep(1);
-
-      const inferredLocationType = category === 'custom_project' && analysis.suggested_location_type === 'exterior'
-        ? 'exterior'
-        : PROJECT_CATEGORIES[category].type;
+      const inferredLocationType = category === 'custom_project' && analysis.suggested_location_type === 'exterior' ? 'exterior' : PROJECT_CATEGORIES[category].type;
       const estimateRes = await fetch('/api/vision/estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          category,
-          location_type: inferredLocationType,
-          style,
-          quality_tier: qualityTier,
-          zip_code: zipCode.trim(),
-          notes: notesWithScope,
-          scope_answers: scopeAnswers,
-          analysis,
-        }),
+        body: JSON.stringify({ project_id: projectId, category, location_type: inferredLocationType, style, quality_tier: qualityTier, zip_code: zipCode.trim(), notes: notesWithScope, scope_answers: scopeAnswers, analysis }),
       });
-
       if (!estimateRes.ok) throw new Error(await readApiError(estimateRes, 'We could not build your estimate yet. Please try again.'));
-      const { estimate } = await estimateRes.json() as {
-        estimate?: { low_estimate?: number; mid_estimate?: number; high_estimate?: number };
-      };
+      const { estimate } = await estimateRes.json() as { estimate?: { low_estimate?: number; mid_estimate?: number; high_estimate?: number } };
 
       setProgressStep(2);
       const materialsPromise = fetch('/api/vision/materials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          category,
-          style,
-          quality_tier: qualityTier,
-          estimate_mid: estimate?.mid_estimate || 15000,
-          analysis,
-          notes: notesWithScope,
-        }),
+        body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, estimate_mid: estimate?.mid_estimate || 15000, analysis, notes: notesWithScope }),
       });
 
       setProgressStep(3);
       const briefPromise = fetch('/api/vision/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          category,
-          style,
-          quality_tier: qualityTier,
-          notes: notesWithScope,
-          estimate_low: estimate?.low_estimate || 10000,
-          estimate_high: estimate?.high_estimate || 20000,
-          analysis,
-        }),
+        body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notesWithScope, estimate_low: estimate?.low_estimate || 10000, estimate_high: estimate?.high_estimate || 20000, analysis }),
       });
 
-      // Fire concept generation in background — do NOT abort or block navigation.
-      // gpt-image-1 takes 30-60s; the results page will poll for completion.
-      fetch('/api/vision/generate-concepts', {
+      const conceptPromise = fetch('/api/vision/concept', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          category,
-          style,
-          quality_tier: qualityTier,
-          notes: notesWithScope,
-          reference_image_url: referenceImageUrl,
-          analysis,
-          count: 2,
-        }),
-      }).catch((conceptError) => {
-        console.error('Background concept generation failed:', conceptError);
+        body: JSON.stringify({ project_id: projectId, reference_image_url: referenceImageUrl, category, style, quality_tier: qualityTier, notes: notesWithScope, analysis }),
       });
 
-      const [materialsRes, briefRes] = await Promise.all([materialsPromise, briefPromise]);
-
-      if (!materialsRes.ok) throw new Error(await readApiError(materialsRes, 'We could not build your materials list yet. Please try again.'));
-
-      if (!briefRes.ok) throw new Error(await readApiError(briefRes, 'We could not build your contractor brief yet. Please try again.'));
-
+      await Promise.allSettled([materialsPromise, briefPromise, conceptPromise]);
       setProgressStep(4);
 
-      posthog.capture('naili_generation_completed', {
-        category,
-        style,
-        quality_tier: qualityTier,
-        project_id: projectId,
-      });
-
-      await new Promise(r => setTimeout(r, 700));
+      posthog.capture('naili_generation_complete', { project_id: projectId, category, style, quality_tier: qualityTier });
       router.push(`/vision/results/${projectId}`);
     } catch (err) {
-      console.error(err);
-      posthog.capture('naili_generation_failed', {
-        category,
-        style,
-        quality_tier: qualityTier,
-      });
-      setError(err instanceof Error && err.message
-        ? err.message
-        : 'We hit a snag generating your project. Your photo and choices are still here, so please try again.');
+      console.error('Vision flow error:', err);
+      posthog.capture('naili_generation_error', { error: err instanceof Error ? err.message : 'Unknown error', category, step: recoveryStep });
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
       setStep(recoveryStep);
     }
   };
 
+  /* ═══════════════════════════════════════════════════════════════
+     RENDER
+     ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6">
+    <div className="mx-auto max-w-2xl px-4 sm:px-6 pb-8">
+      {/* Step progress bar — always visible except during loading */}
       {step !== 'loading' && (
-        <div className="mb-8 overflow-hidden rounded-[2rem] border border-hairline bg-[linear-gradient(135deg,#fbf8f4_0%,#f6f3ee_52%,#f1ece5_100%)] p-5 shadow-lift sm:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-panel bg-canvas-50/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-600 shadow-soft">
-                <Sparkles className="h-3.5 w-3.5" />
-                naili vision
+        <StepProgress steps={visibleSteps} currentIndex={currentVisibleStepIndex} />
+      )}
+
+      {/* Error banner */}
+      {error && step !== 'loading' && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* ── STEP 1: PHOTO UPLOAD ── */}
+      {step === 'entry' && (
+        <div className="space-y-5">
+          <StepHeader
+            title="Upload a photo of your space"
+            subtitle="One photo is all it takes. We'll turn it into a complete renovation plan with costs and materials."
+          />
+
+          {/* Dropzone */}
+          <div
+            {...getRootProps()}
+            className={cn(
+              'relative overflow-hidden rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center cursor-pointer transition-all duration-200',
+              isDragActive
+                ? 'border-stone-400 bg-stone-100'
+                : uploadPreview
+                ? 'border-stone-300 bg-stone-50'
+                : 'border-stone-300 bg-white hover:border-stone-400 hover:bg-stone-50'
+            )}
+          >
+            <input {...getInputProps()} />
+            {uploadPreview ? (
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={uploadPreview}
+                  alt="Upload preview"
+                  className="mx-auto max-h-56 sm:max-h-72 w-full object-cover rounded-xl mb-4"
+                />
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  >
+                    <ImagePlus className="h-4 w-4" />
+                    Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeUpload(); }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                </div>
               </div>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-ink sm:text-4xl">Start your project from a real photo</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-600 sm:text-base">
-                naili reads the actual photo with your request first, then turns that analysis into a cost range, materials plan, contractor brief, and a fast first concept.
-              </p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:min-w-[360px]">
-              <div className="rounded-2xl border border-panel bg-canvas-50/90 px-4 py-3 text-sm text-ink-600 shadow-soft">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500">Estimate</div>
-                <div className="mt-1 font-semibold text-ink">ZIP-adjusted pricing</div>
+            ) : prefillStatus === 'loading' ? (
+              <div className="py-8">
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-stone-400 mb-3" />
+                <p className="text-sm font-medium text-stone-500">Loading your photo...</p>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-panel bg-canvas-50/90 px-4 py-3 text-sm text-ink-600 shadow-soft">
-                <ShieldCheck className="h-4 w-4 text-ink" />
-                Private by default
+            ) : (
+              <div className="py-4">
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100">
+                  <Camera className="h-7 w-7 text-stone-400" />
+                </div>
+                <p className="text-base font-semibold text-stone-700">Tap to upload a photo</p>
+                <p className="text-sm text-stone-400 mt-1">or drag and drop</p>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-2 overflow-x-auto pb-1">
-            {visibleSteps.map((s, i) => (
-              <div key={s} className="flex items-center gap-2 min-w-fit">
-                <div className="flex min-w-[72px] flex-col items-center gap-2">
-                  <div
-                    className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors',
-                      currentVisibleStepIndex > i
-                        ? 'bg-ink text-canvas-50'
-                        : currentVisibleStepIndex === i
-                        ? 'bg-ink text-canvas-50 ring-4 ring-[rgba(216,185,138,0.18)]'
-                        : 'bg-canvas-200 text-ink-500'
-                    )}
-                  >
-                    {currentVisibleStepIndex > i ? <CheckCircle className="h-4 w-4" /> : i + 1}
-                  </div>
-                  <div className={cn('text-xs font-semibold', currentVisibleStepIndex >= i ? 'text-ink' : 'text-ink-400')}>
-                    {STEP_DISPLAY_LABELS[s]}
-                  </div>
-                </div>
-                {i < visibleSteps.length - 1 && (
-                  <div className={cn('h-0.5 w-8 sm:w-12', currentVisibleStepIndex > i ? 'bg-sand-dark' : 'bg-canvas-300')} />
-                )}
+          {/* ZIP code */}
+          <div>
+            <label htmlFor="zip-input" className="block text-sm font-medium text-stone-700 mb-1.5">
+              ZIP code <span className="text-stone-400">(for local pricing)</span>
+            </label>
+            <input
+              id="zip-input"
+              type="text"
+              inputMode="numeric"
+              placeholder="e.g. 78701"
+              value={zipCode}
+              onChange={e => setZipCode(e.target.value)}
+              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all"
+            />
+          </div>
+
+          {prefillStatus === 'error' && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+              Could not load the saved photo. Please upload a new one.
+            </div>
+          )}
+
+          <PrimaryCTA onClick={handleEntryNext} disabled={!uploadedFile || !zipCode.trim()}>
+            Continue
+          </PrimaryCTA>
+
+          {/* Tips */}
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            {[
+              { icon: '📱', label: 'Front-on shot', desc: 'Capture the full area' },
+              { icon: '☀️', label: 'Good lighting', desc: 'Natural daylight is best' },
+              { icon: '🎯', label: 'One area', desc: 'Focus on one section' },
+            ].map((tip) => (
+              <div key={tip.label} className="text-center">
+                <div className="text-xl mb-1">{tip.icon}</div>
+                <div className="text-xs font-semibold text-stone-600">{tip.label}</div>
+                <div className="text-[10px] text-stone-400 mt-0.5">{tip.desc}</div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {step === 'entry' && (
-        <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-          <Card className="bg-[linear-gradient(180deg,#fbf8f4_0%,#f6f3ee_100%)] p-5 sm:p-6">
-            <div className="mb-5">
-              <div className="inline-flex items-center gap-2 rounded-full bg-canvas-200 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-600">01 Upload your photo</div>
-              <h2 className="mb-2 mt-3 text-2xl font-bold text-ink">Show naili your space</h2>
-              <p className="text-ink-600">One clear photo is enough to start. Add your ZIP code so the estimate uses local pricing, not a generic national average.</p>
-            </div>
-
-            <div
-              {...getRootProps()}
-              className={cn(
-                'border-2 border-dashed rounded-3xl p-5 sm:p-7 text-center cursor-pointer transition-colors',
-                isDragActive ? 'border-sand-dark bg-canvas-200' : 'border-panel hover:border-sand hover:bg-canvas-50'
-              )}
-            >
-              <input {...getInputProps()} />
-              {uploadPreview ? (
-                <div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={uploadPreview} alt="Upload preview" className="max-h-72 w-full object-cover mx-auto rounded-2xl mb-4" />
-                  <div className="flex flex-col gap-3 rounded-2xl bg-canvas-200/70 px-4 py-3 text-left sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-ink">{uploadedFile?.name}</p>
-                      <p className="text-xs text-ink-500">You can replace this photo if you want a better angle.</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-xl border border-panel bg-canvas-50 px-3 py-2 text-sm font-medium text-ink-600 hover:bg-canvas-200"
-                      >
-                        <ImagePlus className="h-4 w-4" />
-                        Replace
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeUpload();
-                        }}
-                        className="inline-flex items-center gap-2 rounded-xl border border-panel bg-canvas-50 px-3 py-2 text-sm font-medium text-ink-600 hover:bg-canvas-200"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200 text-sand-dark">
-                    <Upload className="h-8 w-8" />
-                  </div>
-                  <p className="text-ink font-semibold text-lg">Drag and drop a photo, or click to browse</p>
-                  <p className="text-sm text-ink-500 mt-2">JPG, PNG, or WEBP. A clean, well-lit image gives the best planning output.</p>
-                </>
-              )}
-            </div>
-
-            <div className="mt-5">
-              <Input
-                label="ZIP code"
-                placeholder="10001"
-                value={zipCode}
-                onChange={e => setZipCode(e.target.value)}
-                required
-              />
-              <p className="mt-2 text-xs text-ink-500">
-                Used for regional pricing and labor assumptions, not for contractor outreach.
-              </p>
-            </div>
-
-            {prefillStatus === 'loading' && (
-              <div className="mt-4 rounded-2xl border border-panel bg-canvas-50 p-4 text-sm text-ink">
-                <div className="font-semibold">Loading your photo...</div>
-              </div>
-            )}
-            {prefillStatus === 'error' && (
-              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50/80 p-4 text-sm text-red-700">
-                <div className="font-semibold">Could not load the saved photo. Please re-upload below.</div>
-              </div>
-            )}
-
-            {error && <div className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm">{error}</div>}
-
-            <Button className="w-full mt-6" size="lg" onClick={handleEntryNext} disabled={!uploadedFile || !zipCode.trim()}>
-              Use this photo
-            </Button>
-          </Card>
-
-          <div className="space-y-4">
-            <Card className="bg-[linear-gradient(135deg,#f1ece5_0%,#fbf8f4_58%,#f6f3ee_100%)] p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-600">What the first pass gives you</p>
-                  <h3 className="mt-2 text-2xl font-bold text-ink">Photo-grounded planning, not a canned quote.</h3>
-                  <p className="mt-2 text-sm text-ink-600">Naili uses your actual photo, project type, finish level, and ZIP code to build the first working plan before any contractor visit.</p>
-                </div>
-                <div className="rounded-2xl bg-canvas-50 px-3 py-2 text-xs font-semibold text-ink-600 shadow-soft">Real inputs only</div>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                <div className="rounded-2xl bg-canvas-50 px-3 py-3 shadow-soft">
-                  <div className="text-ink-400">Estimate</div>
-                  <div className="mt-1 font-semibold text-ink">Range + assumptions</div>
-                </div>
-                <div className="rounded-2xl bg-canvas-50 px-3 py-3 shadow-soft">
-                  <div className="text-ink-400">Materials</div>
-                  <div className="mt-1 font-semibold text-ink">Allowances list</div>
-                </div>
-                <div className="rounded-2xl bg-canvas-50 px-3 py-3 shadow-soft">
-                  <div className="text-ink-400">Brief</div>
-                  <div className="mt-1 font-semibold text-ink">Contractor handoff</div>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-5 sm:p-6">
-              <div className="mb-3 flex items-center gap-2 font-semibold text-ink">
-                <Info className="h-4 w-4 text-sand-dark" />
-                Best photo tips
-              </div>
-              <ul className="space-y-3 text-sm text-ink-600">
-                {PHOTO_TIPS.map((tip) => (
-                  <li key={tip} className="flex items-start gap-2">
-                    <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-mint" />
-                    <span>{tip}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-
-            <Card className="bg-graphite-700 p-5 text-white shadow-[0_18px_48px_rgba(15,23,42,0.18)] sm:p-6">
-              <div className="mb-3 flex items-center gap-2 font-semibold">
-                <Sparkles className="h-4 w-4 text-sand-light" />
-                What you&apos;ll get first
-              </div>
-              <ul className="space-y-2 text-sm text-ink-400">
-                <li>Rough budget range</li>
-                <li>Materials list and allowances</li>
-                <li>Contractor-ready brief</li>
-                <li>Extra concepts can keep loading after results open</li>
-              </ul>
-            </Card>
-          </div>
-        </div>
-      )}
-
+      {/* ── STEP 2: CATEGORY ── */}
       {step === 'category' && (
         <div>
-          <button onClick={() => setStep('entry')} className="flex items-center gap-1 text-ink-500 hover:text-ink-600 mb-6 text-sm">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-ink mb-2">What are you planning?</h2>
-            <p className="text-ink-600">Choose the closest project type. If your situation is unusual, the custom project option still works well.</p>
-          </div>
+          <BackButton onClick={() => setStep('entry')} />
+          <StepHeader
+            title="What are you planning?"
+            subtitle="Choose the closest project type. Custom works great for unusual projects."
+          />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             {(Object.entries(PROJECT_CATEGORIES) as [ProjectCategory, typeof PROJECT_CATEGORIES[ProjectCategory]][]).map(([key, cat]) => (
-              <Card
-                key={key}
-                hover
-                selected={category === key}
-                onClick={() => {
-                  setCategory(key);
-                  setScopeAnswers({});
-                  if (key !== 'custom_project' && !notes.trim()) {
-                    setNotes('');
-                  }
-                }}
-                className="text-left cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg sm:p-5"
-              >
-                <div className="text-3xl mb-3">{cat.emoji}</div>
-                <div className="font-semibold text-ink text-sm sm:text-base">{cat.label}</div>
-                <div className="text-xs sm:text-sm text-ink-500 mt-1 leading-relaxed">{cat.description}</div>
-              </Card>
+              <OptionCard key={key} selected={category === key} onClick={() => { setCategory(key); setScopeAnswers({}); }}>
+                <div className="text-2xl mb-2">{cat.emoji}</div>
+                <div className="font-semibold text-stone-800 text-sm">{cat.label}</div>
+                <div className="text-xs text-stone-500 mt-0.5 leading-relaxed line-clamp-2">{cat.description}</div>
+              </OptionCard>
             ))}
           </div>
 
-          <Button className="w-full" size="lg" onClick={handleCategoryNext} disabled={!category}>
+          <PrimaryCTA onClick={handleCategoryNext} disabled={!category}>
             Continue
-          </Button>
+          </PrimaryCTA>
         </div>
       )}
 
+      {/* ── STEP 3: SCOPE (optional) ── */}
       {step === 'scope' && category && (
         <div>
-          <button onClick={() => setStep('category')} className="flex items-center gap-1 text-ink-500 hover:text-ink-600 mb-6 text-sm">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-ink mb-2">A few quick scope details</h2>
-            <p className="text-ink-600">These answers help tighten the estimate faster, but you can skip them and let naili lean more heavily on the photo and your notes.</p>
-          </div>
+          <BackButton onClick={() => setStep('category')} />
+          <StepHeader
+            title="A few quick details"
+            subtitle="These help tighten the estimate. You can skip if you prefer."
+          />
 
-          <div className="space-y-6 mb-8">
+          <div className="space-y-6 mb-6">
             {scopeQuestions.map((question) => (
               <div key={question.key}>
-                <div className="mb-3">
-                  <h3 className="text-lg font-semibold text-ink">{question.label}</h3>
-                  {question.helper && <p className="text-sm text-ink-500 mt-1">{question.helper}</p>}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <h3 className="text-base font-semibold text-stone-800 mb-1">{question.label}</h3>
+                {question.helper && <p className="text-xs text-stone-500 mb-2">{question.helper}</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {question.options.map((option) => (
-                    <Card
+                    <OptionCard
                       key={option.value}
-                      hover
                       selected={scopeAnswers[question.key] === option.value}
                       onClick={() => updateScopeAnswer(question.key, option.value)}
-                      className="cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                      className="!p-3"
                     >
-                      <div className="font-semibold text-ink">{option.label}</div>
-                      {option.description && <div className="text-xs text-ink-500 mt-1">{option.description}</div>}
-                    </Card>
+                      <div className="font-medium text-stone-700 text-sm">{option.label}</div>
+                      {option.description && <div className="text-xs text-stone-400 mt-0.5">{option.description}</div>}
+                    </OptionCard>
                   ))}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button className="w-full" size="lg" onClick={handleScopeNext} disabled={!allScopeAnswered}>
+          <div className="space-y-3">
+            <PrimaryCTA onClick={handleScopeNext} disabled={!allScopeAnswered}>
               Continue
-            </Button>
-            <Button className="w-full sm:w-auto" size="lg" variant="secondary" onClick={handleScopeSkip}>
+            </PrimaryCTA>
+            <button
+              type="button"
+              onClick={handleScopeSkip}
+              className="w-full rounded-2xl border border-stone-200 bg-white px-6 py-3.5 text-sm font-medium text-stone-500 hover:bg-stone-50 transition-all active:scale-[0.98]"
+            >
               Skip for now
-            </Button>
+            </button>
           </div>
         </div>
       )}
 
+      {/* ── STEP 4: STYLE ── */}
       {step === 'style' && (
         <div>
-          <button onClick={() => setStep(hasScopeStep ? 'scope' : 'category')} className="flex items-center gap-1 text-ink-500 hover:text-ink-600 mb-6 text-sm">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-ink mb-2">Pick the overall style direction</h2>
-            <p className="text-ink-600">This mostly shapes the brief and concept direction. You can still use the planning outputs even if your style evolves later.</p>
-          </div>
+          <BackButton onClick={() => setStep(hasScopeStep ? 'scope' : 'category')} />
+          <StepHeader
+            title="Pick a style direction"
+            subtitle="This shapes the concept and brief. You can evolve it later."
+          />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             {(Object.entries(STYLE_OPTIONS) as [StylePreference, typeof STYLE_OPTIONS[StylePreference]][]).map(([key, opt]) => (
-              <Card
-                key={key}
-                hover
-                selected={style === key}
-                onClick={() => setStyle(key)}
-                className="cursor-pointer p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <div className="w-8 h-8 rounded-full mb-3 ring-4 ring-white shadow-sm" style={{ background: opt.color }} />
-                <div className="font-semibold text-ink">{opt.label}</div>
-                <div className="text-xs sm:text-sm text-ink-500 mt-1 leading-relaxed">{opt.description}</div>
-              </Card>
+              <OptionCard key={key} selected={style === key} onClick={() => setStyle(key)}>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full ring-2 ring-white shadow-sm flex-shrink-0" style={{ background: opt.color }} />
+                  <div>
+                    <div className="font-semibold text-stone-800 text-sm">{opt.label}</div>
+                    <div className="text-xs text-stone-500 mt-0.5 leading-relaxed">{opt.description}</div>
+                  </div>
+                </div>
+              </OptionCard>
             ))}
           </div>
 
-          <Button className="w-full" size="lg" onClick={handleStyleNext} disabled={!style}>
+          <PrimaryCTA onClick={handleStyleNext} disabled={!style}>
             Continue
-          </Button>
+          </PrimaryCTA>
         </div>
       )}
 
+      {/* ── STEP 5: QUALITY / FINISH ── */}
       {step === 'quality' && (
         <div>
-          <button onClick={() => setStep('style')} className="flex items-center gap-1 text-ink-500 hover:text-ink-600 mb-6 text-sm">
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
-          <div className="mb-6">
-            <h2 className="text-3xl font-bold text-ink mb-2">Set the finish level</h2>
-            <p className="text-ink-600">Choose the tier that feels closest to what you would actually buy, not the dream version unless that is truly the plan.</p>
-          </div>
+          <BackButton onClick={() => setStep('style')} />
+          <StepHeader
+            title="Set the finish level"
+            subtitle="Choose what you'd actually buy, not the dream version (unless that's the plan)."
+          />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="space-y-3 mb-6">
             {QUALITY_TIERS.map((tier) => (
-              <Card
-                key={tier.value}
-                hover
-                selected={qualityTier === tier.value}
-                onClick={() => setQualityTier(tier.value)}
-                className="cursor-pointer border-hairline p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
-              >
-                <div className="text-2xl mb-2">{tier.emoji}</div>
-                <div className="font-bold text-ink text-lg mb-1">{tier.label}</div>
-                <div className="text-sm text-ink-600 mb-4 leading-relaxed">{tier.desc}</div>
-                <div className="inline-block rounded-lg bg-canvas-200 px-2.5 py-1.5 text-xs font-medium text-ink-600">{tier.modifier}</div>
-              </Card>
+              <OptionCard key={tier.value} selected={qualityTier === tier.value} onClick={() => setQualityTier(tier.value)}>
+                <div className="flex items-start gap-3">
+                  <div className="text-2xl flex-shrink-0">{tier.emoji}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-stone-800">{tier.label}</div>
+                      <div className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{tier.modifier}</div>
+                    </div>
+                    <div className="text-sm text-stone-500 mt-0.5">{tier.desc}</div>
+                  </div>
+                </div>
+              </OptionCard>
             ))}
           </div>
 
-          <Card className="mb-6 p-5 sm:p-6">
-            <label className="block text-sm font-medium text-ink-600 mb-2">
-              {isCustomProject ? 'Describe what you want to change' : 'Anything specific we should account for?'}{' '}
-              {!isCustomProject && <span className="text-ink-400">(optional)</span>}
+          {/* Notes */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">
+              {isCustomProject ? 'Describe what you want to change' : 'Anything specific?'}{' '}
+              {!isCustomProject && <span className="text-stone-400">(optional)</span>}
             </label>
-            <p className="text-sm text-ink-500 mb-3">
-              {isCustomProject
-                ? 'Tell naili what you want updated, repaired, redesigned, or added. Specific notes help both the estimate and contractor brief.'
-                : 'Useful details include pets, existing damage, finish preferences, materials you want to avoid, or anything a contractor should notice fast.'}
-            </p>
             <textarea
-              className="w-full resize-none rounded-2xl border border-panel bg-canvas-50 px-4 py-3 text-ink placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-sand/30"
-              rows={isCustomProject ? 5 : 4}
-              placeholder={isCustomProject ? 'e.g. Replace the old pergola with a covered outdoor kitchen, improve lighting near the patio, and make it easier to entertain.' : 'e.g. Need durable flooring because of a dog, want warmer tones, and current trim has a lot of visible wear.'}
+              className="w-full resize-none rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all"
+              rows={isCustomProject ? 4 : 3}
+              placeholder={isCustomProject ? 'e.g. Replace the old pergola with a covered outdoor kitchen...' : 'e.g. Need durable flooring because of a dog, want warmer tones...'}
               value={notes}
               onChange={e => setNotes(e.target.value)}
             />
-          </Card>
+          </div>
 
-          {error && <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm mb-4">{error}</div>}
-
-          <Button className="w-full" size="lg" onClick={handleStart} disabled={isCustomProject && !notes.trim()}>
-            Nail it
-          </Button>
-          <p className="text-xs text-ink-500 text-center mt-3">You&apos;ll land on the results page as soon as the planning outputs are ready.</p>
+          <PrimaryCTA onClick={handleStart} disabled={isCustomProject && !notes.trim()}>
+            Generate my plan
+          </PrimaryCTA>
+          <p className="text-xs text-stone-400 text-center mt-3">Results are ready in about 60 seconds.</p>
         </div>
       )}
 
+      {/* ── LOADING ── */}
       {step === 'loading' && (
-        <div className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-10 text-center text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] sm:px-8 sm:py-14">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.16),transparent_24%)]" />
-          <div className="absolute -left-10 top-8 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-          <div className="absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[rgba(216,185,138,0.10)] blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 px-5 py-8 sm:px-8 sm:py-12 text-center text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.15),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.10),transparent_30%)]" />
 
-          <div className="relative mx-auto max-w-5xl">
-            <div className="inline-flex h-20 w-20 items-center justify-center rounded-full border border-white/10 bg-white/10 backdrop-blur mb-8">
-              <Loader2 className="h-10 w-10 animate-spin text-white" />
+          <div className="relative">
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/10 backdrop-blur mb-6">
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
             </div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/60">naili vision</p>
-            <h2 className="mt-3 text-3xl font-bold sm:text-5xl">Nail the vision. Know the cost.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-white/75 sm:text-lg">
-              We&apos;re reading your actual photo and request first, then building your estimate, materials list, and contractor brief.
+            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Building your plan</h2>
+            <p className="text-sm text-white/60 mb-8 max-w-md mx-auto">
+              Reading your photo, building estimates, drafting materials and contractor brief.
             </p>
-            <p className="mt-3 text-sm text-white/60">Design concepts render in the background and will appear on your results page within a minute.</p>
 
-            <div className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-              <div className="space-y-3 text-left">
-                {PROGRESS_STEPS.map((label, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'flex items-center gap-3 rounded-[1.5rem] border px-4 py-4 backdrop-blur transition-all',
-                      i < progressStep
-                        ? 'border-[rgba(184,216,200,0.32)] bg-[rgba(184,216,200,0.12)] text-[rgba(239,253,216,0.95)]'
-                        : i === progressStep
-                        ? 'border-[rgba(216,185,138,0.26)] bg-white/12 text-white'
-                        : 'border-white/10 bg-white/6 text-white/45'
-                    )}
-                  >
-                    {i < progressStep ? (
-                      <CheckCircle className="h-5 w-5 flex-shrink-0 text-mint-glow" />
-                    ) : i === progressStep ? (
-                      <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-light" />
-                    ) : (
-                      <div className="h-5 w-5 flex-shrink-0 rounded-full border-2 border-white/30" />
-                    )}
-                    <span className="text-sm sm:text-base">{label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="rounded-[1.75rem] border border-white/12 bg-white/10 p-5 text-left backdrop-blur-xl">
-                <p className="text-sm font-semibold text-white mb-3">What naili sees so far</p>
-                {analysisHighlights.length > 0 ? (
-                  <div className="space-y-3">
-                    {analysisHighlights.map((item, index) => (
-                      <div key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-white/80">
-                        <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-sand-light" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3 text-sm text-white/65">
-                    <div className="rounded-2xl bg-white/5 px-4 py-3">Reading the photo and identifying the visible project scope.</div>
-                    <div className="rounded-2xl bg-white/5 px-4 py-3">Matching your request against the actual room condition and materials.</div>
-                    <div className="rounded-2xl bg-white/5 px-4 py-3">Calculating budget ranges and a contractor-ready plan for your ZIP code.</div>
-                  </div>
-                )}
-              </div>
+            <div className="space-y-2.5 text-left max-w-md mx-auto">
+              {PROGRESS_STEPS.map((label, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-300',
+                    i < progressStep
+                      ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
+                      : i === progressStep
+                      ? 'bg-white/10 text-white border border-white/15'
+                      : 'bg-white/5 text-white/40 border border-white/5'
+                  )}
+                >
+                  {i < progressStep ? (
+                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  ) : i === progressStep ? (
+                    <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
+                  ) : (
+                    <div className="h-4 w-4 flex-shrink-0 rounded-full border border-white/20" />
+                  )}
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
+
+            {analysisHighlights.length > 0 && (
+              <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-left max-w-md mx-auto">
+                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">What naili sees</p>
+                <div className="space-y-2">
+                  {analysisHighlights.map((item, index) => (
+                    <div key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-white/70">
+                      <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-300/70" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
