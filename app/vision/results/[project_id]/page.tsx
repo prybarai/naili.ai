@@ -110,6 +110,18 @@ function humanizeAssumptions(raw: string[]): string[] {
       const note = s.replace(/.*note:\s*/i, '');
       return note.charAt(0).toUpperCase() + note.slice(1);
     }
+    // Finish tier multiplier
+    if (/finish multiplier applied/i.test(s)) {
+      const tier = s.match(/(budget|mid|premium)/i)?.[1] || 'mid';
+      const tierLabel: Record<string, string> = { budget: 'Budget', mid: 'Mid-range', premium: 'Premium' };
+      return `${tierLabel[tier.toLowerCase()] || 'Mid-range'} finish level selected.`;
+    }
+    // Using homeowner-selected size
+    if (/using homeowner-selected/i.test(s)) return 'Using the room size you selected.';
+    // Region multiplier
+    if (/region.*multiplier/i.test(s) || /regional.*adjustment/i.test(s)) return 'Pricing adjusted for your local area.';
+    // Demo required
+    if (/demo.*required/i.test(s) || /demolition/i.test(s)) return 'Demolition and removal work included in the estimate.';
     // Bathroom-specific
     if (/mid refresh bathroom scope/i.test(s)) return 'Mid-range bathroom refresh — updating fixtures, surfaces, and finishes.';
     if (/full gut bathroom scope/i.test(s)) return 'Full bathroom renovation — complete tear-out and rebuild.';
@@ -118,6 +130,39 @@ function humanizeAssumptions(raw: string[]): string[] {
       const size = s.match(/(small|medium|large)/i)?.[1] || 'medium';
       return `${size.charAt(0).toUpperCase() + size.slice(1)}-sized bathroom based on photo analysis.`;
     }
+    // Kitchen-specific
+    if (/kitchen.*scope/i.test(s) && /cabinet/i.test(s)) return 'Kitchen renovation including cabinet work.';
+    if (/kitchen.*scope/i.test(s)) return 'Kitchen renovation scope.';
+    // Roofing-specific
+    if (/roofing.*scope/i.test(s) || /roof.*replacement/i.test(s)) return 'Roof replacement scope.';
+    // Deck/patio
+    if (/deck.*scope/i.test(s) || /patio.*scope/i.test(s)) return 'Outdoor deck or patio project scope.';
+    // Flooring-specific
+    if (/flooring.*scope/i.test(s)) return 'Flooring installation scope.';
+    if (/lvp|laminate|hardwood|tile/i.test(s) && /material/i.test(s)) {
+      const mat = s.match(/(lvp|laminate|hardwood|tile)/i)?.[1] || '';
+      return `${mat.toUpperCase()} flooring material selected.`;
+    }
+    // Landscaping
+    if (/landscaping.*scope/i.test(s)) return 'Landscaping project scope.';
+    // Exterior paint
+    if (/exterior.*paint.*scope/i.test(s)) return 'Exterior painting scope.';
+    // Prep level
+    if (/light prep/i.test(s)) return 'Light surface preparation included.';
+    if (/medium prep/i.test(s)) return 'Moderate surface preparation included.';
+    if (/heavy prep/i.test(s)) return 'Heavy surface preparation and repair included.';
+    // Sq ft / area measurements — hide raw numbers
+    if (/\d+\s*(sq ft|square feet|floor sq ft|wall sq ft)/i.test(s)) return 'Area measurements estimated from your photo.';
+    // Multiplier / factor strings — hide internal math
+    if (/multiplier|factor|adjustment.*applied/i.test(s)) return 'Pricing adjusted based on project scope.';
+    // Planning assumption — generic catch
+    if (/planning assumption/i.test(s)) return 'Based on standard planning assumptions for this project type.';
+    // Signal strings — hide internal AI signals
+    if (/area signal|size signal|scope signal/i.test(s)) return 'Project scope estimated from visible details in your photo.';
+    // Deduction strings
+    if (/deduction/i.test(s)) return 'Adjusted for openings and non-work areas.';
+    // Allowance strings
+    if (/allowance/i.test(s)) return 'Budget allowance included for this category.'
     // Kitchen-specific
     if (/kitchen.*scope/i.test(s)) return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) + '.';
     // Flooring
@@ -130,12 +175,42 @@ function humanizeAssumptions(raw: string[]): string[] {
 }
 
 function humanizeRiskNotes(raw: string[]): string[] {
-  // Risk notes are already mostly human-readable, just ensure they end with periods
   return raw.map((s) => {
     let cleaned = s.trim();
     if (!cleaned.endsWith('.') && !cleaned.endsWith('!') && !cleaned.endsWith('?')) cleaned += '.';
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
   });
+}
+
+/* ── Clean up raw internal strings in brief free-text fields ── */
+function humanizeBriefText(text: string | undefined | null): string {
+  if (!text) return '';
+  let t = text;
+  // Replace internal style tokens
+  t = t.replace(/\bwarm_natural\b/gi, 'warm, natural');
+  t = t.replace(/\bcool_modern\b/gi, 'cool, modern');
+  t = t.replace(/\bclassic_traditional\b/gi, 'classic traditional');
+  t = t.replace(/\bminimalist_clean\b/gi, 'minimalist');
+  t = t.replace(/\bbold_dramatic\b/gi, 'bold, dramatic');
+  t = t.replace(/\bcoastal_relaxed\b/gi, 'coastal relaxed');
+  t = t.replace(/\brusstic_farmhouse\b/gi, 'rustic farmhouse');
+  t = t.replace(/\bmid_century\b/gi, 'mid-century');
+  t = t.replace(/\bcustom_project\b/gi, 'home project');
+  t = t.replace(/\bdeck_patio\b/gi, 'deck and patio');
+  t = t.replace(/\binterior_paint\b/gi, 'interior paint');
+  t = t.replace(/\bexterior_paint\b/gi, 'exterior paint');
+  // Remove internal signal strings
+  t = t.replace(/Visible size cues suggest [^.]+\./gi, '');
+  t = t.replace(/Size cues suggest [^.]+\./gi, '');
+  t = t.replace(/\b(small|medium|large)\s+(wall area signal|floor area signal|roof area signal|yard area signal)[^,.]*/gi, '');
+  t = t.replace(/\b(standard|narrow|wide)\s+(width|depth)[^,.]*/gi, '');
+  t = t.replace(/\b(low|medium|high)\s+confidence\b/gi, '');
+  // Clean up leftover commas and whitespace from removals
+  t = t.replace(/,\s*,/g, ',');
+  t = t.replace(/,\s*\./g, '.');
+  t = t.replace(/\s{2,}/g, ' ');
+  t = t.replace(/\. \./g, '.');
+  return t.trim();
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -160,9 +235,19 @@ export default async function VisionResultsPage({ params }: PageProps) {
   if (!projectRes.data) notFound();
 
   const project = projectRes.data as Project;
-  const estimate = estimateRes.data as Estimate | null;
+  const rawEstimate = estimateRes.data as Estimate | null;
+  const estimate = rawEstimate ? {
+    ...rawEstimate,
+    estimate_basis: humanizeBriefText(rawEstimate.estimate_basis),
+  } as Estimate : null;
   const materials = materialsRes.data as MaterialList | null;
-  const brief = briefRes.data as ProjectBrief | null;
+  const rawBrief = briefRes.data as ProjectBrief | null;
+  const brief = rawBrief ? {
+    ...rawBrief,
+    summary: humanizeBriefText(rawBrief.summary),
+    homeowner_goals: humanizeBriefText(rawBrief.homeowner_goals),
+    contractor_notes: humanizeBriefText(rawBrief.contractor_notes),
+  } as ProjectBrief : null;
   const categoryMap: Record<string, string> = {
     custom_project: 'Home Project',
     bathroom: 'Bathroom',

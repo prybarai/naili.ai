@@ -64,7 +64,7 @@ export default function Nav() {
       </>
      ) : (
       <>
-       <NavLink href="/#how">How it works</NavLink>
+       <NavLink href="/#how-it-works">How it works</NavLink>
        <NavLink href="/my-projects">Vision Board</NavLink>
        <NavLink href="/pro">For Pros</NavLink>
        <Link
@@ -140,7 +140,7 @@ export default function Nav() {
        ) : (
         <>
          <MobileNavLink
-          href="/#how"
+          href="/#how-it-works"
           onClick={() => setMobileOpen(false)}
          >
           How it works

@@ -126,13 +126,12 @@ function fallbackSiteData(category: string, analysis?: VisionAnalysis, notes?: s
 function sizeSignalSummary(analysis?: VisionAnalysis) {
   if (!analysis) return '';
   const parts = [
-    analysis.area_signals.wall_area_bucket ? `${analysis.area_signals.wall_area_bucket} wall area signal` : null,
-    analysis.area_signals.floor_area_bucket ? `${analysis.area_signals.floor_area_bucket} floor area signal` : null,
-    analysis.area_signals.roof_area_bucket ? `${analysis.area_signals.roof_area_bucket} roof area signal` : null,
-    analysis.area_signals.yard_area_bucket ? `${analysis.area_signals.yard_area_bucket} yard area signal` : null,
+    analysis.area_signals.wall_area_bucket ? `${analysis.area_signals.wall_area_bucket} visible wall area` : null,
+    analysis.area_signals.floor_area_bucket ? `${analysis.area_signals.floor_area_bucket} visible floor area` : null,
+    analysis.area_signals.roof_area_bucket ? `${analysis.area_signals.roof_area_bucket} visible roof area` : null,
+    analysis.area_signals.yard_area_bucket ? `${analysis.area_signals.yard_area_bucket} visible yard area` : null,
     analysis.estimated_dimensions.width_bucket ? `${analysis.estimated_dimensions.width_bucket} width` : null,
     analysis.estimated_dimensions.depth_bucket ? `${analysis.estimated_dimensions.depth_bucket} depth` : null,
-    analysis.confidence ? `${analysis.confidence} confidence` : null,
   ].filter(Boolean);
 
   return parts.length ? parts.join(', ') : '';
