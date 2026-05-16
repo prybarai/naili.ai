@@ -3,10 +3,11 @@
 import BulletproofUploadFlow from "@/components/BulletproofUploadFlow";
 
 export default function UploadStage() {
- return (
-  <section id="upload" className="section relative py-12 md:py-20">
-   <div className="pointer-events-none absolute -top-20 left-1/2 -z-10 h-80 w-[80%] -translate-x-1/2 bg-radial-warm" />
-   <BulletproofUploadFlow />
-  </section>
- );
+  return (
+    <section id="upload" className="relative bg-canvas py-16 md:py-24">
+      {/* Warm ambient glow */}
+      <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[500px] w-[80%] -translate-x-1/2 bg-radial-warm opacity-60" />
+      <BulletproofUploadFlow />
+    </section>
+  );
 }

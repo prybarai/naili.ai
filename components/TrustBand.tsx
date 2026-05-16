@@ -1,24 +1,29 @@
 'use client';
 
-import { Camera, DollarSign, ShoppingCart, Users } from 'lucide-react';
+import { Camera, DollarSign, ShoppingCart, Star } from 'lucide-react';
 
 const STATS = [
-  { icon: Camera, value: '10,000+', label: 'Photos analyzed' },
-  { icon: DollarSign, value: '$2.4M+', label: 'In project estimates' },
-  { icon: ShoppingCart, value: '50,000+', label: 'Materials sourced' },
-  { icon: Users, value: '4.8/5', label: 'User satisfaction' },
+  { icon: Camera, value: '10,000+', label: 'Spaces analyzed', color: 'text-sand' },
+  { icon: DollarSign, value: '$2.4M+', label: 'In project estimates', color: 'text-mint' },
+  { icon: ShoppingCart, value: '50,000+', label: 'Materials sourced', color: 'text-sand-light' },
+  { icon: Star, value: '4.8 / 5', label: 'User satisfaction', color: 'text-mint-glow' },
 ];
 
 export default function TrustBand() {
   return (
-    <section className="border-y border-hairline bg-white/60 py-10 backdrop-blur-sm">
-      <div className="mx-auto max-w-5xl px-5">
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {STATS.map(({ icon: Icon, value, label }) => (
+    <section className="relative bg-graphite py-14 md:py-16">
+      {/* Subtle grid pattern */}
+      <div className="absolute inset-0 bg-blueprint-dark bg-[length:48px_48px] opacity-40" />
+
+      <div className="relative z-10 mx-auto max-w-6xl px-6">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-6">
+          {STATS.map(({ icon: Icon, value, label, color }) => (
             <div key={label} className="text-center">
-              <Icon className="mx-auto mb-2 h-5 w-5 text-sand-dark" />
-              <div className="text-2xl font-bold text-ink md:text-3xl">{value}</div>
-              <div className="mt-1 text-sm text-ink-500">{label}</div>
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/5">
+                <Icon className={`h-5 w-5 ${color}`} />
+              </div>
+              <div className="text-2xl font-bold text-white md:text-3xl">{value}</div>
+              <div className="mt-1 text-sm text-white/50">{label}</div>
             </div>
           ))}
         </div>

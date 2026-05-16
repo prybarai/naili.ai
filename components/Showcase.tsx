@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, Sparkles, Eye } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { formatCurrencyRange } from '@/lib/utils';
 
@@ -22,14 +22,15 @@ type EstimateRow = {
 function friendlyCategory(raw: string) {
   const map: Record<string, string> = {
     custom_project: 'Home Project',
-    bathroom: 'Bathroom',
-    kitchen: 'Kitchen',
-    roofing: 'Roofing',
+    bathroom: 'Bathroom Remodel',
+    kitchen: 'Kitchen Refresh',
+    roofing: 'Roof Replacement',
     deck_patio: 'Deck & Patio',
     landscaping: 'Landscaping',
     exterior_paint: 'Exterior Paint',
-    flooring: 'Flooring',
+    flooring: 'New Flooring',
     general_repair: 'General Repair',
+    interior_paint: 'Interior Paint',
   };
   return map[raw] || raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -39,7 +40,7 @@ export default async function Showcase() {
     .from('projects')
     .select('id, project_category, created_at, uploaded_image_urls, generated_image_urls, notes')
     .order('created_at', { ascending: false })
-    .limit(6);
+    .limit(12);
 
   const projects = ((projectsData || []) as ProjectRow[])
     .filter((p) => {
@@ -66,27 +67,27 @@ export default async function Showcase() {
   });
 
   return (
-    <section className="section relative">
-      <div className="mx-auto max-w-6xl">
+    <section className="relative bg-graphite py-20 md:py-28">
+      {/* Subtle grid */}
+      <div className="absolute inset-0 bg-blueprint-dark bg-[length:48px_48px] opacity-30" />
+
+      <div className="relative z-10 mx-auto max-w-6xl px-6">
         {/* Header */}
-        <div className="mb-10 text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-panel bg-canvas-50/80 px-4 py-2">
-            <Eye className="h-4 w-4 text-sand-dark" />
-            <span className="text-sm font-semibold text-ink-600">Recent projects</span>
-          </div>
-          <h2 className="font-display text-3xl tracking-tight text-ink md:text-4xl lg:text-5xl">
+        <div className="mb-12 text-center">
+          <p className="mono-label mb-3 !text-mint/70">Recent projects</p>
+          <h2 className="font-display text-3xl tracking-tight text-white md:text-4xl lg:text-5xl">
             See what Naili can do
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-lg text-ink-600">
+          <p className="mx-auto mt-4 max-w-xl text-lg text-white/50">
             Real projects analyzed by our AI — with design concepts, cost estimates, and materials lists.
           </p>
         </div>
 
         {projects.length === 0 ? (
-          <div className="rounded-[2rem] border border-hairline bg-white p-12 text-center shadow-soft">
-            <Sparkles className="mx-auto mb-4 h-8 w-8 text-sand-dark" />
-            <h3 className="text-xl font-semibold text-ink">Projects coming soon</h3>
-            <p className="mt-2 text-ink-600">Upload a photo above to be one of the first.</p>
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-12 text-center backdrop-blur-sm">
+            <Sparkles className="mx-auto mb-4 h-8 w-8 text-sand" />
+            <h3 className="text-xl font-semibold text-white">Projects coming soon</h3>
+            <p className="mt-2 text-white/50">Upload a photo above to be one of the first.</p>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
@@ -100,10 +101,10 @@ export default async function Showcase() {
                 <Link
                   key={project.id}
                   href={`/vision/results/${project.id}`}
-                  className="group overflow-hidden rounded-[1.5rem] border border-hairline bg-white shadow-[0_8px_24px_rgba(0,0,0,0.04)] transition-all hover:shadow-[0_16px_48px_rgba(0,0,0,0.1)] hover:-translate-y-1"
+                  className="group overflow-hidden rounded-[1.5rem] border border-white/8 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/15 hover:bg-white/8"
                 >
-                  {/* Image with before/after hover */}
-                  <div className="relative aspect-[4/3] overflow-hidden bg-canvas-200">
+                  {/* Image with hover reveal */}
+                  <div className="relative aspect-[4/3] overflow-hidden">
                     {beforeImage && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -123,35 +124,34 @@ export default async function Showcase() {
                       </div>
                     )}
 
-                    {/* Labels */}
-                    <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-ink shadow-sm backdrop-blur-sm">
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-graphite/60 to-transparent" />
+
+                    {/* Category badge */}
+                    <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
                       {category}
                     </div>
+
+                    {/* Hover hint */}
                     {afterImage && afterImage !== beforeImage && (
-                      <div className="absolute bottom-3 left-3 rounded-full bg-ink/70 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-sm opacity-0 transition-opacity group-hover:opacity-100">
-                        Hover for concept
+                      <div className="absolute bottom-3 left-3 rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-sm opacity-0 transition-opacity group-hover:opacity-100">
+                        AI concept
                       </div>
                     )}
                   </div>
 
                   {/* Info */}
                   <div className="p-5">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-ink">{category}</h3>
-                      <span className="text-xs text-ink-400">
-                        {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
                     {estimate && (
-                      <div className="mt-3 flex items-center justify-between rounded-xl bg-canvas-50 px-4 py-2.5">
-                        <span className="text-xs font-medium text-ink-500">Estimated cost</span>
-                        <span className="text-sm font-bold text-ink">
+                      <div className="mb-3 flex items-center justify-between rounded-xl border border-white/8 bg-white/5 px-4 py-2.5">
+                        <span className="text-xs font-medium text-white/50">Estimated cost</span>
+                        <span className="text-sm font-bold text-white">
                           {formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}
                         </span>
                       </div>
                     )}
-                    <div className="mt-3 flex items-center gap-1 text-sm font-semibold text-sand-dark">
-                      View full plan <ArrowRight className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-1 text-sm font-semibold text-sand transition-colors group-hover:text-sand-light">
+                      View full plan <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </div>
                 </Link>
@@ -161,8 +161,8 @@ export default async function Showcase() {
         )}
 
         <div className="mt-10 text-center">
-          <Link href="/my-projects" className="btn-ghost inline-flex items-center">
-            View all projects <ArrowRight className="ml-2 h-4 w-4" />
+          <Link href="/my-projects" className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-white/70 transition-all hover:border-white/25 hover:text-white">
+            View all projects <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </div>
