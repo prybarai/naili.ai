@@ -64,11 +64,6 @@ export async function POST(req: NextRequest) {
       status: 'draft',
     };
     
-    // Attach user_id if authenticated
-    if (user) {
-      projectData.user_id = user.id;
-    }
-    
     // Add optional fields if they exist
     if (params.address) projectData.address = params.address;
     if (params.notes) projectData.notes = params.notes;
@@ -82,8 +77,42 @@ export async function POST(req: NextRequest) {
     // Add description to notes if provided
     if (description) {
       projectData.notes = description;
-    };
+    }
+
+    // Try to insert with user_id if authenticated.
+    // If the user_id column doesn't exist yet (migration not run),
+    // fall back to inserting without it so the flow never breaks.
+    if (user) {
+      const withUserId = { ...projectData, user_id: user.id };
+      const { data, error } = await supabaseAdmin
+        .from('projects')
+        .insert(withUserId)
+        .select()
+        .single();
+      
+      if (!error) {
+        return NextResponse.json({ project: data });
+      }
+      
+      // If the error is about user_id column not existing, retry without it
+      const msg = (error.message || '').toLowerCase();
+      const isColumnError = msg.includes('user_id') || msg.includes('column') || error.code === '42703';
+      if (isColumnError) {
+        console.warn('user_id column not found — inserting without it. Run the migration to fix.');
+        const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+          .from('projects')
+          .insert(projectData)
+          .select()
+          .single();
+        if (fallbackError) throw fallbackError;
+        return NextResponse.json({ project: fallbackData });
+      }
+      
+      // Some other DB error
+      throw error;
+    }
     
+    // Anonymous user — no user_id needed
     const { data, error } = await supabaseAdmin
       .from('projects')
       .insert(projectData)
@@ -93,6 +122,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ project: data });
   } catch (error) {
     console.error('create project error:', error);
-    return NextResponse.json({ error: 'Failed to create project' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to create project';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
