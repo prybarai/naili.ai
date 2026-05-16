@@ -4,7 +4,9 @@ import { Plus, Sparkles, ArrowRight } from 'lucide-react';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import { supabaseAdmin } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyRange } from '@/lib/utils';
+import { redirect } from 'next/navigation';
 
 type ProjectRow = {
   id: string;
@@ -62,11 +64,22 @@ function friendlyStatus(raw: string) {
 }
 
 export default async function MyProjectsPage() {
+  // Get the current authenticated user
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // If not authenticated, redirect to login (middleware should catch this, but double-check)
+  if (!user) {
+    redirect('/auth/login?redirect=/my-projects');
+  }
+
+  // Only fetch projects belonging to this user
   const { data: projectsData } = await supabaseAdmin
     .from('projects')
     .select('id, project_category, zip_code, quality_tier, status, created_at, uploaded_image_urls, generated_image_urls, notes')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(24);
+    .limit(50);
 
   const projects = (projectsData || []) as ProjectRow[];
   const projectIds = projects.map((p) => p.id);
@@ -99,7 +112,7 @@ export default async function MyProjectsPage() {
                   : 'Upload a photo to start your first project.'}
               </p>
             </div>
-            <Link href="/" className="btn-primary flex-shrink-0">
+            <Link href="/#upload" className="btn-primary flex-shrink-0">
               <Plus className="mr-2 h-4 w-4" /> New project
             </Link>
           </div>
@@ -115,7 +128,7 @@ export default async function MyProjectsPage() {
               <p className="mx-auto mt-3 max-w-md text-ink-600">
                 Upload a photo of any room or space and Naili will create a complete renovation plan with cost estimates, materials, and design concepts.
               </p>
-              <Link href="/" className="btn-primary mt-8 inline-flex">
+              <Link href="/#upload" className="btn-primary mt-8 inline-flex">
                 Start your first project <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </div>

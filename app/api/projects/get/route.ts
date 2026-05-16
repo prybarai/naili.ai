@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
-
-const schema = z.object({
-  id: z.string().uuid(),
-});
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json(
         { error: 'Project ID is required' },
@@ -32,7 +27,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ project: data });
+    // Add a convenience image_url field (first uploaded image)
+    // VisionStartFlow expects this field to prefill the upload
+    const project = {
+      ...data,
+      image_url: data.uploaded_image_urls?.[0] || null,
+    };
+
+    return NextResponse.json({ project });
   } catch (error) {
     console.error('Get project error:', error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
  title: "Naili — AI-powered home planning",
@@ -19,7 +20,9 @@ export default function RootLayout({
  return (
   <html lang="en">
    <body className="relative min-h-screen overflow-x-hidden">
-    {children}
+    <AuthProvider>
+     {children}
+    </AuthProvider>
    </body>
   </html>
  );

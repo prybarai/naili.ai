@@ -406,6 +406,8 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
           setUploadedFile(file);
           setUploadPreview(imageUrl);
           setPrefillStatus('loaded');
+          // Auto-advance past entry step since photo is already uploaded
+          setStep('category');
         })
         .catch((err) => {
           console.error('failed to prefill from project', err);

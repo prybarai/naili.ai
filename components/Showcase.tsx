@@ -36,11 +36,14 @@ function friendlyCategory(raw: string) {
 }
 
 export default async function Showcase() {
+  // Only show completed projects that have both before/after images
+  // This prevents exposing in-progress or private projects on the homepage
   const { data: projectsData } = await supabaseAdmin
     .from('projects')
     .select('id, project_category, created_at, uploaded_image_urls, generated_image_urls, notes')
+    .in('status', ['complete', 'completed', 'brief_generated', 'materials_generated'])
     .order('created_at', { ascending: false })
-    .limit(12);
+    .limit(20);
 
   /* Pick projects that have both before and after images, deduplicate by category */
   const seen = new Set<string>();
@@ -49,7 +52,6 @@ export default async function Showcase() {
       const hasBefore = p.uploaded_image_urls?.[0]?.trim();
       const hasAfter = p.generated_image_urls?.[0]?.trim();
       if (!hasBefore || !hasAfter || p.uploaded_image_urls?.[0] === p.generated_image_urls?.[0]) return false;
-      // Deduplicate by category so we don't show 3 identical "Bathroom" cards
       if (seen.has(p.project_category)) return false;
       seen.add(p.project_category);
       return true;
@@ -72,17 +74,14 @@ export default async function Showcase() {
     if (!estimateByProject.has(e.project_id)) estimateByProject.set(e.project_id, e);
   });
 
-  /* If all projects are the same category (e.g. all bathrooms), only show 1 featured */
   const featured = projects[0] || null;
   const showGrid = projects.length > 1;
 
   return (
     <section className="relative bg-graphite py-20 md:py-28">
-      {/* Subtle grid */}
       <div className="absolute inset-0 bg-blueprint-dark bg-[length:48px_48px] opacity-20" />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
-        {/* Header */}
         <div className="mb-14 text-center">
           <p className="mono-label mb-3 !text-sand/70">See it in action</p>
           <h2 className="font-display text-3xl tracking-tight text-white md:text-4xl lg:text-5xl">
@@ -94,7 +93,6 @@ export default async function Showcase() {
         </div>
 
         {!featured ? (
-          /* No projects — show a compelling CTA */
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-12 text-center backdrop-blur-sm">
             <Sparkles className="mx-auto mb-4 h-8 w-8 text-sand" />
             <h3 className="text-xl font-semibold text-white">Be the first to try it</h3>
@@ -109,7 +107,6 @@ export default async function Showcase() {
             </Link>
           </div>
         ) : showGrid ? (
-          /* Multiple unique categories — show grid */
           <div className="grid gap-6 md:grid-cols-3">
             {projects.map((project) => {
               const estimate = estimateByProject.get(project.id);
@@ -153,14 +150,12 @@ export default async function Showcase() {
             })}
           </div>
         ) : (
-          /* Single featured project — large hero-style card */
           <div className="mx-auto max-w-4xl">
             <Link
               href={`/vision/results/${featured.id}`}
               className="group block overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 backdrop-blur-sm transition-all duration-300 hover:border-sand/30 hover:shadow-[0_12px_48px_rgba(216,185,138,0.15)]"
             >
               <div className="grid md:grid-cols-2">
-                {/* Before */}
                 <div className="relative aspect-[4/3] overflow-hidden">
                   {featured.uploaded_image_urls?.[0] && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -175,7 +170,6 @@ export default async function Showcase() {
                     Before
                   </span>
                 </div>
-                {/* After */}
                 <div className="relative aspect-[4/3] overflow-hidden">
                   {featured.generated_image_urls?.[0] && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -191,8 +185,6 @@ export default async function Showcase() {
                   </span>
                 </div>
               </div>
-
-              {/* Info bar */}
               <div className="flex items-center justify-between px-6 py-5">
                 <div>
                   <div className="text-lg font-bold text-white">{friendlyCategory(featured.project_category)}</div>
@@ -213,7 +205,6 @@ export default async function Showcase() {
           </div>
         )}
 
-        {/* CTA */}
         <div className="mt-12 text-center">
           <Link
             href="/#upload"

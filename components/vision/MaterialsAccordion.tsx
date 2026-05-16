@@ -11,6 +11,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { formatCurrencyRange } from '@/lib/utils';
+import { addAffiliateTracking } from '@/lib/affiliate';
 import type { MaterialList, MaterialLineItem } from '@/types';
 
 interface Props {
@@ -280,7 +281,7 @@ export default function MaterialsAccordion({ materials }: Props) {
 
                         {item.retailer_url && (
                           <a
-                            href={item.retailer_url}
+                            href={addAffiliateTracking(item.retailer_url)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-ink px-4 py-1.5 text-xs font-semibold text-canvas-50 transition-all hover:opacity-90"

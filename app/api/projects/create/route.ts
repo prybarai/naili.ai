@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 const schema = z.object({
   // Legacy fields (for backward compatibility)
@@ -15,17 +17,38 @@ const schema = z.object({
   zip_code: z.string().min(5),
   session_id: z.string().optional(),
   
-  // Note: project_type and skill_level columns don't exist in database
-  // Using project_category and notes fields instead
+  // Optional
   description: z.string().optional(),
 });
+
+async function getAuthUser() {
+  try {
+    const cookieStore = await cookies();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return null;
+    
+    const supabase = createServerClient(url, key, {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const params = schema.parse(body);
     
-    // Set status based on project type
+    // Get authenticated user (if any)
+    const user = await getAuthUser();
+    
     // Extract fields that might be in params but aren't in database schema
     const paramsAny = params as any;
     const project_type = paramsAny.project_type;
@@ -40,6 +63,11 @@ export async function POST(req: NextRequest) {
       zip_code: params.zip_code,
       status: 'draft',
     };
+    
+    // Attach user_id if authenticated
+    if (user) {
+      projectData.user_id = user.id;
+    }
     
     // Add optional fields if they exist
     if (params.address) projectData.address = params.address;

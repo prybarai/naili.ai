@@ -4,13 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function Nav() {
  const pathname = usePathname();
  const isPro = pathname?.startsWith("/pro");
  const [mobileOpen, setMobileOpen] = useState(false);
+ const [accountOpen, setAccountOpen] = useState(false);
+ const { user, loading } = useAuth();
 
  return (
   <>
@@ -65,12 +68,69 @@ export default function Nav() {
      ) : (
       <>
        <NavLink href="/#how-it-works">How it works</NavLink>
-       <NavLink href="/my-projects">Vision Board</NavLink>
+       <NavLink href="/my-projects">My Projects</NavLink>
        <NavLink href="/get-quotes">Get Quotes</NavLink>
        <NavLink href="/pro">For Pros</NavLink>
+       
+       {!loading && (
+        user ? (
+         <div className="relative ml-3">
+          <button
+           onClick={() => setAccountOpen(!accountOpen)}
+           className="flex items-center gap-2 rounded-full border border-hairline bg-white px-3.5 py-2 text-sm font-medium text-ink shadow-sm transition hover:shadow-md"
+          >
+           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-sand/40 to-sand/20">
+            <User className="h-3.5 w-3.5 text-sand-dark" />
+           </div>
+           <span className="max-w-[120px] truncate">{user.email?.split('@')[0]}</span>
+          </button>
+          <AnimatePresence>
+           {accountOpen && (
+            <motion.div
+             initial={{ opacity: 0, y: 4, scale: 0.95 }}
+             animate={{ opacity: 1, y: 0, scale: 1 }}
+             exit={{ opacity: 0, y: 4, scale: 0.95 }}
+             transition={{ duration: 0.15 }}
+             className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-hairline bg-white p-1.5 shadow-lift"
+            >
+             <div className="border-b border-hairline px-3 py-2.5 mb-1.5">
+              <p className="text-xs text-ink-500">Signed in as</p>
+              <p className="truncate text-sm font-medium text-ink">{user.email}</p>
+             </div>
+             <Link
+              href="/my-projects"
+              onClick={() => setAccountOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-600 transition hover:bg-canvas-200"
+             >
+              <User className="h-4 w-4" />
+              My Projects
+             </Link>
+             <form action="/auth/signout" method="POST">
+              <button
+               type="submit"
+               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-600 transition hover:bg-red-50"
+              >
+               <LogOut className="h-4 w-4" />
+               Sign out
+              </button>
+             </form>
+            </motion.div>
+           )}
+          </AnimatePresence>
+         </div>
+        ) : (
+         <Link
+          href="/auth/login"
+          className="ml-3 rounded-full border border-hairline bg-white px-4 py-2 text-sm font-medium text-ink shadow-sm transition hover:shadow-md hover:border-sand/40"
+         >
+          Sign in
+         </Link>
+        )
+       )}
+
        <Link
         href="/#upload"
-        className="btn-primary ml-3 !px-5 !py-2.5 text-sm"
+        className="btn-primary ml-2 !px-5 !py-2.5 text-sm"
        >
         Upload Your Space
        </Link>
@@ -150,7 +210,7 @@ export default function Nav() {
           href="/my-projects"
           onClick={() => setMobileOpen(false)}
          >
-          Vision Board
+          My Projects
          </MobileNavLink>
          <MobileNavLink
           href="/get-quotes"
@@ -165,6 +225,33 @@ export default function Nav() {
           For Pros
          </MobileNavLink>
          <div className="my-2 h-px bg-hairline" />
+         {!loading && (
+          user ? (
+           <>
+            <div className="px-4 py-2 text-xs text-ink-500">
+             Signed in as {user.email}
+            </div>
+            <form action="/auth/signout" method="POST">
+             <button
+              type="submit"
+              onClick={() => setMobileOpen(false)}
+              className="flex w-full items-center gap-2 rounded-xl px-4 py-3 text-base font-medium text-red-600 transition hover:bg-red-50"
+             >
+              <LogOut className="h-4 w-4" />
+              Sign out
+             </button>
+            </form>
+           </>
+          ) : (
+           <Link
+            href="/auth/login"
+            onClick={() => setMobileOpen(false)}
+            className="rounded-xl px-4 py-3 text-base font-medium text-sand-dark transition hover:bg-sand/10"
+           >
+            Sign in
+           </Link>
+          )
+         )}
          <Link
           href="/#upload"
           onClick={() => setMobileOpen(false)}
