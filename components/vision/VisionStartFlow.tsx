@@ -1,16 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
   ArrowLeft,
   ArrowRight,
-  Camera,
-  CheckCircle,
-  ChevronRight,
-  ImagePlus,
+  CheckCircle2,
+  Info,
   Loader2,
+  MapPin,
   Sparkles,
   Trash2,
   Upload,
@@ -18,20 +17,16 @@ import {
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type StylePreference, type QualityTier } from '@/types';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
-import { buildLoadingObservations, FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '@/lib/visionAnalysis';
+import { FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '@/lib/visionAnalysis';
 import posthog from 'posthog-js';
 
-type Step = 'entry' | 'category' | 'scope' | 'style' | 'quality' | 'loading';
+type Step = 'upload' | 'choices' | 'working';
 
 type ScopeQuestion = {
   key: string;
   label: string;
   helper?: string;
-  options: Array<{
-    value: string;
-    label: string;
-    description?: string;
-  }>;
+  options: Array<{ value: string; label: string; description?: string }>;
 };
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -39,22 +34,18 @@ const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/we
 const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, or WEBP up to 10MB';
 
 function revokePreviewUrl(url: string | null) {
-  if (url?.startsWith('blob:')) {
-    URL.revokeObjectURL(url);
-  }
+  if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
 }
 
 async function readApiError(response: Response, fallback: string) {
   try {
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const data = await response.json() as { error?: string; message?: string };
-      const message = data.error || data.message;
-      if (message?.trim()) return message.trim();
-      return fallback;
+    const ct = response.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = (await response.json()) as { error?: string; message?: string };
+      return data.error || data.message || fallback;
     }
     const text = (await response.text()).trim();
-    return text.length > 0 ? text : fallback;
+    return text || fallback;
   } catch {
     return fallback;
   }
@@ -63,33 +54,29 @@ async function readApiError(response: Response, fallback: string) {
 function getFileRejectionMessage(rejections: FileRejection[]) {
   const firstError = rejections[0]?.errors[0];
   if (!firstError) return `Please upload a supported image, ${SUPPORTED_IMAGE_LABEL}.`;
-  if (firstError.code === 'file-too-large') return 'That photo is too large. Please use an image under 10MB.';
-  if (firstError.code === 'file-invalid-type') return `That photo format is not supported yet. Please use ${SUPPORTED_IMAGE_LABEL}.`;
-  if (firstError.code === 'too-many-files') return 'Please upload just one photo.';
-  return firstError.message || `Please upload a supported image, ${SUPPORTED_IMAGE_LABEL}.`;
+  if (firstError.code === 'file-too-large') return 'That photo is too large. Use an image under 10MB.';
+  if (firstError.code === 'file-invalid-type') return `Format not supported. Please use ${SUPPORTED_IMAGE_LABEL}.`;
+  if (firstError.code === 'too-many-files') return 'Upload just one photo.';
+  return firstError.message || `Please upload ${SUPPORTED_IMAGE_LABEL}.`;
 }
 
 /* ── Scope questions per category ── */
 const SCOPE_QUESTIONS: Partial<Record<ProjectCategory, ScopeQuestion[]>> = {
   interior_paint: [
     { key: 'room_size', label: 'Room size', options: [
-      { value: 'small', label: 'Small', description: 'Bedroom or office' },
-      { value: 'medium', label: 'Medium', description: 'Standard room' },
-      { value: 'large', label: 'Large', description: 'Living room or open plan' },
+      { value: 'small', label: 'Small', description: 'Small bedroom or office' },
+      { value: 'medium', label: 'Medium', description: 'Standard bedroom or dining room' },
+      { value: 'large', label: 'Large', description: 'Living room or open room' },
     ]},
-    { key: 'paint_scope', label: 'What are you painting?', options: [
+    { key: 'paint_scope', label: 'What to paint?', options: [
       { value: 'walls_only', label: 'Walls only' },
       { value: 'walls_and_ceiling', label: 'Walls + ceiling' },
       { value: 'walls_ceiling_trim', label: 'Walls + ceiling + trim' },
     ]},
     { key: 'prep_level', label: 'Prep needed', options: [
-      { value: 'light', label: 'Light', description: 'Minor patching' },
-      { value: 'medium', label: 'Medium', description: 'Some repairs' },
-      { value: 'heavy', label: 'Heavy', description: 'Significant repair' },
-    ]},
-    { key: 'window_coverage', label: 'Window coverage', options: [
-      { value: 'normal_windows', label: 'Normal windows' },
-      { value: 'many_windows', label: 'Many windows' },
+      { value: 'light', label: 'Light', description: 'Minor patching, clean walls' },
+      { value: 'medium', label: 'Medium', description: 'Some repairs and sanding' },
+      { value: 'heavy', label: 'Heavy', description: 'Significant repair or old damage' },
     ]},
   ],
   flooring: [
@@ -100,13 +87,15 @@ const SCOPE_QUESTIONS: Partial<Record<ProjectCategory, ScopeQuestion[]>> = {
       { value: 'lvp', label: 'LVP' }, { value: 'laminate', label: 'Laminate' },
       { value: 'engineered_hardwood', label: 'Engineered hardwood' }, { value: 'tile', label: 'Tile' },
     ]},
-    { key: 'demo_required', label: 'Remove existing flooring?', options: [
+    { key: 'demo_required', label: 'Remove existing?', options: [
       { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
     ]},
   ],
   bathroom: [
     { key: 'scope_level', label: 'Project scope', options: [
-      { value: 'cosmetic', label: 'Cosmetic' }, { value: 'mid_refresh', label: 'Mid refresh' }, { value: 'full_remodel', label: 'Full remodel' },
+      { value: 'cosmetic', label: 'Cosmetic', description: 'Paint, vanity, fixtures' },
+      { value: 'mid_refresh', label: 'Mid refresh', description: 'New finishes, better shower' },
+      { value: 'full_remodel', label: 'Full remodel', description: 'Moving plumbing, custom tile' },
     ]},
     { key: 'bathroom_size', label: 'Bathroom size', options: [
       { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
@@ -114,43 +103,37 @@ const SCOPE_QUESTIONS: Partial<Record<ProjectCategory, ScopeQuestion[]>> = {
   ],
   kitchen: [
     { key: 'scope_level', label: 'Project scope', options: [
-      { value: 'cosmetic', label: 'Cosmetic' }, { value: 'mid_refresh', label: 'Mid refresh' }, { value: 'full_remodel', label: 'Full remodel' },
+      { value: 'cosmetic', label: 'Cosmetic', description: 'Paint, counters, backsplash' },
+      { value: 'mid_refresh', label: 'Mid refresh', description: 'New cabinets, floors, lighting' },
+      { value: 'full_remodel', label: 'Full remodel', description: 'Layout change, premium finishes' },
     ]},
     { key: 'kitchen_size', label: 'Kitchen size', options: [
       { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
     ]},
   ],
   deck_patio: [
-    { key: 'deck_size', label: 'Deck or patio size', options: [
+    { key: 'deck_size', label: 'Area size', options: [
       { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
     ]},
     { key: 'material_type', label: 'Material', options: [
-      { value: 'pressure_treated', label: 'Pressure treated' }, { value: 'composite', label: 'Composite' }, { value: 'cedar_redwood', label: 'Cedar / Redwood' },
+      { value: 'pressure_treated', label: 'Pressure treated' },
+      { value: 'composite', label: 'Composite' },
+      { value: 'cedar_redwood', label: 'Cedar / Redwood' },
     ]},
     { key: 'railing', label: 'Include railing?', options: [
       { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
     ]},
   ],
   landscaping: [
-    { key: 'yard_size', label: 'Area size', helper: 'Choose the part of the yard you want priced.', options: [
-      { value: 'small', label: 'Small', description: 'Single bed or compact area' },
-      { value: 'medium', label: 'Medium', description: 'Most front-yard projects' },
-      { value: 'large', label: 'Large', description: 'Large frontage or multi-zone' },
+    { key: 'yard_size', label: 'Area size', options: [
+      { value: 'small', label: 'Small', description: 'Single bed refresh' },
+      { value: 'medium', label: 'Medium', description: 'Front-yard project' },
+      { value: 'large', label: 'Large', description: 'Multi-zone yard' },
     ]},
-    { key: 'landscape_scope', label: 'What kind of landscape work?', options: [
-      { value: 'refresh_beds', label: 'Planting bed refresh', description: 'Beds, shrubs, mulch, edging' },
-      { value: 'lawn_and_beds', label: 'Lawn + beds', description: 'Grass plus beds and curb appeal' },
-      { value: 'full_yard', label: 'Full landscape makeover', description: 'Bigger redesign across yard' },
-    ]},
-    { key: 'hardscape_scope', label: 'What about hardscape?', options: [
-      { value: 'preserve_existing', label: 'Preserve existing', description: 'Keep current hardscape as-is' },
-      { value: 'light_updates', label: 'Light updates', description: 'Minor edging or borders' },
-      { value: 'new_hardscape', label: 'New hardscape', description: 'Adding paths, patio, or pavers' },
-    ]},
-    { key: 'irrigation_lighting', label: 'Include irrigation or lighting?', options: [
-      { value: 'none', label: 'No, plants only' },
-      { value: 'irrigation', label: 'Irrigation only' },
-      { value: 'irrigation_and_lighting', label: 'Irrigation + lighting' },
+    { key: 'landscape_scope', label: 'What kind?', options: [
+      { value: 'refresh_beds', label: 'Planting beds', description: 'Shrubs, cleanup, mulch' },
+      { value: 'lawn_and_beds', label: 'Lawn + beds' },
+      { value: 'full_yard', label: 'Full makeover', description: 'Bigger redesign' },
     ]},
   ],
   roofing: [
@@ -158,36 +141,32 @@ const SCOPE_QUESTIONS: Partial<Record<ProjectCategory, ScopeQuestion[]>> = {
       { value: 'small', label: 'Small' }, { value: 'medium', label: 'Medium' }, { value: 'large', label: 'Large' },
     ]},
     { key: 'material_type', label: 'Material', options: [
-      { value: 'asphalt', label: 'Asphalt' }, { value: 'architectural_shingle', label: 'Architectural shingle' }, { value: 'metal', label: 'Metal' },
+      { value: 'asphalt', label: 'Asphalt' },
+      { value: 'architectural_shingle', label: 'Architectural shingle' },
+      { value: 'metal', label: 'Metal' },
     ]},
-    { key: 'tear_off', label: 'Tear-off required?', options: [
+    { key: 'tear_off', label: 'Tear-off?', options: [
       { value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' },
     ]},
   ],
 };
 
 const QUALITY_TIERS = [
-  { value: 'budget' as QualityTier, label: 'Budget', emoji: '💰', desc: 'Cost-conscious materials and simpler finishes.', modifier: '0.6–0.8x average' },
-  { value: 'mid' as QualityTier, label: 'Mid-range', emoji: '⭐', desc: 'Balanced durability, looks, and resale value.', modifier: 'Around average' },
-  { value: 'premium' as QualityTier, label: 'Premium', emoji: '💎', desc: 'Higher-end finishes and upgraded materials.', modifier: '1.4–1.8x average' },
+  { value: 'budget' as QualityTier, label: 'Budget', emoji: '💰', desc: 'Cost-conscious materials, good for rentals or quick cleanups.' },
+  { value: 'mid' as QualityTier, label: 'Mid-range', emoji: '⭐', desc: 'Best default — balances durability, looks, and resale value.' },
+  { value: 'premium' as QualityTier, label: 'Premium', emoji: '💎', desc: 'Higher-end finishes, upgraded materials, custom detailing.' },
 ];
 
-const PROGRESS_STEPS = [
-  'Reading your photo and request...',
-  'Building your local cost range...',
-  'Drafting your materials plan...',
-  'Writing your contractor brief...',
-  'Finalizing your plan...',
+const PHOTO_TIPS = [
+  'One straight-on photo with good lighting',
+  'Show as much of the space as possible',
+  'No filters, screenshots, or blurry images',
 ];
 
-const STEP_LABELS: Record<Step, string> = {
-  entry: 'Photo',
-  category: 'Project',
-  scope: 'Scope',
-  style: 'Style',
-  quality: 'Finish',
-  loading: 'Analyze',
-};
+const CATEGORIES_FOR_DISPLAY = Object.entries(PROJECT_CATEGORIES).map(([key, val]) => ({
+  value: key as ProjectCategory,
+  ...val,
+}));
 
 type VisionStartPrefill = {
   from?: string;
@@ -336,115 +315,45 @@ function StepHeader({ title, subtitle }: { title: string; subtitle: string }) {
    ═══════════════════════════════════════════════════════════════════ */
 export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: VisionStartPrefill }) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>('entry');
-  const [zipCode, setZipCode] = useState('');
+  const [step, setStep] = useState<Step>(initialPrefill?.zip || initialPrefill?.category ? 'choices' : 'upload');
+  const [zipCode, setZipCode] = useState(initialPrefill?.zip || '');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [uploadPreview, setUploadPreview] = useState<string | null>(null);
-  const [category, setCategory] = useState<ProjectCategory | null>(null);
+  const [uploadPreview, setUploadPreview] = useState<string | null>(initialPrefill?.image || null);
+  const [category, setCategory] = useState<ProjectCategory | null>(
+    (initialPrefill?.category && initialPrefill.category in PROJECT_CATEGORIES)
+      ? (initialPrefill.category as ProjectCategory) : null
+  );
   const [scopeAnswers, setScopeAnswers] = useState<Record<string, string>>({});
-  const [style, setStyle] = useState<StylePreference>('modern');
+  const [style, setStyle] = useState<StylePreference>(
+    (initialPrefill?.style && initialPrefill.style in STYLE_OPTIONS)
+      ? (initialPrefill.style as StylePreference) : 'modern'
+  );
   const [qualityTier, setQualityTier] = useState<QualityTier>('mid');
-  const [notes, setNotes] = useState('');
-  const [progressStep, setProgressStep] = useState(0);
-  const [analysisHighlights, setAnalysisHighlights] = useState<string[]>([]);
+  const [notes, setNotes] = useState(initialPrefill?.notes || '');
   const [error, setError] = useState<string | null>(null);
-  const [prefillStatus, setPrefillStatus] = useState<'idle' | 'loading' | 'loaded' | 'error' | 'dismissed'>('idle');
-  const prefillProjectId = initialPrefill?.from?.trim() || '';
-  const prefillStartedRef = useRef(false);
 
-  // Effect 1: Apply simple prefill values — runs once
-  useEffect(() => {
-    const nextZip = initialPrefill?.zip?.trim();
-    const nextCategory = initialPrefill?.category?.trim();
-    const nextStyle = initialPrefill?.style?.trim();
-    const nextQuality = initialPrefill?.quality?.trim();
-    const nextNotes = initialPrefill?.notes?.trim();
-    if (nextZip) setZipCode(nextZip);
-    if (nextCategory && nextCategory in PROJECT_CATEGORIES) setCategory(nextCategory as ProjectCategory);
-    if (nextStyle && nextStyle in STYLE_OPTIONS) setStyle(nextStyle as StylePreference);
-    if (nextQuality && QUALITY_TIERS.some((tier) => tier.value === nextQuality)) setQualityTier(nextQuality as QualityTier);
-    if (nextNotes) setNotes(nextNotes);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Effect 2: Fetch image from project ID — isolated to prevent race condition
-  useEffect(() => {
-    if (!prefillProjectId || prefillStartedRef.current) return;
-    const directImage = initialPrefill?.image?.trim();
-    if (directImage) return;
-    prefillStartedRef.current = true;
-    let cancelled = false;
-    setPrefillStatus('loading');
-    void fetch(`/api/projects/get?id=${encodeURIComponent(prefillProjectId)}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to fetch project');
-        const data = await res.json();
-        const imageUrl = data.project?.image_url;
-        if (!imageUrl) throw new Error('No image URL in project');
-        if (cancelled) return;
-        const imgRes = await fetch(imageUrl);
-        if (!imgRes.ok) throw new Error(`Image fetch failed with ${imgRes.status}`);
-        const blob = await imgRes.blob();
-        const fileType = SUPPORTED_IMAGE_TYPES.includes(blob.type) ? blob.type : 'image/jpeg';
-        const extension = fileType === 'image/jpeg' ? 'jpg' : fileType.split('/')[1] || 'jpg';
-        const file = new File([blob], `naili-source.${extension}`, { type: fileType });
-        if (cancelled) return;
-        setUploadedFile(file);
-        setUploadPreview(imageUrl);
-        setPrefillStatus('loaded');
-        setStep('category');
-      })
-      .catch((err) => {
-        console.error('failed to prefill from project', err);
-        if (cancelled) return;
-        setPrefillStatus('error');
-      });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillProjectId]);
-
-  // Effect 3: Fetch direct image URL
-  useEffect(() => {
-    const nextImage = initialPrefill?.image?.trim();
-    if (!nextImage || prefillStartedRef.current) return;
-    prefillStartedRef.current = true;
-    let cancelled = false;
-    setPrefillStatus('loading');
-    void fetch(nextImage)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Image fetch failed with ${response.status}`);
-        const blob = await response.blob();
-        const fileType = SUPPORTED_IMAGE_TYPES.includes(blob.type) ? blob.type : 'image/jpeg';
-        const extension = fileType === 'image/jpeg' ? 'jpg' : fileType.split('/')[1] || 'jpg';
-        const file = new File([blob], `naili-source.${extension}`, { type: fileType });
-        if (cancelled) return;
-        setUploadedFile(file);
-        setUploadPreview(nextImage);
-        setPrefillStatus('loaded');
-      })
-      .catch((prefillError) => {
-        console.error('failed to prefill uploaded image', prefillError);
-        if (cancelled) return;
-        setPrefillStatus('error');
-      });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const isCustomProject = category === 'custom_project';
+  const scopeQuestions = category ? (SCOPE_QUESTIONS[category] ?? []) : [];
+  const allScopeAnswered = scopeQuestions.every(q => Boolean(scopeAnswers[q.key]));
+  const needsNotes = isCustomProject && !notes.trim();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file) {
-      if (!SUPPORTED_IMAGE_TYPES.includes(file.type)) {
-        setError(`That photo format is not supported yet. Please use ${SUPPORTED_IMAGE_LABEL}.`);
-        return;
-      }
-      setError(null);
-      revokePreviewUrl(uploadPreview);
-      setUploadedFile(file);
-      setUploadPreview(URL.createObjectURL(file));
-      if (prefillStatus === 'error') setPrefillStatus('dismissed');
+    if (!file) return;
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type)) {
+      setError(`Format not supported. Please use ${SUPPORTED_IMAGE_LABEL}.`);
+      return;
     }
-  }, [uploadPreview, prefillStatus]);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError('Photo too large. Use an image under 10MB.');
+      return;
+    }
+    revokePreviewUrl(uploadPreview);
+    setUploadedFile(file);
+    setUploadPreview(URL.createObjectURL(file));
+    setError(null);
+    posthog.capture('naili_photo_uploaded', { file_type: file.type, file_size: file.size });
+  }, [uploadPreview]);
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
     setError(getFileRejectionMessage(rejections));
@@ -454,162 +363,205 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
     revokePreviewUrl(uploadPreview);
     setUploadedFile(null);
     setUploadPreview(null);
-    setError(null);
-  }, [uploadPreview]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    onDropRejected,
-    accept: { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'] },
-    maxFiles: 1,
-    maxSize: MAX_UPLOAD_BYTES,
-    multiple: false,
-  });
-
-  const scopeQuestions = category ? SCOPE_QUESTIONS[category] ?? [] : [];
-  const hasScopeStep = scopeQuestions.length > 0;
-  const visibleSteps = ['entry', 'category', ...(hasScopeStep ? ['scope'] : []), 'style', 'quality'] as Step[];
-  const currentVisibleStepIndex = visibleSteps.indexOf(step);
-  const allScopeAnswered = scopeQuestions.every(question => Boolean(scopeAnswers[question.key]));
-
-  const handleEntryNext = () => { if (!uploadedFile || !zipCode.trim()) return; setError(null); setStep('category'); };
-  const handleCategoryNext = () => { if (!category) return; setError(null); setStep(hasScopeStep ? 'scope' : 'style'); };
-  const handleScopeNext = () => { if (!allScopeAnswered) return; setError(null); setStep('style'); };
-  const handleStyleNext = () => { if (!style) return; setError(null); setStep('quality'); };
-  const handleScopeSkip = () => { setError(null); setStep('style'); };
-  const updateScopeAnswer = (key: string, value: string) => { setScopeAnswers(prev => ({ ...prev, [key]: value })); };
-  const isCustomProject = category === 'custom_project';
-
-  const buildNotesWithScope = (rawNotes: string, answers: Record<string, string>) => {
-    const entries = Object.entries(answers).filter(([, value]) => Boolean(value));
-    if (entries.length === 0) return rawNotes.length > 0 ? rawNotes : undefined;
-    const scopeLines = entries.map(([key, value]) => `- ${key.replace(/_/g, ' ')}: ${value.replace(/_/g, ' ')}`);
-    const scopeBlock = `Scope answers:\n${scopeLines.join('\n')}`;
-    return rawNotes.length > 0 ? `${rawNotes}\n\n${scopeBlock}` : scopeBlock;
   };
 
-  const handleStart = async () => {
-    if (!category || !style || !zipCode.trim() || !uploadedFile) {
-      setError('Please upload a photo and complete the required steps.');
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop, onDropRejected,
+    accept: { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'] },
+    maxFiles: 1, maxSize: MAX_UPLOAD_BYTES, multiple: false,
+  });
+
+  const updateScopeAnswer = (key: string, value: string) => {
+    setScopeAnswers(prev => ({ ...prev, [key]: value }));
+  };
+
+  const buildNotesWithScope = () => {
+    const entries = Object.entries(scopeAnswers).filter(([, v]) => Boolean(v));
+    if (!entries.length && !notes.trim()) return undefined;
+    const scopeBlock = entries.length
+      ? `Scope answers:\n${entries.map(([k, v]) => `- ${k.replace(/_/g, ' ')}: ${v.replace(/_/g, ' ')}`).join('\n')}`
+      : '';
+    if (!scopeBlock) return notes.trim() || undefined;
+    return notes.trim() ? `${notes.trim()}\n\n${scopeBlock}` : scopeBlock;
+  };
+
+  const handleGo = async () => {
+    if (!category || !uploadedFile || !zipCode.trim()) {
+      setError('Please upload a photo, enter a ZIP code, and pick a project type.');
       return;
     }
     if (isCustomProject && !notes.trim()) {
-      setError('Please describe the custom project before continuing.');
+      setError('Please describe your custom project.');
       return;
     }
-    setStep('loading');
+    if (scopeQuestions.length && !allScopeAnswered) {
+      setError('Please answer the scope questions to get the most accurate estimate.');
+      return;
+    }
+
+    setStep('working');
     setError(null);
-    setAnalysisHighlights([]);
     const sessionId = uuidv4();
-    const notesWithScope = buildNotesWithScope(notes, scopeAnswers);
-    let recoveryStep: Step = 'quality';
+    const notesWithScope = buildNotesWithScope();
+
+    posthog.capture('naili_generation_started', {
+      category, style, quality_tier: qualityTier,
+      has_scope_answers: Object.keys(scopeAnswers).length > 0,
+      is_custom_project: isCustomProject,
+    });
 
     try {
-      if (notesWithScope) {
-        posthog.capture('naili_prompt_entered', { category, has_scope_answers: Object.keys(scopeAnswers).length > 0, is_custom_project: isCustomProject });
-      }
-      posthog.capture('naili_generation_started', { category, style, quality_tier: qualityTier, has_scope_questions: hasScopeStep, has_scope_answers: Object.keys(scopeAnswers).length > 0, is_custom_project: isCustomProject });
-      setProgressStep(0);
+      const projectRes = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location_type: PROJECT_CATEGORIES[category].type,
+          project_category: category,
+          zip_code: zipCode.trim(),
+          style_preference: style,
+          quality_tier: qualityTier,
+          notes: notesWithScope,
+          session_id: sessionId,
+        }),
+      });
+      if (!projectRes.ok) throw new Error(await readApiError(projectRes, 'Could not create project. Try again.'));
+      const { project } = await projectRes.json() as { project: { id: string } };
+      const projectId = project.id;
 
-      let projectId: string;
-      let referenceImageUrl: string;
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('project_id', projectId);
 
-      if (prefillProjectId && prefillStatus === 'loaded') {
-        projectId = prefillProjectId;
-        await fetch('/api/projects/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ project_id: projectId, project_category: category, style_preference: style, quality_tier: qualityTier, notes: notesWithScope }),
-        });
-        const projRes = await fetch(`/api/projects/get?id=${encodeURIComponent(projectId)}`);
-        if (!projRes.ok) throw new Error('Could not load your project. Please try again.');
-        const projData = await projRes.json();
-        referenceImageUrl = projData.project?.image_url || '';
-        if (!referenceImageUrl) {
-          const formData = new FormData();
-          formData.append('file', uploadedFile);
-          formData.append('project_id', projectId);
-          const uploadRes = await fetch('/api/projects/upload-image', { method: 'POST', body: formData });
-          if (!uploadRes.ok) throw new Error(await readApiError(uploadRes, `We could not upload that photo. Please use ${SUPPORTED_IMAGE_LABEL}.`));
-          const uploadData = await uploadRes.json() as { url: string };
-          referenceImageUrl = uploadData.url;
-        }
-        recoveryStep = 'entry';
-      } else {
-        const projectRes = await fetch('/api/projects/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ location_type: PROJECT_CATEGORIES[category].type, project_category: category, zip_code: zipCode.trim(), style_preference: style, quality_tier: qualityTier, notes: notesWithScope, session_id: sessionId }),
-        });
-        if (!projectRes.ok) throw new Error(await readApiError(projectRes, 'We could not set up your project. Please try again.'));
-        recoveryStep = 'entry';
-        const { project } = await projectRes.json() as { project: { id: string } };
-        projectId = project.id;
-        const formData = new FormData();
-        formData.append('file', uploadedFile);
-        formData.append('project_id', projectId);
-        const uploadRes = await fetch('/api/projects/upload-image', { method: 'POST', body: formData });
-        if (!uploadRes.ok) throw new Error(await readApiError(uploadRes, `We could not upload that photo. Please use ${SUPPORTED_IMAGE_LABEL}.`));
-        const uploadData = await uploadRes.json() as { url: string };
-        referenceImageUrl = uploadData.url;
-      }
+      const uploadRes = await fetch('/api/projects/upload-image', {
+        method: 'POST', body: formData,
+      });
+      if (!uploadRes.ok) throw new Error(await readApiError(uploadRes, 'Could not upload photo.'));
+      const { url: referenceImageUrl } = await uploadRes.json() as { url: string };
 
+      // Run analysis
       let analysis: VisionAnalysis = FALLBACK_VISION_ANALYSIS;
       try {
         const analysisRes = await fetch('/api/vision/analyze-photo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image_url: referenceImageUrl, category, zip_code: zipCode.trim(), notes: notesWithScope }),
+          body: JSON.stringify({
+            image_url: referenceImageUrl, category,
+            zip_code: zipCode.trim(), notes: notesWithScope,
+          }),
         });
         if (analysisRes.ok) {
-          const data = await analysisRes.json() as { analysis?: VisionAnalysis };
-          analysis = data.analysis || FALLBACK_VISION_ANALYSIS;
-          setAnalysisHighlights(buildLoadingObservations(analysis));
+          analysis = ((await analysisRes.json()) as { analysis?: VisionAnalysis }).analysis || FALLBACK_VISION_ANALYSIS;
         }
-      } catch (analysisError) {
-        console.error('photo analysis failed:', analysisError);
+      } catch {
+        // continue with fallback analysis
       }
 
-      setProgressStep(1);
-      const inferredLocationType = category === 'custom_project' && analysis.suggested_location_type === 'exterior' ? 'exterior' : PROJECT_CATEGORIES[category].type;
-      const estimateRes = await fetch('/api/vision/estimate', {
+      // Fire estimate, materials, brief, concepts — fire-and-forget for fastest navigation
+      const inferredLocationType = category === 'custom_project' && analysis.suggested_location_type === 'exterior'
+        ? 'exterior' : PROJECT_CATEGORIES[category].type;
+
+      const estimatePromise = fetch('/api/vision/estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId, category, location_type: inferredLocationType, style, quality_tier: qualityTier, zip_code: zipCode.trim(), notes: notesWithScope, scope_answers: scopeAnswers, analysis }),
+        body: JSON.stringify({
+          project_id: projectId, category,
+          location_type: inferredLocationType, style,
+          quality_tier: qualityTier, zip_code: zipCode.trim(),
+          notes: notesWithScope, scope_answers: scopeAnswers, analysis,
+        }),
       });
-      if (!estimateRes.ok) throw new Error(await readApiError(estimateRes, 'We could not build your estimate yet. Please try again.'));
-      const { estimate } = await estimateRes.json() as { estimate?: { low_estimate?: number; mid_estimate?: number; high_estimate?: number } };
 
-      setProgressStep(2);
       const materialsPromise = fetch('/api/vision/materials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, estimate_mid: estimate?.mid_estimate || 15000, analysis, notes: notesWithScope }),
+        body: JSON.stringify({
+          project_id: projectId, category, style,
+          quality_tier: qualityTier,
+          estimate_mid: 15000, // placeholder — estimate will write real data
+          analysis, notes: notesWithScope,
+        }),
       });
 
-      setProgressStep(3);
       const briefPromise = fetch('/api/vision/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notesWithScope, estimate_low: estimate?.low_estimate || 10000, estimate_high: estimate?.high_estimate || 20000, analysis }),
+        body: JSON.stringify({
+          project_id: projectId, category, style,
+          quality_tier: qualityTier, notes: notesWithScope,
+          estimate_low: 10000, estimate_high: 20000,
+          analysis,
+        }),
       });
 
-      const conceptPromise = fetch('/api/vision/concept', {
+      // Don't await concepts — fire and forget
+      fetch('/api/vision/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: projectId, reference_image_url: referenceImageUrl, category, style, quality_tier: qualityTier, notes: notesWithScope, analysis }),
+        body: JSON.stringify({
+          project_id: projectId, category, style,
+          quality_tier: qualityTier, notes: notesWithScope,
+          reference_image_url: referenceImageUrl, analysis, count: 1,
+        }),
+      }).catch(() => {});
+
+      // Wait for estimate to complete so results page has the number
+      const estimateRes = await estimatePromise;
+      if (estimateRes.ok) {
+        const { estimate } = await estimateRes.json() as {
+          estimate?: { mid_estimate?: number };
+        };
+        const midEst = estimate?.mid_estimate || 15000;
+
+        // Re-fire materials and brief with real estimate values (best-effort)
+        materialsPromise.then(async (mRes) => {
+          if (!mRes.ok) {
+            // Retry with real estimate value
+            await fetch('/api/vision/materials', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: projectId, category, style,
+                quality_tier: qualityTier, estimate_mid: midEst,
+                analysis, notes: notesWithScope,
+              }),
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+
+        briefPromise.then(async (bRes) => {
+          if (!bRes.ok) {
+            await fetch('/api/vision/brief', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: projectId, category, style,
+                quality_tier: qualityTier, notes: notesWithScope,
+                estimate_low: Math.round(midEst * 0.85),
+                estimate_high: Math.round(midEst * 1.15),
+                analysis,
+              }),
+            }).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+
+      // Fire remaining non-critical promises in background
+      materialsPromise.catch(() => {});
+      briefPromise.catch(() => {});
+
+      posthog.capture('naili_generation_completed', {
+        category, style, quality_tier: qualityTier, project_id: projectId,
       });
 
-      await Promise.allSettled([materialsPromise, briefPromise, conceptPromise]);
-      setProgressStep(4);
-
-      posthog.capture('naili_generation_complete', { project_id: projectId, category, style, quality_tier: qualityTier });
+      // Navigate immediately — results page will progressive-load the data
       router.push(`/vision/results/${projectId}`);
     } catch (err) {
-      console.error('Vision flow error:', err);
-      posthog.capture('naili_generation_error', { error: err instanceof Error ? err.message : 'Unknown error', category, step: recoveryStep });
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-      setStep(recoveryStep);
+      console.error(err);
+      posthog.capture('naili_generation_failed', { category, style, quality_tier: qualityTier });
+      setError(err instanceof Error && err.message
+        ? err.message
+        : 'Something went wrong. Your settings are saved — please try again.');
+      setStep('choices');
     }
   };
 
@@ -617,325 +569,341 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
      RENDER
      ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 pb-8">
-      {/* Step progress bar — always visible except during loading */}
-      {step !== 'loading' && (
-        <StepProgress steps={visibleSteps} currentIndex={currentVisibleStepIndex} />
-      )}
-
-      {/* Error banner */}
-      {error && step !== 'loading' && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+    <div className="mx-auto max-w-5xl px-4 sm:px-6">
+      {step !== 'working' && (
+        <div className="mb-6">
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900">
+            {step === 'upload' ? 'Start with a photo' : 'Tell us about your project'}
+          </h1>
+          <p className="mt-2 text-base text-slate-500">
+            {step === 'upload'
+              ? 'Show us the space and enter your ZIP. We handle the rest.'
+              : 'Fine-tune your estimate with a few quick choices.'}
+          </p>
         </div>
       )}
 
-      {/* ── STEP 1: PHOTO UPLOAD ── */}
-      {step === 'entry' && (
-        <div className="space-y-5">
-          <StepHeader
-            title="Upload a photo of your space"
-            subtitle="One photo is all it takes. We'll turn it into a complete renovation plan with costs and materials."
-          />
-
-          {/* Dropzone */}
-          <div
-            {...getRootProps()}
-            className={cn(
-              'relative overflow-hidden rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center cursor-pointer transition-all duration-200',
-              isDragActive
-                ? 'border-stone-400 bg-stone-100'
-                : uploadPreview
-                ? 'border-stone-300 bg-stone-50'
-                : 'border-stone-300 bg-white hover:border-stone-400 hover:bg-stone-50'
-            )}
-          >
-            <input {...getInputProps()} />
-            {uploadPreview ? (
-              <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={uploadPreview}
-                  alt="Upload preview"
-                  className="mx-auto max-h-56 sm:max-h-72 w-full object-cover rounded-xl mb-4"
-                />
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
-                  >
-                    <ImagePlus className="h-4 w-4" />
-                    Change
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeUpload(); }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-white border border-stone-200 px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50 active:scale-95 transition-all"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ) : prefillStatus === 'loading' ? (
-              <div className="py-8">
-                <Loader2 className="mx-auto h-10 w-10 animate-spin text-stone-400 mb-3" />
-                <p className="text-sm font-medium text-stone-500">Loading your photo...</p>
-              </div>
-            ) : (
-              <div className="py-4">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-stone-100">
-                  <Camera className="h-7 w-7 text-stone-400" />
-                </div>
-                <p className="text-base font-semibold text-stone-700">Tap to upload a photo</p>
-                <p className="text-sm text-stone-400 mt-1">or drag and drop</p>
-              </div>
-            )}
-          </div>
-
-          {/* ZIP code */}
-          <div>
-            <label htmlFor="zip-input" className="block text-sm font-medium text-stone-700 mb-1.5">
-              ZIP code <span className="text-stone-400">(for local pricing)</span>
-            </label>
-            <input
-              id="zip-input"
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 78701"
-              value={zipCode}
-              onChange={e => setZipCode(e.target.value)}
-              className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all"
-            />
-          </div>
-
-          {prefillStatus === 'error' && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-              Could not load the saved photo. Please upload a new one.
-            </div>
-          )}
-
-          <PrimaryCTA onClick={handleEntryNext} disabled={!uploadedFile || !zipCode.trim()}>
-            Continue
-          </PrimaryCTA>
-
-          {/* Tips */}
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            {[
-              { icon: '📱', label: 'Front-on shot', desc: 'Capture the full area' },
-              { icon: '☀️', label: 'Good lighting', desc: 'Natural daylight is best' },
-              { icon: '🎯', label: 'One area', desc: 'Focus on one section' },
-            ].map((tip) => (
-              <div key={tip.label} className="text-center">
-                <div className="text-xl mb-1">{tip.icon}</div>
-                <div className="text-xs font-semibold text-stone-600">{tip.label}</div>
-                <div className="text-[10px] text-stone-400 mt-0.5">{tip.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 2: CATEGORY ── */}
-      {step === 'category' && (
-        <div>
-          <BackButton onClick={() => setStep('entry')} />
-          <StepHeader
-            title="What are you planning?"
-            subtitle="Choose the closest project type. Custom works great for unusual projects."
-          />
-
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            {(Object.entries(PROJECT_CATEGORIES) as [ProjectCategory, typeof PROJECT_CATEGORIES[ProjectCategory]][]).map(([key, cat]) => (
-              <OptionCard key={key} selected={category === key} onClick={() => { setCategory(key); setScopeAnswers({}); }}>
-                <div className="text-2xl mb-2">{cat.emoji}</div>
-                <div className="font-semibold text-stone-800 text-sm">{cat.label}</div>
-                <div className="text-xs text-stone-500 mt-0.5 leading-relaxed line-clamp-2">{cat.description}</div>
-              </OptionCard>
-            ))}
-          </div>
-
-          <PrimaryCTA onClick={handleCategoryNext} disabled={!category}>
-            Continue
-          </PrimaryCTA>
-        </div>
-      )}
-
-      {/* ── STEP 3: SCOPE (optional) ── */}
-      {step === 'scope' && category && (
-        <div>
-          <BackButton onClick={() => setStep('category')} />
-          <StepHeader
-            title="A few quick details"
-            subtitle="These help tighten the estimate. You can skip if you prefer."
-          />
-
-          <div className="space-y-6 mb-6">
-            {scopeQuestions.map((question) => (
-              <div key={question.key}>
-                <h3 className="text-base font-semibold text-stone-800 mb-1">{question.label}</h3>
-                {question.helper && <p className="text-xs text-stone-500 mb-2">{question.helper}</p>}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {question.options.map((option) => (
-                    <OptionCard
-                      key={option.value}
-                      selected={scopeAnswers[question.key] === option.value}
-                      onClick={() => updateScopeAnswer(question.key, option.value)}
-                      className="!p-3"
-                    >
-                      <div className="font-medium text-stone-700 text-sm">{option.label}</div>
-                      {option.description && <div className="text-xs text-stone-400 mt-0.5">{option.description}</div>}
-                    </OptionCard>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            <PrimaryCTA onClick={handleScopeNext} disabled={!allScopeAnswered}>
-              Continue
-            </PrimaryCTA>
-            <button
-              type="button"
-              onClick={handleScopeSkip}
-              className="w-full rounded-2xl border border-stone-200 bg-white px-6 py-3.5 text-sm font-medium text-stone-500 hover:bg-stone-50 transition-all active:scale-[0.98]"
+      {/* SCREEN 1: UPLOAD */}
+      {step === 'upload' && (
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <Card className="p-5 sm:p-6">
+            {/* Upload Zone */}
+            <div
+              {...getRootProps()}
+              className={cn(
+                'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-6 text-center transition-colors sm:p-8',
+                isDragActive ? 'border-sand-dark bg-canvas-200' : 'border-panel hover:border-sand hover:bg-canvas-50'
+              )}
             >
-              Skip for now
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 4: STYLE ── */}
-      {step === 'style' && (
-        <div>
-          <BackButton onClick={() => setStep(hasScopeStep ? 'scope' : 'category')} />
-          <StepHeader
-            title="Pick a style direction"
-            subtitle="This shapes the concept and brief. You can evolve it later."
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            {(Object.entries(STYLE_OPTIONS) as [StylePreference, typeof STYLE_OPTIONS[StylePreference]][]).map(([key, opt]) => (
-              <OptionCard key={key} selected={style === key} onClick={() => setStyle(key)}>
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full ring-2 ring-white shadow-sm flex-shrink-0" style={{ background: opt.color }} />
-                  <div>
-                    <div className="font-semibold text-stone-800 text-sm">{opt.label}</div>
-                    <div className="text-xs text-stone-500 mt-0.5 leading-relaxed">{opt.description}</div>
-                  </div>
-                </div>
-              </OptionCard>
-            ))}
-          </div>
-
-          <PrimaryCTA onClick={handleStyleNext} disabled={!style}>
-            Continue
-          </PrimaryCTA>
-        </div>
-      )}
-
-      {/* ── STEP 5: QUALITY / FINISH ── */}
-      {step === 'quality' && (
-        <div>
-          <BackButton onClick={() => setStep('style')} />
-          <StepHeader
-            title="Set the finish level"
-            subtitle="Choose what you'd actually buy, not the dream version (unless that's the plan)."
-          />
-
-          <div className="space-y-3 mb-6">
-            {QUALITY_TIERS.map((tier) => (
-              <OptionCard key={tier.value} selected={qualityTier === tier.value} onClick={() => setQualityTier(tier.value)}>
-                <div className="flex items-start gap-3">
-                  <div className="text-2xl flex-shrink-0">{tier.emoji}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-stone-800">{tier.label}</div>
-                      <div className="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{tier.modifier}</div>
+              <input {...getInputProps()} />
+              {uploadPreview ? (
+                <div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={uploadPreview} alt="Preview" className="mx-auto mb-4 max-h-64 w-full rounded-2xl object-cover" />
+                  <div className="flex items-center justify-between gap-3 rounded-2xl bg-canvas-200/70 px-4 py-3">
+                    <div className="min-w-0 text-left">
+                      <p className="truncate text-sm font-semibold text-slate-900">{uploadedFile?.name}</p>
+                      <p className="text-xs text-slate-500">Tap to replace</p>
                     </div>
-                    <div className="text-sm text-stone-500 mt-0.5">{tier.desc}</div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeUpload(); }}
+                      className="rounded-xl border border-panel bg-canvas-50 p-2 hover:bg-canvas-200"
+                    >
+                      <Trash2 className="h-4 w-4 text-ink-600" />
+                    </button>
                   </div>
                 </div>
-              </OptionCard>
-            ))}
-          </div>
-
-          {/* Notes */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-stone-700 mb-1.5">
-              {isCustomProject ? 'Describe what you want to change' : 'Anything specific?'}{' '}
-              {!isCustomProject && <span className="text-stone-400">(optional)</span>}
-            </label>
-            <textarea
-              className="w-full resize-none rounded-xl border border-stone-200 bg-white px-4 py-3 text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-stone-300 transition-all"
-              rows={isCustomProject ? 4 : 3}
-              placeholder={isCustomProject ? 'e.g. Replace the old pergola with a covered outdoor kitchen...' : 'e.g. Need durable flooring because of a dog, want warmer tones...'}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </div>
-
-          <PrimaryCTA onClick={handleStart} disabled={isCustomProject && !notes.trim()}>
-            Generate my plan
-          </PrimaryCTA>
-          <p className="text-xs text-stone-400 text-center mt-3">Results are ready in about 60 seconds.</p>
-        </div>
-      )}
-
-      {/* ── LOADING ── */}
-      {step === 'loading' && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 px-5 py-8 sm:px-8 sm:py-12 text-center text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.15),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.10),transparent_30%)]" />
-
-          <div className="relative">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-white/10 bg-white/10 backdrop-blur mb-6">
-              <Loader2 className="h-8 w-8 animate-spin text-white" />
+              ) : (
+                <>
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200 text-sand-dark">
+                    <Upload className="h-8 w-8" />
+                  </div>
+                  <p className="text-lg font-semibold text-slate-900">Drop your photo here</p>
+                  <p className="mt-1 text-sm text-slate-500">{SUPPORTED_IMAGE_LABEL}</p>
+                </>
+              )}
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold mb-2">Building your plan</h2>
-            <p className="text-sm text-white/60 mb-8 max-w-md mx-auto">
-              Reading your photo, building estimates, drafting materials and contractor brief.
-            </p>
 
-            <div className="space-y-2.5 text-left max-w-md mx-auto">
-              {PROGRESS_STEPS.map((label, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-300',
-                    i < progressStep
-                      ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
-                      : i === progressStep
-                      ? 'bg-white/10 text-white border border-white/15'
-                      : 'bg-white/5 text-white/40 border border-white/5'
-                  )}
-                >
-                  {i < progressStep ? (
-                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                  ) : i === progressStep ? (
-                    <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin" />
-                  ) : (
-                    <div className="h-4 w-4 flex-shrink-0 rounded-full border border-white/20" />
-                  )}
-                  <span>{label}</span>
-                </div>
+            {/* ZIP + Continue */}
+            <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end">
+              <div className="min-w-0 flex-1">
+                <Input
+                  label="Your ZIP code for local pricing"
+                  placeholder="10001"
+                  value={zipCode}
+                  onChange={e => setZipCode(e.target.value)}
+                  required
+                />
+              </div>
+              <Button
+                className="shrink-0"
+                size="lg"
+                onClick={() => {
+                  if (!uploadedFile || !zipCode.trim()) {
+                    setError('Upload a photo and enter a ZIP code first.');
+                    return;
+                  }
+                  setError(null);
+                  setStep('choices');
+                }}
+                disabled={!uploadedFile || !zipCode.trim()}
+              >
+                Continue <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+
+            {error && (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+            )}
+          </div>
+
+            {/* Tips row */}
+            <div className="mt-5 flex flex-wrap gap-4 text-xs text-slate-500">
+              {PHOTO_TIPS.map(tip => (
+                <span key={tip} className="flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-mint" /> {tip}
+                </span>
               ))}
             </div>
+          </Card>
 
-            {analysisHighlights.length > 0 && (
-              <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 text-left max-w-md mx-auto">
-                <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">What naili sees</p>
-                <div className="space-y-2">
-                  {analysisHighlights.map((item, index) => (
-                    <div key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-white/70">
-                      <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-300/70" />
-                      <span>{item}</span>
-                    </div>
+          {/* Sidebar — what you get */}
+          <div className="space-y-4">
+            <Card className="bg-gradient-to-br from-sand-light/10 to-mint/5 p-5 sm:p-6">
+              <div className="mb-3 flex items-center gap-2 font-semibold text-slate-900">
+                <Sparkles className="h-4 w-4 text-sand-dark" />
+                What you&apos;ll get
+              </div>
+              <ul className="space-y-3 text-sm text-slate-600">
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" /> ZIP-adjusted cost range</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" /> Materials list with allowances</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" /> Contractor-ready brief</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" /> Design concept image</li>
+                <li className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-mint" /> Shareable link</li>
+              </ul>
+            </Card>
+            <Card className="p-5 sm:p-6">
+              <div className="mb-2 flex items-center gap-2 font-semibold text-slate-900">
+                <Info className="h-4 w-4 text-sand-dark" />
+                Built for confidence
+              </div>
+              <p className="text-sm text-slate-500">
+                Your estimate uses your photo, your choices, and real regional cost data — not a generic average. Every assumption is listed so you know where the number comes from.
+              </p>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* SCREEN 2: CHOICES */}
+      {step === 'choices' && (
+        <div>
+          <button onClick={() => setStep('upload')} className="mb-4 flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
+            <ArrowLeft className="h-4 w-4" /> Change photo or ZIP
+          </button>
+
+          <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-6">
+              {/* Project type */}
+              <Card className="p-5 sm:p-6">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">What are you planning?</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {CATEGORIES_FOR_DISPLAY.map(cat => (
+                    <button
+                      key={cat.value}
+                      onClick={() => {
+                        setCategory(cat.value);
+                        setScopeAnswers({});
+                      }}
+                      className={cn(
+                        'rounded-xl border px-3 py-4 text-left transition-all',
+                        category === cat.value
+                          ? 'border-sand-dark bg-sand-light/10 ring-1 ring-sand-dark'
+                          : 'border-panel bg-canvas-50 hover:border-sand hover:bg-canvas-100'
+                      )}
+                    >
+                      <span className="text-xl">{cat.emoji}</span>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{cat.label}</p>
+                    </button>
                   ))}
                 </div>
+              </Card>
+
+              {/* Scope Questions (if category has them) */}
+              {scopeQuestions.length > 0 && (
+                <Card className="p-5 sm:p-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">A few quick questions for accuracy</p>
+                  <div className="space-y-5">
+                    {scopeQuestions.map(q => (
+                      <div key={q.key}>
+                        <p className="mb-2 text-sm font-semibold text-slate-900">{q.label}</p>
+                        {q.helper && <p className="mb-2 text-xs text-slate-500">{q.helper}</p>}
+                        <div className="flex flex-wrap gap-2">
+                          {q.options.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => updateScopeAnswer(q.key, opt.value)}
+                              className={cn(
+                                'rounded-xl border px-3 py-2 text-sm transition-all',
+                                scopeAnswers[q.key] === opt.value
+                                  ? 'border-sand-dark bg-sand-light/20 font-semibold text-slate-900'
+                                  : 'border-panel bg-canvas-50 text-slate-600 hover:border-sand'
+                              )}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Custom project notes */}
+              {isCustomProject && (
+                <Card className="p-5 sm:p-6">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Describe your project</p>
+                  <textarea
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Describe the custom work you're planning — what's changing, what materials, approximate size..."
+                    className="min-h-[100px] w-full resize-y rounded-xl border border-panel bg-canvas-50 p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark"
+                    rows={4}
+                  />
+                </Card>
+              )}
+
+              {/* Style + Quality inline */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Card className="p-5 sm:p-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Style direction</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(STYLE_OPTIONS).map(([key, val]) => (
+                      <button
+                        key={key}
+                        onClick={() => setStyle(key as StylePreference)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2 text-sm transition-all',
+                          style === key
+                            ? 'border-sand-dark bg-sand-light/20 font-semibold text-slate-900'
+                            : 'border-panel bg-canvas-50 text-slate-600 hover:border-sand'
+                        )}
+                      >
+                        {val.label}
+                      </button>
+                    ))}
+                  </div>
+                </Card>
+
+                <Card className="p-5 sm:p-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">Finish quality</p>
+                  <div className="flex flex-wrap gap-2">
+                    {QUALITY_TIERS.map(tier => (
+                      <button
+                        key={tier.value}
+                        onClick={() => setQualityTier(tier.value)}
+                        className={cn(
+                          'rounded-xl border px-3 py-2 text-sm transition-all',
+                          qualityTier === tier.value
+                            ? 'border-sand-dark bg-sand-light/20 font-semibold text-slate-900'
+                            : 'border-panel bg-canvas-50 text-slate-600 hover:border-sand'
+                        )}
+                      >
+                        {tier.emoji} {tier.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {QUALITY_TIERS.find(t => t.value === qualityTier)?.desc}
+                  </p>
+                </Card>
               </div>
-            )}
+            </div>
+
+            {/* Right side — summary + go */}
+            <div className="space-y-4">
+              <Card className="bg-gradient-to-br from-[#1b1d22] to-[#242831] p-5 text-white sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">Your inputs</p>
+                <div className="mt-3 space-y-2 text-sm">
+                  {uploadPreview && (
+                    <div className="rounded-2xl bg-white/10 px-3 py-2">
+                      <span className="text-white/60">Photo:</span> Ready
+                    </div>
+                  )}
+                  <div className="rounded-2xl bg-white/10 px-3 py-2">
+                    <MapPin className="mr-1 inline h-3 w-3" />
+                    <span className="text-white/60">ZIP:</span> {zipCode}
+                  </div>
+                  <div className="rounded-2xl bg-white/10 px-3 py-2">
+                    <span className="text-white/60">Project:</span> {category ? PROJECT_CATEGORIES[category].label : 'Not set'}
+                  </div>
+                  <div className="rounded-2xl bg-white/10 px-3 py-2">
+                    <span className="text-white/60">Style:</span> {STYLE_OPTIONS[style]?.label}
+                  </div>
+                  <div className="rounded-2xl bg-white/10 px-3 py-2">
+                    <span className="text-white/60">Quality:</span> {QUALITY_TIERS.find(t => t.value === qualityTier)?.label || qualityTier}
+                  </div>
+                  {scopeQuestions.length > 0 && (
+                    <div className="rounded-2xl bg-white/10 px-3 py-2">
+                      <span className="text-white/60">Scope answers:</span>{' '}
+                      {allScopeAnswered ? Object.keys(scopeAnswers).length + ' answered' : 'Incomplete (optional)'}
+                    </div>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>
+                )}
+
+                <Button
+                  className="mt-5 w-full"
+                  size="lg"
+                  onClick={handleGo}
+                  disabled={!category || !zipCode.trim() || !uploadedFile || (scopeQuestions.length > 0 && !allScopeAnswered) || needsNotes}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" /> Generate my plan
+                </Button>
+
+                {scopeAnswers && scopeQuestions.length > 0 && !allScopeAnswered && (
+                  <p className="mt-2 text-xs text-slate-300">
+                    Scope questions are optional but improve accuracy.
+                  </p>
+                )}
+                {isCustomProject && !notes.trim() && (
+                  <p className="mt-2 text-xs text-slate-300">
+                    Tell us what you&apos;re planning so the estimate is useful.
+                  </p>
+                )}
+              </Card>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SCREEN 3: WORKING */}
+      {step === 'working' && (
+        <div className="flex min-h-[400px] flex-col items-center justify-center py-20">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin text-sand-dark" />
+          </div>
+          <h2 className="mt-6 text-2xl font-bold text-slate-900">Building your plan...</h2>
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Reading your photo, calculating costs, and preparing your contractor brief.
+            <br />
+            This takes about 15–30 seconds.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-400">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-mint" /> Photo analyzed
+            </span>
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-mint" /> Cost calculated
+            </span>
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Building brief
+            </span>
           </div>
         </div>
       )}

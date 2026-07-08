@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Download,
@@ -15,7 +14,6 @@ import {
   Loader2,
   MapPin,
   PenSquare,
-  ShoppingCart,
   Sparkles,
   Wallet,
   Wrench,
@@ -65,68 +63,13 @@ function regionNote(multiplier?: number | null) {
   return multiplier > 1 ? `${pct}% above avg` : `${pct}% below avg`;
 }
 
-/* ─── Section Nav ─── */
-
-type SectionId = 'concepts' | 'estimate' | 'materials' | 'brief' | 'next';
-
-const SECTION_TABS: Array<{ id: SectionId; label: string; icon: React.ReactNode }> = [
-  { id: 'concepts', label: 'Concepts', icon: <ImageIcon className="h-4 w-4" /> },
-  { id: 'estimate', label: 'Estimate', icon: <Wallet className="h-4 w-4" /> },
-  { id: 'materials', label: 'Materials', icon: <ShoppingCart className="h-4 w-4" /> },
-  { id: 'brief', label: 'Brief', icon: <FileText className="h-4 w-4" /> },
-  { id: 'next', label: 'Next Steps', icon: <ArrowRight className="h-4 w-4" /> },
-];
-
-/* ─── Donut Chart ─── */
-
-function DonutChart({ segments }: { segments: { label: string; value: number; color: string }[] }) {
-  const total = segments.reduce((s, seg) => s + seg.value, 0);
-  if (total === 0) return null;
-  let cumulative = 0;
-  const size = 160;
-  const stroke = 28;
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  return (
-    <div className="flex items-center gap-6">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0 -rotate-90">
-        {segments.map((seg) => {
-          const pct = seg.value / total;
-          const dashArray = `${pct * circumference} ${circumference}`;
-          const dashOffset = -(cumulative / total) * circumference;
-          cumulative += seg.value;
-          return (
-            <circle
-              key={seg.label}
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke={seg.color}
-              strokeWidth={stroke}
-              strokeDasharray={dashArray}
-              strokeDashoffset={dashOffset}
-              strokeLinecap="round"
-              className="transition-all duration-700"
-            />
-          );
-        })}
-      </svg>
-      <div className="space-y-2">
-        {segments.map((seg) => (
-          <div key={seg.label} className="flex items-center gap-2 text-sm">
-            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: seg.color }} />
-            <span className="text-ink-600">{seg.label}</span>
-            <span className="ml-auto font-semibold text-ink">{formatCurrency(seg.value)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function derivePermitAllowance(estimate: Estimate) {
+  return Math.round(estimate.mid_estimate * 0.05);
 }
 
-/* ─── Main Component ─── */
+function deriveContingency(estimate: Estimate) {
+  return Math.round(estimate.mid_estimate * 0.12);
+}
 
 export default function VisionResultsView({
   projectId,
@@ -286,66 +229,118 @@ export default function VisionResultsView({
   ] : [];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-10">
-
-      {/* ─── Sticky Section Nav ─── */}
-      <div
-        className={cn(
-          'fixed left-0 right-0 top-0 z-50 border-b border-stone-200 bg-white/95 backdrop-blur-lg transition-all duration-300 print:hidden',
-          stickyVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-        )}
-      >
-        <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-3 py-2 sm:gap-2 sm:px-6 scrollbar-none">
-          {SECTION_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => scrollToSection(tab.id)}
-              className={cn(
-                'flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm active:scale-95',
-                activeSection === tab.id
-                  ? 'bg-stone-800 text-white shadow-sm'
-                  : 'text-stone-500 hover:bg-stone-100 hover:text-stone-700'
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-2">
-            <Badge variant={readyCount === totalSections ? 'green' : 'amber'} className="text-[10px]">
-              {readyCount}/{totalSections} ready
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+      {/* ── Hero ── */}
+      <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-8 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.14),transparent_24%)]" />
+        <div className="relative">
+          {/* Badge line */}
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <Badge variant="blue" className="border-white/15 bg-white/10 text-white">naili vision</Badge>
+            <Badge variant="gray" className="border-white/15 bg-white/10 text-white">{categoryLabel}</Badge>
+            <Badge variant={estimate || materials || brief ? 'green' : 'amber'}>
+              {estimate || materials || brief ? 'Plan ready' : 'Still generating'}
             </Badge>
+          </div>
+
+          {/* Estimate range — the hero */}
+          <div className="max-w-3xl">
+            <h1 className="text-4xl font-bold leading-tight sm:text-6xl">
+              {estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Preparing your estimate…'}
+            </h1>
+            <p className="mt-3 text-base text-white/70 sm:text-lg">
+              {estimate
+                ? `Your ${categoryLabel.toLowerCase()} estimate, grounded in your photo, finish level, and ZIP code.`
+                : 'Your estimate and brief are being built from your photo and project details.'}
+            </p>
+          </div>
+
+          {/* Mini badges */}
+          <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/80">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
+              <MapPin className="h-4 w-4" /> ZIP {project.zip_code}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
+              <Sparkles className="h-4 w-4" /> {project.quality_tier} tier
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
+              <Wrench className="h-4 w-4" /> {sectionCounts.materialItems || '—'} line items
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <ShareButton shareUrl={shareUrl} variant="dark" />
+            <Button
+              className="border border-white/20 bg-white/10 text-white hover:bg-white/15"
+              onClick={() => window.print()}
+            >
+              <Download className="mr-2 h-4 w-4" /> Print
+            </Button>
+            <Link
+              href={reviseHref}
+              className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/15"
+            >
+              <PenSquare className="mr-2 h-4 w-4" /> Refine
+            </Link>
+            <Link
+              href={matchHref}
+              onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'hero' })}
+              className="inline-flex items-center justify-center rounded-xl bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-opacity hover:opacity-95"
+            >
+              Get Quotes <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* ─── Hero — Compact, visual, with original photo ─── */}
-      <section className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] print:hidden">
-        {/* Background with original photo */}
-        <div className="relative">
-          {originalImage && (
-            <div className="absolute inset-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={originalImage} alt="" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#1b1d22]/95 via-[#1b1d22]/85 to-[#1b1d22]/70" />
-            </div>
-          )}
-          {!originalImage && (
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)]" />
-          )}
+      {/* ── Local context banner ── */}
+      <section className="mt-5 grid gap-3 print:hidden md:grid-cols-3">
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><Wallet className="h-4 w-4 text-sand-dark" /> Smart estimate</div>
+          <div className="mt-3 text-lg font-semibold text-slate-900">{estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Still preparing'}</div>
+          <p className="mt-2 text-sm text-slate-600">Photo-aware cost planning grounded in your finish tier and ZIP code.</p>
+        </div>
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><FileText className="h-4 w-4 text-sand-dark" /> Contractor brief</div>
+          <div className="mt-3 text-lg font-semibold text-slate-900">{brief ? 'Ready to share before quotes' : 'Still drafting'}</div>
+          <p className="mt-2 text-sm text-slate-600">A cleaner walk-through summary, scope notes, and quote questions.</p>
+        </div>
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><TrendingUp className="h-4 w-4 text-mint" /> Local context</div>
+          <div className="mt-3 text-lg font-semibold text-slate-900">{regionSummary(estimate?.region_multiplier)}</div>
+          <p className="mt-2 text-sm text-slate-600">{qualityTierCopy(project.quality_tier)}</p>
+        </div>
+      </section>
 
-          <div className="relative px-4 py-6 text-white sm:px-10 sm:py-12">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              {/* Left — Key info */}
-              <div className="max-w-xl">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <Badge variant="green" className="border-white/15 bg-white/15 text-white">{tierLabel(project.quality_tier)}</Badge>
-                  <Badge variant="gray" className="border-white/15 bg-white/15 text-white">{categoryLabel}</Badge>
-                  <span className="flex items-center gap-1.5 text-xs text-white/60">
-                    <MapPin className="h-3 w-3" /> ZIP {project.zip_code}
-                  </span>
-                </div>
+      {/* ── Concept images ── */}
+      <section className="mt-10 print:hidden">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Concept images</h2>
+            <p className="mt-1 text-sm text-slate-500">A visual direction grounded in the original photo, not a generic style template.</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {hasAnyConcepts && selectedConceptUrl && (
+              <a href={selectedConceptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink">
+                <Eye className="h-4 w-4" /> Open selected concept
+              </a>
+            )}
+            {originalImage && (
+              <ConceptsLoader
+                projectId={projectId}
+                category={project.project_category}
+                style={project.style_preference || 'modern'}
+                qualityTier={project.quality_tier}
+                notes={project.notes || undefined}
+                referenceImageUrl={originalImage}
+                hasImages={hasAnyConcepts}
+                mode="manual"
+                buttonLabel="Regenerate concept"
+              />
+            )}
+          </div>
+        </div>
 
                 <h1 className="text-2xl font-bold leading-tight sm:text-3xl lg:text-5xl">
                   Your {categoryLabel.toLowerCase()} plan
@@ -475,10 +470,22 @@ export default function VisionResultsView({
         )}
       </section>
 
-      {/* ─── Section: Cost Estimate ─── */}
-      <section id="section-estimate" className="mt-10 scroll-mt-24 print:hidden">
-        <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Cost estimate</h2>
-        <p className="mt-1 text-sm text-ink-500">Based on your photo, finish tier, and ZIP code.</p>
+      {/* ── Smart cost estimate ── */}
+      <section className="mt-10 rounded-[2rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden sm:p-8">
+        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Smart cost estimate</h2>
+            <p className="mt-1 text-sm text-slate-500">A planning estimate built from the visible scope, your notes, and local pricing, not a generic benchmark.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {estimate?.confidence_score && (
+              <Badge variant={estimate.confidence_score >= 0.75 ? 'green' : estimate.confidence_score >= 0.55 ? 'amber' : 'gray'} className="w-fit">
+                {estimate.confidence_score >= 0.85 ? 'High confidence' : estimate.confidence_score >= 0.65 ? 'Good confidence' : estimate.confidence_score >= 0.45 ? 'Medium confidence' : 'Estimate is broad'}
+              </Badge>
+            )}
+            {estimate && <Badge variant="amber" className="w-fit">{qualityTierCopy(project.quality_tier)}</Badge>}
+          </div>
+        </div>
 
         {estimate ? (
           <div className="mt-5 space-y-5">
@@ -542,9 +549,9 @@ export default function VisionResultsView({
         )}
       </section>
 
-      {/* ─── Section: Materials ─── */}
-      <section id="section-materials" className="mt-10 scroll-mt-24 print:hidden">
-        <div className="mb-5 flex items-center justify-between">
+      {/* ── Materials list ── */}
+      <section className="mt-10 print:hidden">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Materials &amp; shopping list</h2>
             <p className="mt-1 text-sm text-ink-500">Real products with prices and links. Ready to shop or hand to a contractor.</p>
@@ -582,9 +589,9 @@ export default function VisionResultsView({
         )}
       </section>
 
-      {/* ─── Section: Brief ─── */}
-      <section id="section-brief" className="mt-10 scroll-mt-24">
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Project handoff brief ── */}
+      <section className="mt-10">
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="font-display text-2xl tracking-tight text-ink print:hidden sm:text-3xl">Contractor handoff brief</h2>
             <p className="mt-1 text-sm text-ink-500 print:hidden">Print or share this with your contractor for accurate quotes.</p>
@@ -621,56 +628,20 @@ export default function VisionResultsView({
         )}
       </section>
 
-      {/* ─── Section: Next Steps ─── */}
-      <section id="section-next" className="mt-10 scroll-mt-24 print:hidden">
-        <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">What to do next</h2>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-sand/15">
-              <ShoppingCart className="h-5 w-5 text-sand-dark" />
-            </div>
-            <h3 className="font-semibold text-ink">Shop materials yourself</h3>
-            <p className="mt-2 text-sm text-ink-600">Use the materials list above to order everything you need. Each item has a direct link to buy.</p>
-          </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-mint/15">
-              <Wrench className="h-5 w-5 text-[#5BA88C]" />
-            </div>
-            <h3 className="font-semibold text-ink">Send to a contractor</h3>
-            <p className="mt-2 text-sm text-ink-600">Share the handoff brief above for accurate, comparable quotes. The scope is already written.</p>
-          </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all hover:shadow-lg hover:-translate-y-0.5">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[#93C5FD]/15">
-              <Eye className="h-5 w-5 text-[#2563EB]" />
-            </div>
-            <h3 className="font-semibold text-ink">Get a second opinion</h3>
-            <p className="mt-2 text-sm text-ink-600">Share this plan with your spouse, partner, or a friend. They can see everything you see.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── CTA Footer ─── */}
-      <section className="mt-10 overflow-hidden rounded-2xl sm:rounded-[2rem] bg-gradient-to-br from-stone-800 to-stone-900 p-6 text-white shadow-lg print:hidden sm:p-10">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Next step / ready to compare bids ── */}
+      <section className="mt-10 rounded-[1.75rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden sm:p-6">
+        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-2xl font-bold sm:text-3xl">Ready to get started?</h2>
-            <p className="mt-2 text-white/80">Upload another photo or find a contractor in your area.</p>
+            <h2 className="text-lg font-bold text-slate-900">Ready to compare bids?</h2>
+            <p className="mt-1 text-sm text-slate-500">Share your brief with local pros who understand the scope.</p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-stone-800 shadow-lg transition-all hover:shadow-xl active:scale-95"
-            >
-              New project <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href={matchHref}
-              onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-white/20 bg-white/10 px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
-            >
-              Find a contractor
-            </Link>
-          </div>
+          <Link
+            href={matchHref}
+            onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
+            className="inline-flex items-center justify-center rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-canvas-50 shadow-soft transition-opacity hover:opacity-95"
+          >
+            Find contractors <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
         </div>
       </section>
 

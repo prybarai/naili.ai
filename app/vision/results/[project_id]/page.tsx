@@ -7,6 +7,8 @@ interface PageProps {
   params: Promise<{ project_id: string }>;
 }
 
+export const revalidate = 0;
+
 function toTitleCase(value: string) {
   return value
     .replace(/_/g, ' ')
@@ -216,9 +218,12 @@ function humanizeBriefText(text: string | undefined | null): string {
 export async function generateMetadata({ params }: PageProps) {
   const { project_id } = await params;
   return {
-    title: 'Your Project Plan — Naili',
-    description: 'Review your AI-powered project plan with cost estimates, design concepts, and contractor brief.',
-    robots: { index: false, follow: false },
+    title: "Here's your naili plan",
+    description: `Review your Naili project plan for ${project_id}.`,
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 
@@ -267,6 +272,9 @@ export default async function VisionResultsPage({ params }: PageProps) {
   const riskNotes = humanizeRiskNotes(cleanList(estimate?.risk_notes));
   const likelyTrades = cleanList((brief as ProjectBrief & { likely_trades?: string[] } | null)?.likely_trades);
   const siteQuestions = cleanList(brief?.site_verification_questions);
+
+  // Concept images are already loaded from the project record (generated_image_urls)
+  // which is passed through via the project object. No extra fetch needed.
 
   return (
     <VisionResultsView

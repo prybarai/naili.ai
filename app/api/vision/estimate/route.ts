@@ -36,6 +36,7 @@ interface EstimateResult {
   regional_notes?: string;
   region_multiplier?: number;
   estimate_breakdown?: EstimateBreakdown;
+  confidence_score?: number;
 }
 
 type ScopeAnswers = Record<string, string>;
@@ -1216,6 +1217,17 @@ export async function POST(req: NextRequest) {
     result = applyEstimateGuardrails(params.category, result);
     result = normalizeEstimateResult(result);
 
+    // Compute confidence score (0.0 to 1.0) based on signal quality
+    const confSignals = [];
+    confSignals.push(analysis?.confidence === 'high' ? 1.0 : analysis?.confidence === 'low' ? 0.5 : 0.75);
+    confSignals.push(params.scope_answers && Object.keys(params.scope_answers).length > 0 ? 0.9 : 0.6);
+    confSignals.push(analysis?.estimated_size_bucket ? 0.85 : 0.6);
+    confSignals.push(analysis?.current_condition ? 0.8 : 0.65);
+    confSignals.push(params.notes?.trim() ? 0.85 : 0.7);
+    confSignals.push(analysis?.complexity ? 0.8 : 0.65);
+    const confidenceScore = Number((confSignals.reduce((a, b) => a + b, 0) / confSignals.length).toFixed(2));
+    result.confidence_score = confidenceScore;
+
     const { data, error } = await supabaseAdmin
       .from('estimates')
       .insert({
@@ -1227,6 +1239,7 @@ export async function POST(req: NextRequest) {
         risk_notes: result.risk_notes,
         estimate_basis: result.estimate_basis,
         region_multiplier: result.region_multiplier ?? getRegionalPricingContext(params.zip_code).multiplier,
+        confidence_score: confidenceScore,
       })
       .select()
       .single();

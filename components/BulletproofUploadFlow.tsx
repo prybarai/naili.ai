@@ -118,9 +118,12 @@ export default function BulletproofUploadFlow() {
         throw new Error(errData.error || 'Photo upload failed. Please try again.');
       }
 
-      // Step 3: Navigate to the flow (skips re-upload since image is already saved)
-      setLoadingMessage('Opening your project...');
-      router.push(`/vision/start?from=${projectId}&zip=${encodeURIComponent(zipCode)}`);
+      const uploadData = await uploadResponse.json();
+
+      // STEP 3: Redirect to vision start with ZIP prefilled
+      // We keep the project in case user navigates back for their photo
+      router.push(`/vision/start?zip=${encodeURIComponent(zipCode)}`);
+
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -230,27 +233,15 @@ export default function BulletproofUploadFlow() {
                 )}
               </div>
 
-              {/* ZIP code */}
-              <div className="flex items-center gap-3 rounded-2xl border border-hairline bg-canvas-50 p-1.5 pl-4 transition-all focus-within:border-sand/50 focus-within:ring-2 focus-within:ring-sand/20 focus-within:shadow-[0_0_0_4px_rgba(216,185,138,0.08)]">
-                <MapPin className="h-4 w-4 flex-shrink-0 text-sand-dark" />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
-                  placeholder="ZIP code for local pricing"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-ink placeholder:text-ink-400 outline-none"
-                  maxLength={5}
-                />
-                {zipCode.length === 5 && (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5BA88C]/15">
-                    <CheckCircle className="h-4 w-4 text-[#16A34A]" />
-                  </div>
-                )}
-              </div>
-
-              {/* Submit */}
-              <button
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                onClick={() => setStep("zip")}
+                variant="secondary"
+                className="w-full"
+              >
+                Back
+              </Button>
+              <Button
                 onClick={handleSubmit}
                 disabled={!isReady}
                 className="group w-full rounded-full bg-gradient-to-r from-ink to-graphite-600 py-4 text-base font-semibold text-canvas-50 shadow-[0_4px_16px_rgba(23,24,28,0.2),0_1px_3px_rgba(23,24,28,0.1)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(23,24,28,0.25)] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:shadow-none"

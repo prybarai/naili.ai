@@ -44,6 +44,7 @@ export interface Estimate {
   estimate_basis: string;
   estimate_breakdown?: EstimateBreakdown;
   region_multiplier: number;
+  confidence_score?: number;
   created_at: string;
 }
 
