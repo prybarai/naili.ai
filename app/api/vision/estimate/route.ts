@@ -1239,7 +1239,6 @@ export async function POST(req: NextRequest) {
         risk_notes: result.risk_notes,
         estimate_basis: result.estimate_basis,
         region_multiplier: result.region_multiplier ?? getRegionalPricingContext(params.zip_code).multiplier,
-        confidence_score: confidenceScore,
       })
       .select()
       .single();
@@ -1256,36 +1255,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ estimate: { ...data, regional_notes: result.regional_notes, estimate_breakdown: result.estimate_breakdown } });
   } catch (error) {
     console.error('estimate error:', error);
-    
-    // Try to extract info safely - serialize everything we can
-    const errorInfo: Record<string, string> = { type: typeof error };
-    
-    if (error instanceof Error) {
-      errorInfo.message = error.message;
-      errorInfo.name = error.name;
-      errorInfo.stack = (error.stack || '').split('\n').slice(0, 10).join('\n');
-    } else {
-      try {
-        errorInfo.serialized = JSON.stringify(error);
-      } catch {
-        errorInfo.serialized = String(error);
-      }
-      // Also try enumerating own properties
-      if (error && typeof error === 'object') {
-        const keys = Object.getOwnPropertyNames(error);
-        errorInfo.ownKeys = keys.join(', ');
-        for (const k of keys.slice(0, 5)) {
-          try {
-            errorInfo[`prop_${k}`] = typeof (error as Record<string, unknown>)[k] === 'string'
-              ? String((error as Record<string, unknown>)[k])
-              : JSON.stringify((error as Record<string, unknown>)[k]);
-          } catch {
-            errorInfo[`prop_${k}`] = String((error as Record<string, unknown>)[k]);
-          }
-        }
-      }
-    }
-    
-    return NextResponse.json({ error: 'Failed to generate estimate', info: errorInfo }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: 'Failed to generate estimate', detail: message }, { status: 500 });
   }
 }
