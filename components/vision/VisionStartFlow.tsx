@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
@@ -262,48 +262,16 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
     [files.length, zipCode, category]
   );
 
-  // Load photos from sessionStorage if coming from homepage
-  useEffect(() => {
-    const dataJson = sessionStorage.getItem('naili_photos_data');
-    const namesJson = sessionStorage.getItem('naili_photos_names');
-    const typesJson = sessionStorage.getItem('naili_photos_types');
-    if (dataJson && namesJson && typesJson) {
-      try {
-        const dataUrls = JSON.parse(dataJson) as string[];
-        const names = JSON.parse(namesJson) as string[];
-        const types = JSON.parse(typesJson) as string[];
-        // Recreate File objects from data URLs
-        const loadedFiles: File[] = [];
-        dataUrls.forEach((dataUrl, i) => {
-          const byteStr = atob(dataUrl.split(',')[1]);
-          const mime = types[i] || 'image/jpeg';
-          const ab = new ArrayBuffer(byteStr.length);
-          const ia = new Uint8Array(ab);
-          for (let j = 0; j < byteStr.length; j++) ia[j] = byteStr.charCodeAt(j);
-          const blob = new Blob([ab], { type: mime });
-          loadedFiles.push(new File([blob], names[i] || `photo_${i}.jpg`, { type: mime }));
-        });
-        setFiles(loadedFiles);
-        setPreviews(dataUrls);
-        // Clear sessionStorage so refresh doesn't re-load
-        sessionStorage.removeItem('naili_photos_data');
-        sessionStorage.removeItem('naili_photos_names');
-        sessionStorage.removeItem('naili_photos_types');
-      } catch { /* ignore corrupt data */ }
-    }
-  }, []);
-
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const remaining = MAX_FILES - files.length;
-    const toAdd = acceptedFiles.slice(0, remaining);
-    if (toAdd.length === 0) return;
-    setFiles((prev) => [...prev, ...toAdd]);
-    setPreviews((prev) => [
-      ...prev,
-      ...toAdd.map((f) => URL.createObjectURL(f)),
-    ]);
-    setError(null);
-  }, [files.length]);
+    setFiles((prev) => {
+      const remaining = MAX_FILES - prev.length;
+      const toAdd = acceptedFiles.slice(0, remaining);
+      if (toAdd.length === 0) return prev;
+      setPreviews((p) => [...p, ...toAdd.map((f) => URL.createObjectURL(f))]);
+      setError(null);
+      return [...prev, ...toAdd];
+    });
+  }, []);
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
     setError(getFileRejectionMessage(rejections));
@@ -575,7 +543,7 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
                 label="ZIP code for local pricing"
                 placeholder="10001"
                 value={zipCode}
-                onChange={(e) => setZipCode(e.target.value)}
+                onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
                 required
               />
             </div>

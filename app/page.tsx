@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
-import { CheckCircle2, Loader2, Sparkles, Trash2, Upload } from 'lucide-react';
+import { CheckCircle2, Sparkles, Trash2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import posthog from 'posthog-js';
 import Card from '@/components/ui/Card';
@@ -29,35 +29,25 @@ function getFileRejectionMessage(rejections: FileRejection[]) {
   return firstError.message || `Please upload ${SUPPORTED_IMAGE_LABEL}.`;
 }
 
-function readFileAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function HomePage() {
   const router = useRouter();
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [zipCode, setZipCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const remaining = MAX_FILES - files.length;
-    const toAdd = acceptedFiles.slice(0, remaining);
-    if (toAdd.length === 0) return;
-    setFiles((prev) => [...prev, ...toAdd]);
-    setPreviews((prev) => [
-      ...prev,
-      ...toAdd.map((f) => URL.createObjectURL(f)),
-    ]);
-    setError(null);
-    posthog.capture('naili_home_photos_dropped', { count: toAdd.length });
-  }, [files.length]);
+    setFiles((prev) => {
+      const remaining = MAX_FILES - prev.length;
+      const toAdd = acceptedFiles.slice(0, remaining);
+      if (toAdd.length === 0) return prev;
+      const newUrls = toAdd.map((f) => URL.createObjectURL(f));
+      setPreviews((p) => [...p, ...newUrls]);
+      setError(null);
+      posthog.capture('naili_home_photos_dropped', { count: toAdd.length });
+      return [...prev, ...toAdd];
+    });
+  }, []);
 
   const onDropRejected = useCallback((rejections: FileRejection[]) => {
     setError(getFileRejectionMessage(rejections));
@@ -84,23 +74,10 @@ export default function HomePage() {
 
   const canSubmit = files.length > 0 && zipCode.trim().length === 5;
 
-  const handleGo = async () => {
+  const handleGo = () => {
     if (!canSubmit) return;
-    setLoading(true);
-    try {
-      // Convert files to data URLs and store in sessionStorage so vision/start can pick them up
-      const fileDataUrls = await Promise.all(files.map(readFileAsDataURL));
-      const fileNames = files.map(f => f.name);
-      const fileTypes = files.map(f => f.type);
-      sessionStorage.setItem('naili_photos_data', JSON.stringify(fileDataUrls));
-      sessionStorage.setItem('naili_photos_names', JSON.stringify(fileNames));
-      sessionStorage.setItem('naili_photos_types', JSON.stringify(fileTypes));
-      posthog.capture('naili_home_submitted', { photo_count: files.length, zip: zipCode.trim() });
-      router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}`);
-    } catch {
-      setError('Could not process photos. Please try again.');
-      setLoading(false);
-    }
+    posthog.capture('naili_home_submitted', { photo_count: files.length, zip: zipCode.trim() });
+    router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}`);
   };
 
   return (
@@ -157,7 +134,7 @@ export default function HomePage() {
                 </div>
                 {files.length < MAX_FILES && (
                   <p className="text-sm text-ink-500">
-                    Drop more photos or click to replace
+                    Drop more photos or click to add
                   </p>
                 )}
               </div>
@@ -183,27 +160,21 @@ export default function HomePage() {
                 label="Your ZIP code for local pricing"
                 placeholder="10001"
                 value={zipCode}
-                onChange={(e) => setZipCode(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                  setZipCode(v);
+                }}
                 required
               />
             </div>
             <Button
               size="lg"
               onClick={handleGo}
-              disabled={!canSubmit || loading}
+              disabled={!canSubmit}
               className="shrink-0"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Get my estimate
-                </>
-              )}
+              <Sparkles className="mr-2 h-4 w-4" />
+              Get my estimate
             </Button>
           </div>
 
@@ -213,7 +184,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {!error && !canSubmit && !loading && (
+          {!error && !canSubmit && (
             <div className="mt-3 text-center text-xs text-ink-400">
               {files.length === 0 && 'Drop a photo above'}
               {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code'}
