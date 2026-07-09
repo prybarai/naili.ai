@@ -213,6 +213,13 @@ export default function HomePage() {
             </div>
           )}
 
+          {!error && !canSubmit && !loading && (
+            <div className="mt-3 text-center text-xs text-ink-400">
+              {files.length === 0 && 'Drop a photo above'}
+              {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code'}
+            </div>
+          )}
+
           {/* Tips row */}
           <div className="mt-4 flex flex-wrap gap-4 text-xs text-ink-500">
             <span className="flex items-center gap-1">
