@@ -1256,12 +1256,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ estimate: { ...data, regional_notes: result.regional_notes, estimate_breakdown: result.estimate_breakdown } });
   } catch (error) {
     console.error('estimate error:', error);
-    const message = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack?.split('\n').slice(0, 5).join('\n') : '';
+    const detail = error instanceof Error ? error.message : JSON.stringify(error);
+    const stack = error instanceof Error ? error.stack?.split('\n').slice(0, 8).join('\n') : '';
+    const type = typeof error;
+    const constructor = error?.constructor?.name || 'unknown';
     return NextResponse.json({
       error: 'Failed to generate estimate',
-      detail: message,
-      stack: stack
+      detail,
+      stack,
+      type,
+      constructor
     }, { status: 500 });
   }
 }
