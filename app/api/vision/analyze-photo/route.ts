@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { parseOpenAIVisionJSONFromUrl } from '../../../../lib/openaiVision';
+import { deepSeekVisionJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '../../../../lib/visionAnalysis';
 
 const schema = z.object({
@@ -10,9 +10,9 @@ const schema = z.object({
   notes: z.string().optional(),
 });
 
-const SYSTEM_PROMPT = 'You are an expert home renovation consultant and construction estimator. Analyze the actual uploaded photo together with the homeowner request. Be observant, conservative, and useful. Do not hallucinate hidden conditions or exact dimensions. Return only valid JSON.';
+const SYSTEM_PROMPT = `You are an expert home renovation consultant and construction estimator. Analyze the uploaded home project photo. Be observant, conservative, and useful. Do not hallucinate hidden conditions or exact dimensions. Return only valid JSON.`;
 
-const USER_PROMPT_TEMPLATE = `Analyze the uploaded home project photo together with the homeowner request.
+const USER_PROMPT_TEMPLATE = `Analyze the uploaded home project photo.
 
 Return one JSON object with exactly these fields:
 {
@@ -63,15 +63,11 @@ Return one JSON object with exactly these fields:
 }
 
 Rules:
-- Use the actual photo first, then use the homeowner notes to understand the desired change.
+- Use the actual photo first.
 - Do not invent exact dimensions, exact square footage, or hidden conditions.
 - estimated_sqft should be a short planning string like "small powder room", "roughly 180-240 sq ft", or "front elevation only".
 - current_materials, architectural_features, key_challenges, visible_features, size_reasoning, estimation_notes, materials_signals, visible_constraints, and loading_observations must be concise and specific.
-- For exterior and landscaping photos, explicitly call out fixed-site elements that should usually be preserved, such as driveway, walkway, patio, pavers, retaining wall, steps, and fence lines, when they are visible.
-- If a driveway or walkway is visible, include it in visible_constraints or visible_features using those words directly.
 - loading_observations should be 3 to 5 short, user-facing lines that sound like live analysis updates.
-- renovation_scope should explain what would need to change to achieve the homeowner goal in this exact visible space.
-- customization_notes should connect the homeowner request to what is actually visible.
 - If something is unknown, use null for nullable fields or an empty array.
 - Output only valid JSON with no markdown.`;
 
@@ -125,24 +121,41 @@ function sanitizeAnalysis(input: Partial<VisionAnalysis> | null | undefined): Vi
   };
 }
 
+async function fetchBase64(imageUrl: string): Promise<string> {
+  const res = await fetch(imageUrl);
+  if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  return buffer.toString('base64');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const params = schema.parse(body);
 
-    try {
-      const analysis = sanitizeAnalysis(await parseOpenAIVisionJSONFromUrl<VisionAnalysis>({
-        systemPrompt: SYSTEM_PROMPT,
-        userPrompt: `${USER_PROMPT_TEMPLATE}\n\nProject category: ${params.category}${params.zip_code ? `\nZIP code: ${params.zip_code}` : ''}${params.notes ? `\nHomeowner request: ${params.notes}` : '\nHomeowner request: none provided'}`,
-        imageUrl: params.image_url,
-        maxTokens: 1200,
-      }));
+    // Try DeepSeek vision first
+    if (isDeepSeekAvailable()) {
+      try {
+        const base64 = await fetchBase64(params.image_url);
+        const userPrompt = `${USER_PROMPT_TEMPLATE}\n\nProject category: ${params.category}${params.zip_code ? `\nZIP code: ${params.zip_code}` : ''}${params.notes ? `\nHomeowner request: ${params.notes}` : '\nHomeowner request: none provided'}`;
 
-      return NextResponse.json({ analysis });
-    } catch (visionError) {
-      console.error('analyze-photo fallback:', visionError);
-      return NextResponse.json({ analysis: FALLBACK_VISION_ANALYSIS });
+        const analysis = sanitizeAnalysis(await deepSeekVisionJSON<VisionAnalysis>(
+          SYSTEM_PROMPT,
+          userPrompt,
+          base64,
+          { maxTokens: 1800 }
+        ));
+
+        return NextResponse.json({ analysis });
+      } catch (deepSeekError) {
+        console.error('DeepSeek vision failed, using fallback:', deepSeekError);
+      }
+    } else {
+      console.log('DeepSeek not configured (DEEPSEEK_API_KEY missing), using fallback analysis');
     }
+
+    // Fallback: return default analysis
+    return NextResponse.json({ analysis: FALLBACK_VISION_ANALYSIS });
   } catch (error) {
     console.error('analyze-photo error:', error);
     return NextResponse.json({ analysis: FALLBACK_VISION_ANALYSIS });

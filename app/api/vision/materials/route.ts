@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
-import Anthropic from '@anthropic-ai/sdk';
+import { callDeepSeekJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { type VisionAnalysis } from '../../../../lib/visionAnalysis';
 
 const schema = z.object({
@@ -15,7 +15,7 @@ const schema = z.object({
   notes: z.string().optional(),
 });
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY || 'placeholder' });
+
 
 function getAnalysis(input: unknown): VisionAnalysis | undefined {
   if (!input || typeof input !== 'object') return undefined;
@@ -244,44 +244,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const params = schema.parse(body);
     const analysis = getAnalysis(params.analysis);
-
-    // Optional: describe the concept image for better product matching
-    let visualDescription = '';
-    if (params.generated_image_url && !params.generated_image_url.startsWith('data:')) {
-      try {
-        const visionResponse = await anthropic.messages.create({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 300,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: `Describe the visible materials, finishes, colors, and fixtures in this ${params.category} design concept in 3 short sentences. Be specific about brands if recognizable.` },
-              { type: 'image', source: { type: 'url', url: params.generated_image_url } },
-            ],
-          }],
-        });
-        const content = visionResponse.content[0];
-        if (content.type === 'text') visualDescription = content.text;
-      } catch (e) {
-        console.error('Vision analysis for materials failed:', e);
-      }
-    }
-
     let materials: { line_items: unknown[]; sourcing_notes: string };
     try {
-      const prompt = buildRealProductsPrompt(params, analysis, visualDescription);
+      const prompt = buildRealProductsPrompt(params, analysis, '');
 
-      const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4000,
-        system: 'You are a licensed contractor and materials expert. You know real products, real brands, real prices, and real retailers. Output ONLY valid JSON with no markdown fences.',
-        messages: [{ role: 'user', content: prompt }],
-      });
-
-      const content = response.content[0];
-      if (content.type !== 'text') throw new Error('Unexpected response');
-      const jsonStr = content.text.replace(/```(?:json)?\s*/g, '').replace(/```\s*$/g, '').trim();
-      materials = JSON.parse(jsonStr) as { line_items: unknown[]; sourcing_notes: string };
+      if (isDeepSeekAvailable()) {
+        const raw = await callDeepSeekJSON<{ line_items: unknown[]; sourcing_notes: string }>(
+          'You are a licensed contractor and materials expert. You know real products, real brands, real prices, and real retailers. Output ONLY valid JSON with no markdown fences.',
+          prompt,
+          { maxTokens: 4000, temperature: 0.2 }
+        );
+        materials = raw;
+      } else {
+        console.log('DeepSeek not available, using fallback materials');
+        materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis);
+      }
     } catch (aiError) {
       console.error('materials ai fallback:', aiError);
       materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis);

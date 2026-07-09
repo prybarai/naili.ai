@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
-import { parseClaudeJSON } from '../../../../lib/anthropic';
+import { callDeepSeekJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { buildBriefPrompt } from '../../../../lib/prompts';
 import { describeAnalysisFacts, type VisionAnalysis } from '../../../../lib/visionAnalysis';
 
@@ -381,10 +381,15 @@ ${analysis ? `
 - Suggested location type: ${analysis.suggested_location_type || 'unknown'}
 - Complexity: ${analysis.complexity || 'moderate'}` : ''}${params.category === 'custom_project' ? '\n- For custom_project briefs, emphasize the homeowner request, likely trades involved, top unknowns needing site verification, suggested site measurements, and strong contractor questions. Make the brief useful even if estimate scope is broad.' : ''}`;
 
-      result = await parseClaudeJSON<BriefResult>(
-        'You are a construction project manager creating contractor-ready briefs. Output ONLY valid JSON.',
-        prompt
-      );
+      if (isDeepSeekAvailable()) {
+          result = await callDeepSeekJSON<BriefResult>(
+            'You are a construction project manager creating contractor-ready briefs. Output ONLY valid JSON.',
+            prompt
+          );
+        } else {
+          console.log('DeepSeek not available, using fallback brief');
+          result = fallbackBrief(params, analysis);
+        }
     } catch (aiError) {
       console.error('brief ai fallback:', aiError);
       result = fallbackBrief(params, analysis);
