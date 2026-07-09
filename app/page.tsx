@@ -3,16 +3,14 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
-import { CheckCircle2, Loader2, MapPin, Sparkles, Trash2, Upload } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles, Trash2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { v4 as uuidv4 } from 'uuid';
 import posthog from 'posthog-js';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, or WEBP up to 10MB';
 const MAX_FILES = 3;
 
@@ -29,6 +27,15 @@ function getFileRejectionMessage(rejections: FileRejection[]) {
   if (firstError.code === 'file-invalid-type') return `Format not supported. Please use ${SUPPORTED_IMAGE_LABEL}.`;
   if (firstError.code === 'too-many-files') return 'Maximum 3 photos.';
   return firstError.message || `Please upload ${SUPPORTED_IMAGE_LABEL}.`;
+}
+
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function HomePage() {
@@ -75,77 +82,26 @@ export default function HomePage() {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canAutoAdvance = files.length > 0 && zipCode.trim().length === 5;
+  const canSubmit = files.length > 0 && zipCode.trim().length === 5;
 
   const handleGo = async () => {
-    if (!canAutoAdvance && !loading) {
-      if (files.length === 0) setError('Drop at least one photo of your space.');
-      else if (zipCode.trim().length !== 5)
-        setError('Enter a valid 5-digit ZIP code.');
-      return;
-    }
-
+    if (!canSubmit) return;
     setLoading(true);
-    setError(null);
-
     try {
-      // Create a lightweight project with just what's needed
-      const sessionId = uuidv4();
-      const projectRes = await fetch('/api/projects/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          zip_code: zipCode.trim(),
-          session_id: sessionId,
-          location_type: 'interior',
-          project_category: 'custom_project',
-          quality_tier: 'mid',
-        }),
-      });
-
-      if (!projectRes.ok) {
-        const body = await projectRes.json().catch(() => ({}));
-        throw new Error((body as { error?: string }).error || 'Could not start your project. Please try again.');
-      }
-
-      const { project } = await projectRes.json() as { project: { id: string } };
-      const projectId = project.id;
-
-      // Upload photos
-      const imageUrls: string[] = [];
-      for (const file of files) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('project_id', projectId);
-        const uploadRes = await fetch('/api/projects/upload-image', {
-          method: 'POST',
-          body: formData,
-        });
-        if (uploadRes.ok) {
-          const { url } = await uploadRes.json() as { url: string };
-          imageUrls.push(url);
-        }
-      }
-
-      posthog.capture('naili_home_submitted', {
-        photo_count: files.length,
-        zip: zipCode.trim(),
-      });
-
-      router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}&image=${encodeURIComponent(imageUrls[0] || '')}`);
-    } catch (err) {
-      console.error(err);
-      setError(
-        err instanceof Error ? err.message : 'Something went wrong. Please try again.'
-      );
+      // Convert files to data URLs and store in sessionStorage so vision/start can pick them up
+      const fileDataUrls = await Promise.all(files.map(readFileAsDataURL));
+      const fileNames = files.map(f => f.name);
+      const fileTypes = files.map(f => f.type);
+      sessionStorage.setItem('naili_photos_data', JSON.stringify(fileDataUrls));
+      sessionStorage.setItem('naili_photos_names', JSON.stringify(fileNames));
+      sessionStorage.setItem('naili_photos_types', JSON.stringify(fileTypes));
+      posthog.capture('naili_home_submitted', { photo_count: files.length, zip: zipCode.trim() });
+      router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}`);
+    } catch {
+      setError('Could not process photos. Please try again.');
       setLoading(false);
     }
   };
-
-  // Auto-advance when ready
-  if (canAutoAdvance && !loading) {
-    handleGo();
-  }
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
@@ -234,7 +190,7 @@ export default function HomePage() {
             <Button
               size="lg"
               onClick={handleGo}
-              disabled={!canAutoAdvance || loading}
+              disabled={!canSubmit || loading}
               className="shrink-0"
             >
               {loading ? (

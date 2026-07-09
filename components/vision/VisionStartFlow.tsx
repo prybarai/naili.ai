@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
@@ -249,9 +249,7 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
   const [step, setStep] = useState<Step>('details');
   const [zipCode, setZipCode] = useState(initialPrefill?.zip || '');
   const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>(
-    initialPrefill?.image ? [initialPrefill.image] : []
-  );
+  const [previews, setPreviews] = useState<string[]>([]);
   const [category, setCategory] = useState<ProjectCategory>('interior_paint');
   const [style, setStyle] = useState<StylePreference>('modern');
   const [qualityTier, setQualityTier] = useState<QualityTier>('mid');
@@ -263,6 +261,37 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
     () => files.length > 0 && zipCode.trim().length === 5 && category !== null,
     [files.length, zipCode, category]
   );
+
+  // Load photos from sessionStorage if coming from homepage
+  useEffect(() => {
+    const dataJson = sessionStorage.getItem('naili_photos_data');
+    const namesJson = sessionStorage.getItem('naili_photos_names');
+    const typesJson = sessionStorage.getItem('naili_photos_types');
+    if (dataJson && namesJson && typesJson) {
+      try {
+        const dataUrls = JSON.parse(dataJson) as string[];
+        const names = JSON.parse(namesJson) as string[];
+        const types = JSON.parse(typesJson) as string[];
+        // Recreate File objects from data URLs
+        const loadedFiles: File[] = [];
+        dataUrls.forEach((dataUrl, i) => {
+          const byteStr = atob(dataUrl.split(',')[1]);
+          const mime = types[i] || 'image/jpeg';
+          const ab = new ArrayBuffer(byteStr.length);
+          const ia = new Uint8Array(ab);
+          for (let j = 0; j < byteStr.length; j++) ia[j] = byteStr.charCodeAt(j);
+          const blob = new Blob([ab], { type: mime });
+          loadedFiles.push(new File([blob], names[i] || `photo_${i}.jpg`, { type: mime }));
+        });
+        setFiles(loadedFiles);
+        setPreviews(dataUrls);
+        // Clear sessionStorage so refresh doesn't re-load
+        sessionStorage.removeItem('naili_photos_data');
+        sessionStorage.removeItem('naili_photos_names');
+        sessionStorage.removeItem('naili_photos_types');
+      } catch { /* ignore corrupt data */ }
+    }
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const remaining = MAX_FILES - files.length;
