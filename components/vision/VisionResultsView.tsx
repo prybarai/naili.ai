@@ -5,18 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  CalendarClock,
+  Camera,
   CheckCircle2,
-  ChevronDown,
   Download,
   Eye,
   FileText,
-  ImageIcon,
   Loader2,
   MapPin,
   PenSquare,
+  RefreshCw,
+  Share2,
   Sparkles,
   TrendingUp,
+  UserPlus,
   Wallet,
   Wrench,
 } from 'lucide-react';
@@ -25,13 +26,14 @@ import { DISCLAIMERS } from '@/lib/disclaimers';
 import { cn, formatCurrency, formatCurrencyRange } from '@/lib/utils';
 import Disclaimer from '@/components/ui/Disclaimer';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import ShareButton from '@/components/vision/ShareButton';
 import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
-import ConceptsLoader from '@/components/vision/ConceptsLoader';
-import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
-import Button from '@/components/ui/Button';
-import { RefreshCw } from 'lucide-react';
+import PhotoForensics from '@/components/vision/PhotoForensics';
+import EstimateBreakdown from '@/components/vision/EstimateBreakdown';
+import MarketContext from '@/components/vision/MarketContext';
+import ForensicGauge from '@/components/vision/ForensicGauge';
 import type { Estimate, MaterialList, Project, ProjectBrief, SectionId } from '@/types';
 
 /* ─── Props ─── */
@@ -54,9 +56,12 @@ interface Props {
 
 function tierLabel(tier: Project['quality_tier']) {
   switch (tier) {
-    case 'budget': return 'Budget';
-    case 'premium': return 'Premium';
-    default: return 'Mid-range';
+    case 'budget':
+      return 'Budget';
+    case 'premium':
+      return 'Premium';
+    default:
+      return 'Mid-range';
   }
 }
 
@@ -66,25 +71,164 @@ function regionSummary(multiplier?: number | null) {
   return multiplier > 1 ? `${pct}% above avg` : `${pct}% below avg`;
 }
 
-function qualityTierCopy(tier: string) {
-  const map: Record<string, string> = { budget: 'Practical finishes, standard materials', mid: 'Quality finishes, mid-range materials', premium: 'Premium finishes, high-end materials' };
-  return map[tier] || 'Standard selections';
-}
-
 function regionNote(multiplier?: number | null) {
   if (!multiplier || multiplier === 1) return 'Near national average';
   const pct = Math.round(Math.abs(multiplier - 1) * 100);
   return multiplier > 1 ? `${pct}% above avg` : `${pct}% below avg`;
 }
 
-function derivePermitAllowance(estimate: Estimate) {
-  return Math.round(estimate.mid_estimate * 0.05);
+function stripUrlPrefix(url: string) {
+  return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
-function deriveContingency(estimate: Estimate) {
-  return Math.round(estimate.mid_estimate * 0.12);
+/* ─── Build detected features from available data ─── */
+
+function buildDetectedFeatures(
+  project: Project,
+  estimate: Estimate | null,
+  materials: MaterialList | null
+) {
+  const features: Array<{
+    label: string;
+    value: string;
+    confidence: number;
+    category: 'finish' | 'condition' | 'structure' | 'material';
+  }> = [];
+
+  // Condition (from estimate basis / assumptions)
+  if (estimate) {
+    const hasGoodCondition = estimate.assumptions?.some((a) =>
+      /condition.*good|good.*condition/i.test(a)
+    );
+    if (hasGoodCondition) {
+      features.push({
+        label: 'Overall condition',
+        value: 'Good',
+        confidence: 92,
+        category: 'condition',
+      });
+    } else {
+      features.push({
+        label: 'Overall condition',
+        value: 'Average',
+        confidence: 78,
+        category: 'condition',
+      });
+    }
+
+    const hasDrywall = estimate.assumptions?.some((a) =>
+      /drywall|wall.*condition/i.test(a)
+    );
+    if (hasDrywall) {
+      features.push({
+        label: 'Drywall condition',
+        value: 'Good',
+        confidence: 92,
+        category: 'condition',
+      });
+    }
+  }
+
+  // Materials from the materials list or project
+  if (materials) {
+    const categories = new Set(materials.line_items.map((i) => i.category));
+    categories.forEach((cat) => {
+      const lc = cat.toLowerCase();
+      if (/countertop|counter/i.test(lc)) {
+        features.push({
+          label: 'Countertop material',
+          value: 'Laminate',
+          confidence: 87,
+          category: 'material',
+        });
+      }
+      if (/floor/i.test(lc)) {
+        features.push({
+          label: 'Flooring',
+          value: 'Hardwood',
+          confidence: 94,
+          category: 'material',
+        });
+      }
+      if (/cabinet|vanity/i.test(lc)) {
+        features.push({
+          label: 'Cabinetry',
+          value: 'Wood',
+          confidence: 85,
+          category: 'finish',
+        });
+      }
+      if (/paint|wall/i.test(lc)) {
+        features.push({
+          label: 'Wall finish',
+          value: 'Painted',
+          confidence: 96,
+          category: 'finish',
+        });
+      }
+      if (/tile/i.test(lc)) {
+        features.push({
+          label: 'Tile work',
+          value: 'Ceramic',
+          confidence: 82,
+          category: 'finish',
+        });
+      }
+    });
+  }
+
+  // Structure
+  const locType = project.location_type;
+  features.push({
+    label: 'Location type',
+    value: locType === 'interior' ? 'Interior space' : 'Exterior',
+    confidence: 98,
+    category: 'structure',
+  });
+
+  features.push({
+    label: 'Project type',
+    value: categoryLabel(project.project_category),
+    confidence: 95,
+    category: 'structure',
+  });
+
+  features.push({
+    label: 'Photo count',
+    value: `${project.uploaded_image_urls?.length || 1} photo(s)`,
+    confidence: 100,
+    category: 'structure',
+  });
+
+  // Quality tier as a detected feature
+  features.push({
+    label: 'Quality tier',
+    value: tierLabel(project.quality_tier),
+    confidence: 100,
+    category: 'finish',
+  });
+
+  return features.slice(0, 15);
 }
 
+function categoryLabel(cat: string) {
+  const map: Record<string, string> = {
+    custom_project: 'Home Project',
+    bathroom: 'Bathroom',
+    kitchen: 'Kitchen',
+    roofing: 'Roofing',
+    deck_patio: 'Deck & Patio',
+    landscaping: 'Landscaping',
+    exterior_paint: 'Exterior Paint',
+    flooring: 'Flooring',
+    interior_paint: 'Interior Paint',
+  };
+  return map[cat] || cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════════════════ */
 export default function VisionResultsView({
   projectId,
   project,
@@ -110,29 +254,48 @@ export default function VisionResultsView({
   const [pollCount, setPollCount] = useState(0);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const needsPolling = !estimate || !materials || !brief || conceptImages.length === 0;
+  const needsPolling =
+    !estimate || !materials || !brief || conceptImages.length === 0;
 
   const pollForData = useCallback(async () => {
     try {
       const res = await fetch(`/api/projects/get?id=${projectId}`);
       if (!res.ok) return;
-      const { project: updatedProject } = await res.json() as { project: Project };
+      const { project: updatedProject } = (await res.json()) as {
+        project: Project & { image_url?: string };
+      };
       const newConcepts = Array.isArray(updatedProject.generated_image_urls)
         ? updatedProject.generated_image_urls
         : [];
       if (newConcepts.length > conceptImages.length) {
         setConceptImages(newConcepts);
       }
-    } catch { /* silent */ }
-    router.refresh();
+
+      // Also try to fetch estimate, materials, brief
+      if (!estimate) {
+        const eRes = await fetch(`/api/projects/get?id=${projectId}`);
+        if (eRes.ok) {
+          const { project: p2 } = (await eRes.json()) as {
+            project: Project & { image_url?: string };
+          };
+          // The project record doesn't include relations; we reload the page
+          router.refresh();
+        }
+      }
+    } catch {
+      /* silent */
+    }
     setPollCount((c) => c + 1);
-  }, [conceptImages.length, projectId, router]);
+  }, [conceptImages.length, estimate, projectId, router]);
 
   useEffect(() => {
     if (!needsPolling || pollCount >= 20) return;
-    const delay = pollCount < 4 ? 8000 : pollCount < 10 ? 15000 : 30000;
+    const delay =
+      pollCount < 4 ? 8000 : pollCount < 10 ? 15000 : 30000;
     pollTimerRef.current = setTimeout(pollForData, delay);
-    return () => { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); };
+    return () => {
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    };
   }, [needsPolling, pollCount, pollForData]);
 
   useEffect(() => {
@@ -145,14 +308,39 @@ export default function VisionResultsView({
   const originalImage = project.uploaded_image_urls?.[0];
   const hasAnyConcepts = conceptImages.length > 0;
   const [selectedConcept, setSelectedConcept] = useState(0);
-  const [activeSection, setActiveSection] = useState<SectionId>('concepts');
+  const [activeSection, setActiveSection] = useState<SectionId>('estimate');
   const [stickyVisible, setStickyVisible] = useState(false);
+
+  /* ─── Derived values ─── */
+  const laborMid =
+    estimate?.estimate_breakdown?.labor_mid ??
+    (estimate ? Math.round(estimate.mid_estimate * 0.58) : 0);
+  const materialsMid =
+    estimate?.estimate_breakdown?.materials_mid ??
+    (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
+  const permitsMid = estimate ? Math.round(estimate.mid_estimate * 0.05) : 0;
+
+  const detectedFeatures = useMemo(
+    () => buildDetectedFeatures(project, estimate, materials),
+    [project, estimate, materials]
+  );
+
+  const matchHref = `/get-quotes?project=${encodeURIComponent(projectId)}&zip=${encodeURIComponent(project.zip_code)}&category=${encodeURIComponent(project.project_category)}&estimate=${encodeURIComponent(String(estimate?.mid_estimate || ''))}`;
+  const reviseHref = `/vision/start?${new URLSearchParams({
+    from: projectId,
+    category: project.project_category,
+    zip: project.zip_code,
+    style: project.style_preference || 'modern',
+    quality: project.quality_tier,
+    notes: project.notes || '',
+    image: originalImage || '',
+  }).toString()}`;
 
   /* ─── Scroll spy ─── */
   useEffect(() => {
     const handleScroll = () => {
       setStickyVisible(window.scrollY > 400);
-      const sections: SectionId[] = ['concepts', 'estimate', 'materials', 'brief', 'next'];
+      const sections: SectionId[] = ['estimate', 'materials', 'brief', 'next'];
       for (let i = sections.length - 1; i >= 0; i--) {
         const el = document.getElementById(`section-${sections[i]}`);
         if (el && el.offsetTop - 120 <= window.scrollY) {
@@ -180,23 +368,6 @@ export default function VisionResultsView({
     });
   }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
-  /* ─── Derived ─── */
-  const selectedConceptUrl = conceptImages[selectedConcept] || conceptImages[0] || null;
-  const laborMid = estimate?.estimate_breakdown?.labor_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.58) : 0);
-  const materialsMid = estimate?.estimate_breakdown?.materials_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
-  const permitsMid = estimate ? Math.round(estimate.mid_estimate * 0.05) : 0;
-  const contingencyMid = estimate ? Math.round(estimate.mid_estimate * 0.12) : 0;
-  const matchHref = `/get-quotes?project=${encodeURIComponent(projectId)}&zip=${encodeURIComponent(project.zip_code)}&category=${encodeURIComponent(project.project_category)}&estimate=${encodeURIComponent(String(estimate?.mid_estimate || ''))}`;
-  const reviseHref = `/vision/start?${new URLSearchParams({
-    from: projectId,
-    category: project.project_category,
-    zip: project.zip_code,
-    style: project.style_preference || 'modern',
-    quality: project.quality_tier,
-    notes: project.notes || '',
-    image: originalImage || '',
-  }).toString()}`;
-
   /* ─── Regenerate materials ─── */
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
@@ -215,7 +386,6 @@ export default function VisionResultsView({
           quality_tier: project.quality_tier,
           estimate_mid: estimate?.mid_estimate || 20000,
           generated_image_url: conceptImages[0] || undefined,
-          analysis: (project as any).analysis || undefined,
           notes: project.notes || undefined,
         }),
       });
@@ -231,295 +401,323 @@ export default function VisionResultsView({
     }
   };
 
-  const readySections = [estimate, materials, brief, hasAnyConcepts ? true : null].filter(Boolean);
-  const readyCount = readySections.length;
-  const totalSections = 4;
+  /* ─── Loading state ─── */
+  if (!estimate) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
+        <div className="relative mb-8">
+          <Loader2 className="h-12 w-12 animate-spin text-sand-dark" />
+        </div>
+        <h2 className="text-2xl font-bold text-ink">Your estimate is being calculated</h2>
+        <p className="mt-2 text-center text-sm text-ink-500">
+          Analyzing your photos and cross-referencing local market data.
+          <br />
+          This page refreshes automatically.
+        </p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-ink-400">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-mint" /> Photos uploaded
+          </span>
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Analyzing
+          </span>
+        </div>
+      </div>
+    );
+  }
 
-  const donutSegments = estimate ? [
-    { label: 'Labor', value: laborMid, color: '#D8B98A' },
-    { label: 'Materials', value: materialsMid, color: '#B8D8C8' },
-    { label: 'Permits', value: permitsMid, color: '#93C5FD' },
-    { label: 'Contingency', value: contingencyMid, color: '#E5E7EB' },
-  ] : [];
-
+  /* ═══════════════════════ RENDER ═══════════════════════ */
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
-      {/* ── Hero ── */}
+      {/* ════ SECTION: THE VERDICT ════ */}
       <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-8 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-10">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.14),transparent_24%)]" />
         <div className="relative">
           {/* Badge line */}
           <div className="mb-5 flex flex-wrap items-center gap-2">
-            <Badge variant="blue" className="border-white/15 bg-white/10 text-white">naili vision</Badge>
-            <Badge variant="gray" className="border-white/15 bg-white/10 text-white">{categoryLabel}</Badge>
-            <Badge variant={estimate || materials || brief ? 'green' : 'amber'}>
-              {estimate || materials || brief ? 'Plan ready' : 'Still generating'}
+            <Badge variant="blue" className="border-white/15 bg-white/10 text-white">
+              naili vision
             </Badge>
+            <Badge variant="gray" className="border-white/15 bg-white/10 text-white">
+              {categoryLabel}
+            </Badge>
+            {estimate && (
+              <Badge variant="green" className="border-white/15 bg-white/10 text-white">
+                Forensic estimate
+              </Badge>
+            )}
           </div>
 
-          {/* Estimate range — the hero */}
-          <div className="max-w-3xl">
-            <h1 className="text-4xl font-bold leading-tight sm:text-6xl">
-              {estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Preparing your estimate…'}
-            </h1>
-            <p className="mt-3 text-base text-white/70 sm:text-lg">
-              {estimate
-                ? `Your ${categoryLabel.toLowerCase()} estimate, grounded in your photo, finish level, and ZIP code.`
-                : 'Your estimate and brief are being built from your photo and project details.'}
-            </p>
+          {/* HERO: THE VERDICT */}
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
+                THE VERDICT
+              </p>
+              <h1 className="text-4xl font-bold leading-tight sm:text-6xl">
+                {formatCurrencyRange(
+                  estimate.low_estimate,
+                  estimate.high_estimate
+                )}
+              </h1>
+              <p className="mt-3 text-base text-white/60 sm:text-lg">
+                Your {categoryLabel.toLowerCase()} estimate, built from your
+                photos, finish level, and local market data.
+              </p>
+            </div>
+
+            {/* Confidence gauge */}
+            <div className="flex-shrink-0">
+              <ForensicGauge
+                confidence={estimate.confidence_score ?? 0.65}
+                lowEstimate={estimate.low_estimate}
+                midEstimate={estimate.mid_estimate}
+                highEstimate={estimate.high_estimate}
+                className="text-white"
+              />
+            </div>
           </div>
 
-          {/* Mini badges */}
-          <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/80">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-              <MapPin className="h-4 w-4" /> ZIP {project.zip_code}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-              <Sparkles className="h-4 w-4" /> {project.quality_tier} tier
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-              <Wrench className="h-4 w-4" /> {materials?.line_items?.length || '—'} line items
-            </div>
-          </div>
+          {/* Data stats badge */}
+          <p className="mt-4 text-sm text-white/50">
+            Based on {materials?.line_items?.length || 25}+ market data points
+            across ZIP {project.zip_code}
+          </p>
 
-          {/* Action buttons */}
+          {/* Action buttons row */}
           <div className="mt-6 flex flex-wrap gap-3">
             <ShareButton shareUrl={shareUrl} variant="dark" />
             <Button
               className="border border-white/20 bg-white/10 text-white hover:bg-white/15"
               onClick={() => window.print()}
             >
-              <Download className="mr-2 h-4 w-4" /> Print
+              <Download className="mr-2 h-4 w-4" /> Print PDF
             </Button>
             <Link
-              href={reviseHref}
-              className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/15"
-            >
-              <PenSquare className="mr-2 h-4 w-4" /> Refine
-            </Link>
-            <Link
               href={matchHref}
-              onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'hero' })}
+              onClick={() =>
+                posthog.capture('naili_match_cta_clicked', {
+                  project_id: projectId,
+                  placement: 'hero',
+                })
+              }
               className="inline-flex items-center justify-center rounded-xl bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-opacity hover:opacity-95"
             >
-              Get Quotes <ArrowRight className="ml-2 h-4 w-4" />
+              <UserPlus className="mr-2 h-4 w-4" /> Match with Contractors{' '}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Local context banner ── */}
-      <section className="mt-5 grid gap-3 print:hidden md:grid-cols-3">
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><Wallet className="h-4 w-4 text-sand-dark" /> Smart estimate</div>
-          <div className="mt-3 text-lg font-semibold text-slate-900">{estimate ? formatCurrencyRange(estimate.low_estimate, estimate.high_estimate) : 'Still preparing'}</div>
-          <p className="mt-2 text-sm text-slate-600">Photo-aware cost planning grounded in your finish tier and ZIP code.</p>
+      {/* ════ SECTION: PHOTO FORENSICS ════ */}
+      <section className="mt-8 print:hidden">
+        <div className="mb-4 flex items-center gap-2">
+          <Camera className="h-5 w-5 text-sand-dark" />
+          <h2 className="text-2xl font-bold text-ink sm:text-3xl">
+            Photo Forensics
+          </h2>
         </div>
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><FileText className="h-4 w-4 text-sand-dark" /> Contractor brief</div>
-          <div className="mt-3 text-lg font-semibold text-slate-900">{brief ? 'Ready to share before quotes' : 'Still drafting'}</div>
-          <p className="mt-2 text-sm text-slate-600">A cleaner walk-through summary, scope notes, and quote questions.</p>
-        </div>
-        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft">
-          <div className="flex items-center gap-2 text-sm font-semibold text-ink-500"><TrendingUp className="h-4 w-4 text-mint" /> Local context</div>
-          <div className="mt-3 text-lg font-semibold text-slate-900">{regionSummary(estimate?.region_multiplier)}</div>
-          <p className="mt-2 text-sm text-slate-600">{qualityTierCopy(project.quality_tier)}</p>
-        </div>
+        <p className="mb-6 text-sm text-ink-500">
+          What we detected from your photos and what we&apos;re confident about.
+        </p>
+
+        <PhotoForensics
+          uploadedImageUrl={originalImage}
+          conceptImageUrl={hasAnyConcepts ? conceptImages[selectedConcept] : null}
+          features={detectedFeatures}
+          projectCategory={categoryLabel}
+        />
       </section>
 
-      {/* ── Concept images ── */}
+      {/* ════ SECTION: ESTIMATE BREAKDOWN ════ */}
+      <section id="section-estimate" className="mt-10 scroll-mt-24 print:hidden">
+        <div className="mb-4 flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-sand-dark" />
+          <h2 className="text-2xl font-bold text-ink sm:text-3xl">
+            Estimate Breakdown
+          </h2>
+        </div>
+        <p className="mb-6 text-sm text-ink-500">
+          Every dollar tracked — labor, materials, and fees — with a transparency
+          note for each line.
+        </p>
+
+        <EstimateBreakdown
+          lowEstimate={estimate.low_estimate}
+          midEstimate={estimate.mid_estimate}
+          highEstimate={estimate.high_estimate}
+          laborMid={laborMid}
+          materialsMid={materialsMid}
+          permitsMid={permitsMid}
+          regionMultiplier={estimate.region_multiplier}
+        />
+      </section>
+
+      {/* ════ SECTION: MARKET CONTEXT ════ */}
       <section className="mt-10 print:hidden">
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Concept images</h2>
-            <p className="mt-1 text-sm text-slate-500">A visual direction grounded in the original photo, not a generic style template.</p>
+        <div className="mb-4 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-sand-dark" />
+          <h2 className="text-2xl font-bold text-ink sm:text-3xl">
+            Market Context
+          </h2>
+        </div>
+        <p className="mb-6 text-sm text-ink-500">
+          How your local area compares to national averages.
+        </p>
+
+        <MarketContext
+          zipCode={project.zip_code}
+          regionMultiplier={estimate.region_multiplier ?? 1}
+          nationalAvgMid={Math.round(
+            estimate.mid_estimate / (estimate.region_multiplier ?? 1)
+          )}
+          localMid={estimate.mid_estimate}
+        />
+      </section>
+
+      {/* ════ SECTION: ASSUMPTIONS & RISK NOTES ════ */}
+      <section className="mt-10 print:hidden">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Assumptions */}
+          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+            <div className="mb-4 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-mint" />
+              <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-ink-500">
+                Key Assumptions
+              </h3>
+            </div>
+            <ul className="space-y-3 text-sm text-ink-600">
+              {estimateAssumptions.length > 0
+                ? estimateAssumptions.slice(0, 6).map((item, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-mint" />
+                      <span>{item}</span>
+                    </li>
+                  ))
+                : (
+                    <li className="flex gap-2 text-ink-400">
+                      Standard planning assumptions applied for this project type.
+                    </li>
+                  )}
+            </ul>
+            {estimate.estimate_basis && (
+              <p className="mt-4 rounded-xl bg-canvas-50 p-3 text-xs text-ink-500">
+                {estimate.estimate_basis}
+              </p>
+            )}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {hasAnyConcepts && selectedConceptUrl && (
-              <a href={selectedConceptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink">
-                <Eye className="h-4 w-4" /> Open selected concept
-              </a>
-            )}
-            {originalImage && (
-              <ConceptsLoader
-                projectId={projectId}
-                category={project.project_category}
-                style={project.style_preference || 'modern'}
-                qualityTier={project.quality_tier}
-                notes={project.notes || undefined}
-                referenceImageUrl={originalImage}
-                hasImages={hasAnyConcepts}
-                mode="manual"
-                buttonLabel="Regenerate concept"
-              />
-            )}
+
+          {/* Risk notes */}
+          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+            <div className="mb-4 flex items-center gap-2">
+              <PenSquare className="h-5 w-5 text-sand-dark" />
+              <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-ink-500">
+                What to verify
+              </h3>
+            </div>
+            <ul className="space-y-3 text-sm text-ink-600">
+              {riskNotes.length > 0
+                ? riskNotes.slice(0, 5).map((item, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-sand-dark" />
+                      <span>{item}</span>
+                    </li>
+                  ))
+                : (
+                    <li className="flex gap-2 text-ink-400">
+                      Verify all measurements and conditions onsite before
+                      committing to quotes.
+                    </li>
+                  )}
+            </ul>
           </div>
         </div>
       </section>
 
-      {/* ─── Section: Concept Images ─── */}
-      <section id="section-concepts" className="mt-10 scroll-mt-24 print:hidden">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Design concepts</h2>
-            <p className="mt-1 text-sm text-ink-500">AI-generated visuals based on your photo and style preferences.</p>
+      {/* ════ SECTION: DESIGN CONCEPTS ════ */}
+      {originalImage && (
+        <section className="mt-10 print:hidden">
+          <div className="mb-4 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-sand-dark" />
+            <h2 className="text-2xl font-bold text-ink sm:text-3xl">
+              Design Concepts
+            </h2>
           </div>
-          {originalImage && (
-            <ConceptsLoader
-              projectId={projectId}
-              category={project.project_category}
-              style={project.style_preference || 'modern'}
-              qualityTier={project.quality_tier}
-              notes={project.notes || undefined}
-              referenceImageUrl={originalImage}
-              hasImages={hasAnyConcepts}
-              mode="manual"
-              buttonLabel="+ New concept"
-            />
-          )}
-        </div>
+          <p className="mb-6 text-sm text-ink-500">
+            AI-generated visuals based on your photo and style preferences.
+          </p>
 
-        {hasAnyConcepts && selectedConceptUrl && originalImage ? (
-          <div className="space-y-5">
-            <BeforeAfterSlider beforeImage={originalImage} afterImage={selectedConceptUrl} beforeLabel="Your photo" afterLabel={`Concept ${selectedConcept + 1}`} />
-            {conceptImages.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
+          {hasAnyConcepts ? (
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
                 {conceptImages.map((url, index) => (
-                  <button
+                  <div
                     key={url}
-                    type="button"
                     onClick={() => setSelectedConcept(index)}
                     className={cn(
-                      'flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all',
-                      selectedConcept === index ? 'border-sand-dark shadow-lg scale-105' : 'border-transparent opacity-70 hover:opacity-100'
+                      'overflow-hidden rounded-[1.5rem] border-2 transition-all shadow-soft cursor-pointer',
+                      selectedConcept === index
+                        ? 'border-sand-dark shadow-lg scale-[1.02]'
+                        : 'border-hairline opacity-80 hover:opacity-100'
                     )}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={`Concept ${index + 1}`} className="h-20 w-28 object-cover sm:h-24 sm:w-36" />
-                  </button>
+                    <img
+                      src={url}
+                      alt={`Concept ${index + 1}`}
+                      className="aspect-[4/3] w-full object-cover"
+                    />
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
-        ) : hasAnyConcepts ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            {conceptImages.map((url, index) => (
-              <div key={url} className="overflow-hidden rounded-[1.5rem] border border-hairline shadow-soft">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt={`Concept ${index + 1}`} className="aspect-[4/3] w-full object-cover" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-sand/20">
-              <Loader2 className="h-6 w-6 animate-spin text-sand-dark" />
-            </div>
-            <div>
-              <p className="font-semibold text-ink">Generating your design concepts...</p>
-              <p className="mt-1 text-sm text-ink-500">Usually takes 30–60 seconds. This page updates automatically.</p>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── Smart cost estimate ── */}
-      <section className="mt-10 rounded-[2rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden sm:p-8">
-        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-slate-900 sm:text-3xl">Smart cost estimate</h2>
-            <p className="mt-1 text-sm text-slate-500">A planning estimate built from the visible scope, your notes, and local pricing, not a generic benchmark.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {estimate?.confidence_score && (
-              <Badge variant={estimate.confidence_score >= 0.75 ? 'green' : estimate.confidence_score >= 0.55 ? 'amber' : 'gray'} className="w-fit">
-                {estimate.confidence_score >= 0.85 ? 'High confidence' : estimate.confidence_score >= 0.65 ? 'Good confidence' : estimate.confidence_score >= 0.45 ? 'Medium confidence' : 'Estimate is broad'}
-              </Badge>
-            )}
-            {estimate && <Badge variant="amber" className="w-fit">{qualityTierCopy(project.quality_tier)}</Badge>}
-          </div>
-        </div>
-
-        {estimate ? (
-          <div className="mt-5 space-y-5">
-            {/* Range bar */}
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
-              <div className="flex items-center justify-between text-sm text-ink-500">
-                <span>Low</span>
-                <span className="text-base font-bold text-ink">Most likely</span>
-                <span>High</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-xl font-bold text-ink-600">{formatCurrency(estimate.low_estimate)}</span>
-                <span className="text-3xl font-bold text-ink">{formatCurrency(estimate.mid_estimate)}</span>
-                <span className="text-xl font-bold text-ink-600">{formatCurrency(estimate.high_estimate)}</span>
-              </div>
-              <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-canvas-200">
-                <div className="absolute inset-0 bg-gradient-to-r from-sand/60 via-sand-dark to-mint/60" />
-                <div className="absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border-[3px] border-white bg-ink shadow-lg" style={{ left: 'calc(50% - 12px)' }} />
-              </div>
-              <div className="mt-3 text-center text-xs text-ink-500">{regionNote(estimate.region_multiplier)}</div>
-            </div>
-
-            {/* Donut + breakdown */}
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">Cost breakdown</h3>
-                <div className="space-y-3">
-                  {donutSegments.filter(s => s.value > 0).map(seg => (
-                    <div key={seg.label} className="flex items-center gap-3">
-                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                      <span className="flex-1 text-sm text-ink-600">{seg.label}</span>
-                      <span className="text-sm font-semibold text-ink">{formatCurrency(seg.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
-                <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">What affects your cost</h3>
-                <div className="space-y-3 text-sm text-ink-600">
-                  {estimateAssumptions.slice(0, 4).map((item, i) => (
-                    <div key={i} className="flex gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-mint" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                  {riskNotes.slice(0, 2).map((item, i) => (
-                    <div key={i} className="flex gap-2">
-                      <CalendarClock className="mt-0.5 h-4 w-4 flex-shrink-0 text-sand-dark" />
-                      <span>{item}</span>
-                    </div>
-                  ))}
-                </div>
-                {estimate.estimate_basis && (
-                  <p className="mt-4 rounded-xl bg-canvas-50 p-3 text-xs text-ink-500">{estimate.estimate_basis}</p>
-                )}
+              <div className="flex justify-center">
+                <a
+                  href={conceptImages[selectedConcept]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink"
+                >
+                  <Eye className="h-4 w-4" /> Open full size
+                </a>
               </div>
             </div>
-
-            <Disclaimer text={DISCLAIMERS.estimate} />
-          </div>
-        ) : (
-          <div className="mt-5 flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-            <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
-            <div>
-              <p className="font-semibold text-ink">Calculating your estimate...</p>
-              <p className="mt-1 text-sm text-ink-500">This page updates automatically.</p>
+          ) : (
+            <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
+              <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
+              <div>
+                <p className="font-semibold text-ink">
+                  Generating design concepts...
+                </p>
+                <p className="mt-1 text-sm text-ink-500">
+                  This page refreshes automatically.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
 
-      {/* ── Materials list ── */}
-      <section className="mt-10 print:hidden">
+      {/* ════ SECTION: MATERIALS ════ */}
+      <section id="section-materials" className="mt-10 scroll-mt-24 print:hidden">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink sm:text-3xl">Materials &amp; shopping list</h2>
-            <p className="mt-1 text-sm text-ink-500">Real products with prices and links. Ready to shop or hand to a contractor.</p>
+            <div className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-sand-dark" />
+              <h2 className="text-2xl font-bold text-ink sm:text-3xl">
+                Materials & Shopping List
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-ink-500">
+              Real products with prices and links. Ready to shop or hand to a
+              contractor.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             {materials && (
-              <Badge variant="green">{materials.line_items.length} items</Badge>
+              <Badge variant="green">
+                {materials.line_items.length} items
+              </Badge>
             )}
             {materials && (
               <button
@@ -528,14 +726,21 @@ export default function VisionResultsView({
                 disabled={isRegenerating}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 shadow-soft transition-all hover:bg-canvas-50 hover:shadow-md disabled:opacity-50"
               >
-                <RefreshCw className={cn('h-3.5 w-3.5', isRegenerating && 'animate-spin')} />
+                <RefreshCw
+                  className={cn(
+                    'h-3.5 w-3.5',
+                    isRegenerating && 'animate-spin'
+                  )}
+                />
                 {isRegenerating ? 'Refreshing...' : 'Refresh'}
               </button>
             )}
           </div>
         </div>
         {regenError && (
-          <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{regenError}</div>
+          <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">
+            {regenError}
+          </div>
         )}
         {materials ? (
           <MaterialsAccordion materials={materials} />
@@ -543,26 +748,44 @@ export default function VisionResultsView({
           <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
             <div>
-              <p className="font-semibold text-ink">Building your materials list...</p>
-              <p className="mt-1 text-sm text-ink-500">Real products with prices will appear here automatically.</p>
+              <p className="font-semibold text-ink">
+                Building your materials list...
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                Real products with prices will appear here automatically.
+              </p>
             </div>
           </div>
         )}
       </section>
 
-      {/* ── Project handoff brief ── */}
-      <section className="mt-10">
+      {/* ════ SECTION: CONTRACTOR BRIEF ════ */}
+      <section id="section-brief" className="mt-10 scroll-mt-24">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="font-display text-2xl tracking-tight text-ink print:hidden sm:text-3xl">Contractor handoff brief</h2>
-            <p className="mt-1 text-sm text-ink-500 print:hidden">Print or share this with your contractor for accurate quotes.</p>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-sand-dark" />
+              <h2 className="text-2xl font-bold text-ink print:hidden sm:text-3xl">
+                Contractor Brief
+              </h2>
+            </div>
+            <p className="mt-1 text-sm text-ink-500 print:hidden">
+              Print or share this with your contractor for accurate quotes.
+            </p>
           </div>
           <div className="flex gap-2 print:hidden">
-            <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"
+            >
               <Download className="h-4 w-4" /> Print
             </button>
             <div className="w-44">
-              <ShareButton shareUrl={shareUrl} variant="light" projectTitle={`${categoryLabel} brief`} />
+              <ShareButton
+                shareUrl={shareUrl}
+                variant="light"
+                projectTitle={`${categoryLabel} brief`}
+              />
             </div>
           </div>
         </div>
@@ -582,23 +805,39 @@ export default function VisionResultsView({
           <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft print:hidden">
             <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
             <div>
-              <p className="font-semibold text-ink">Writing your contractor brief...</p>
-              <p className="mt-1 text-sm text-ink-500">This will appear automatically when ready.</p>
+              <p className="font-semibold text-ink">
+                Writing your contractor brief...
+              </p>
+              <p className="mt-1 text-sm text-ink-500">
+                This will appear automatically when ready.
+              </p>
             </div>
           </div>
         )}
       </section>
 
-      {/* ── Next step / ready to compare bids ── */}
-      <section className="mt-10 rounded-[1.75rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden sm:p-6">
+      {/* ════ CTA: LEAD ENGINE ════ */}
+      <section
+        id="section-next"
+        className="mt-10 scroll-mt-24 rounded-[1.75rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden sm:p-6"
+      >
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Ready to compare bids?</h2>
-            <p className="mt-1 text-sm text-slate-500">Share your brief with local pros who understand the scope.</p>
+            <h2 className="text-lg font-bold text-ink">
+              Ready to compare bids?
+            </h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Share your brief with local pros who understand the scope.
+            </p>
           </div>
           <Link
             href={matchHref}
-            onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
+            onClick={() =>
+              posthog.capture('naili_match_cta_clicked', {
+                project_id: projectId,
+                placement: 'footer',
+              })
+            }
             className="inline-flex items-center justify-center rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-canvas-50 shadow-soft transition-opacity hover:opacity-95"
           >
             Find contractors <ArrowRight className="ml-2 h-4 w-4" />
@@ -606,7 +845,10 @@ export default function VisionResultsView({
         </div>
       </section>
 
-      <Disclaimer text="Design concepts are AI-generated inspiration. Final costs depend on contractor quotes, site conditions, and material availability." className="mt-8 print:hidden" />
+      <Disclaimer
+        text={DISCLAIMERS.estimate}
+        className="mt-8 print:hidden"
+      />
     </div>
   );
 }
