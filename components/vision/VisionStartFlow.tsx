@@ -15,12 +15,21 @@ import {
   Upload,
 } from 'lucide-react';
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type StylePreference, type QualityTier } from '@/types';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import { FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '@/lib/visionAnalysis';
 import posthog from 'posthog-js';
 
 type Step = 'upload' | 'choices' | 'working';
+
+const STEP_LABELS: Record<Step, string> = {
+  upload: 'Upload',
+  choices: 'Details',
+  working: 'Estimating',
+};
 
 type ScopeQuestion = {
   key: string;
@@ -197,7 +206,7 @@ function StepProgress({ steps, currentIndex }: { steps: Step[]; currentIndex: nu
                   : 'bg-stone-200 text-stone-400'
               )}
             >
-              {currentIndex > i ? <CheckCircle className="h-4 w-4" /> : i + 1}
+              {currentIndex > i ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
             </div>
             <span className={cn(
               'text-[10px] sm:text-xs font-medium transition-colors',
@@ -363,7 +372,7 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
     revokePreviewUrl(uploadPreview);
     setUploadedFile(null);
     setUploadPreview(null);
-  };
+  }, [uploadPreview]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop, onDropRejected,
@@ -656,10 +665,9 @@ export default function VisionStartFlow({ initialPrefill }: { initialPrefill?: V
             {error && (
               <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
             )}
-          </div>
 
             {/* Tips row */}
-            <div className="mt-5 flex flex-wrap gap-4 text-xs text-slate-500">
+            <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-500">
               {PHOTO_TIPS.map(tip => (
                 <span key={tip} className="flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-mint" /> {tip}

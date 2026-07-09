@@ -2,6 +2,7 @@ export type ProjectCategory = 'roofing' | 'exterior_paint' | 'deck_patio' | 'lan
 export type StylePreference = 'modern' | 'traditional' | 'minimal' | 'luxury' | 'warm_natural' | 'budget_refresh';
 export type QualityTier = 'budget' | 'mid' | 'premium';
 export type LocationType = 'interior' | 'exterior';
+export type SectionId = 'concepts' | 'estimate' | 'materials' | 'brief' | 'next';
 export type RiskLevel = 'low' | 'medium' | 'high';
 export type LeadStatus = 'new' | 'routed' | 'routed_to_prybar' | 'outbound' | 'converted' | 'closed';
 

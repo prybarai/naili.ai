@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Download,
@@ -15,6 +16,7 @@ import {
   MapPin,
   PenSquare,
   Sparkles,
+  TrendingUp,
   Wallet,
   Wrench,
 } from 'lucide-react';
@@ -28,8 +30,9 @@ import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
 import ConceptsLoader from '@/components/vision/ConceptsLoader';
 import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
+import Button from '@/components/ui/Button';
 import { RefreshCw } from 'lucide-react';
-import type { Estimate, MaterialList, Project, ProjectBrief } from '@/types';
+import type { Estimate, MaterialList, Project, ProjectBrief, SectionId } from '@/types';
 
 /* ─── Props ─── */
 
@@ -55,6 +58,17 @@ function tierLabel(tier: Project['quality_tier']) {
     case 'premium': return 'Premium';
     default: return 'Mid-range';
   }
+}
+
+function regionSummary(multiplier?: number | null) {
+  if (!multiplier || multiplier === 1) return 'National average';
+  const pct = Math.round(Math.abs(multiplier - 1) * 100);
+  return multiplier > 1 ? `${pct}% above avg` : `${pct}% below avg`;
+}
+
+function qualityTierCopy(tier: string) {
+  const map: Record<string, string> = { budget: 'Practical finishes, standard materials', mid: 'Quality finishes, mid-range materials', premium: 'Premium finishes, high-end materials' };
+  return map[tier] || 'Standard selections';
 }
 
 function regionNote(multiplier?: number | null) {
@@ -264,7 +278,7 @@ export default function VisionResultsView({
               <Sparkles className="h-4 w-4" /> {project.quality_tier} tier
             </div>
             <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 backdrop-blur">
-              <Wrench className="h-4 w-4" /> {sectionCounts.materialItems || '—'} line items
+              <Wrench className="h-4 w-4" /> {materials?.line_items?.length || '—'} line items
             </div>
           </div>
 
@@ -292,7 +306,7 @@ export default function VisionResultsView({
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* ── Local context banner ── */}
       <section className="mt-5 grid gap-3 print:hidden md:grid-cols-3">
@@ -338,67 +352,6 @@ export default function VisionResultsView({
                 mode="manual"
                 buttonLabel="Regenerate concept"
               />
-            )}
-          </div>
-        </div>
-
-                <h1 className="text-2xl font-bold leading-tight sm:text-3xl lg:text-5xl">
-                  Your {categoryLabel.toLowerCase()} plan
-                </h1>
-
-                {estimate && (
-                  <div className="mt-4 flex items-baseline gap-3">
-                    <span className="text-4xl font-bold text-sand-light sm:text-5xl">{formatCurrency(estimate.mid_estimate)}</span>
-                    <span className="text-sm text-white/60">estimated &middot; {regionNote(estimate.region_multiplier)}</span>
-                  </div>
-                )}
-
-                  <div className="mt-4 sm:mt-6 flex flex-wrap gap-2">
-                  <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 sm:px-5 sm:py-3 text-sm font-semibold text-stone-800 shadow-lg transition-all hover:shadow-xl active:scale-95">
-                    <Download className="h-4 w-4" /> Print / PDF
-                  </button>
-                  <div className="w-36 sm:w-48">
-                    <ShareButton shareUrl={shareUrl} variant="dark" projectTitle={`${categoryLabel} plan`} />
-                  </div>
-                  <Link
-                    href={reviseHref}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 sm:px-5 sm:py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 active:scale-95"
-                  >
-                    <PenSquare className="h-4 w-4" /> Revise
-                  </Link>
-                </div>
-              </div>
-
-              {/* Right — Quick stats */}
-              <div className="grid grid-cols-2 gap-3 lg:w-72">
-                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                  <ImageIcon className="mb-1 h-4 w-4 text-white/50" />
-                  <div className="text-2xl font-bold">{conceptImages.length}</div>
-                  <div className="text-xs text-white/60">Concepts{!hasAnyConcepts && <Loader2 className="ml-1 inline h-3 w-3 animate-spin" />}</div>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                  <ShoppingCart className="mb-1 h-4 w-4 text-white/50" />
-                  <div className="text-2xl font-bold">{materials?.line_items?.length || '—'}</div>
-                  <div className="text-xs text-white/60">Materials</div>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                  <FileText className="mb-1 h-4 w-4 text-white/50" />
-                  <div className="text-lg font-bold">{brief ? 'Ready' : '...'}</div>
-                  <div className="text-xs text-white/60">Brief</div>
-                </div>
-                <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-                  <Sparkles className="mb-1 h-4 w-4 text-white/50" />
-                  <div className="text-lg font-bold">{readyCount}/{totalSections}</div>
-                  <div className="text-xs text-white/60">Sections ready</div>
-                </div>
-              </div>
-            </div>
-
-            {readyCount < totalSections && (
-              <div className="mt-4 flex items-center gap-2 text-xs text-white/50">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Some sections are still generating. This page updates automatically.</span>
-              </div>
             )}
           </div>
         </div>
@@ -512,7 +465,15 @@ export default function VisionResultsView({
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">Cost breakdown</h3>
-                <DonutChart segments={donutSegments} />
+                <div className="space-y-3">
+                  {donutSegments.filter(s => s.value > 0).map(seg => (
+                    <div key={seg.label} className="flex items-center gap-3">
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                      <span className="flex-1 text-sm text-ink-600">{seg.label}</span>
+                      <span className="text-sm font-semibold text-ink">{formatCurrency(seg.value)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
                 <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-ink-500">What affects your cost</h3>
