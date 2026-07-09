@@ -277,28 +277,30 @@ export default function VisionResultsView({
 
   const pollForData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/projects/get?id=${projectId}`);
+      const res = await fetch(`/api/vision/results-data?id=${projectId}`);
       if (!res.ok) return;
-      const { project: updatedProject } = (await res.json()) as {
+      const data = (await res.json()) as {
         project: Project & { image_url?: string };
+        estimate: Estimate | null;
+        materials: MaterialList | null;
+        brief: ProjectBrief | null;
       };
-      const newConcepts = Array.isArray(updatedProject.generated_image_urls)
-        ? updatedProject.generated_image_urls
+
+      if (data.estimate) setEstimate(data.estimate as Estimate);
+      if (data.materials) setMaterials(data.materials);
+      if (data.brief) setBrief(data.brief as ProjectBrief);
+
+      const newConcepts = Array.isArray(data.project.generated_image_urls)
+        ? data.project.generated_image_urls
         : [];
       if (newConcepts.length > conceptImages.length) {
         setConceptImages(newConcepts);
-      }
-
-      // If status indicates estimation is done but estimate is still null,
-      // do a hard refresh to get the full data.
-      if (!estimate && updatedProject.status !== 'draft') {
-        router.refresh();
       }
     } catch {
       /* silent */
     }
     setPollCount((c) => c + 1);
-  }, [conceptImages.length, estimate, projectId, router]);
+  }, [conceptImages.length, estimate, projectId]);
 
   useEffect(() => {
     if (!needsPolling || pollCount >= 20 || isTimedOut) return;

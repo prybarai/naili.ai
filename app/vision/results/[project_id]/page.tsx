@@ -230,11 +230,12 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function VisionResultsPage({ params }: PageProps) {
   const { project_id } = await params;
 
+  // Load project (required) and auxiliary data (may be null if backend APIs haven't written yet)
   const [projectRes, estimateRes, materialsRes, briefRes] = await Promise.all([
     supabaseAdmin.from('projects').select('*').eq('id', project_id).single(),
-    supabaseAdmin.from('estimates').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).single(),
-    supabaseAdmin.from('material_lists').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).single(),
-    supabaseAdmin.from('project_briefs').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).single(),
+    supabaseAdmin.from('estimates').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabaseAdmin.from('material_lists').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabaseAdmin.from('project_briefs').select('*').eq('project_id', project_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (!projectRes.data) notFound();
