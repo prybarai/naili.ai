@@ -252,10 +252,28 @@ export default function VisionResultsView({
     Array.isArray(project.generated_image_urls) ? project.generated_image_urls : []
   );
   const [pollCount, setPollCount] = useState(0);
+  const [isTimedOut, setIsTimedOut] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const needsPolling =
     !estimate || !materials || !brief || conceptImages.length === 0;
+
+  // Overall 30s timeout: if estimate is still missing after 30s, show error
+  useEffect(() => {
+    if (estimate) {
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+      timeoutTimerRef.current = null;
+      return;
+    }
+    if (timeoutTimerRef.current) return; // already set
+    timeoutTimerRef.current = setTimeout(() => {
+      setIsTimedOut(true);
+    }, 30000);
+    return () => {
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+    };
+  }, [estimate]);
 
   const pollForData = useCallback(async () => {
     try {
@@ -271,16 +289,10 @@ export default function VisionResultsView({
         setConceptImages(newConcepts);
       }
 
-      // Also try to fetch estimate, materials, brief
-      if (!estimate) {
-        const eRes = await fetch(`/api/projects/get?id=${projectId}`);
-        if (eRes.ok) {
-          const { project: p2 } = (await eRes.json()) as {
-            project: Project & { image_url?: string };
-          };
-          // The project record doesn't include relations; we reload the page
-          router.refresh();
-        }
+      // If status indicates estimation is done but estimate is still null,
+      // do a hard refresh to get the full data.
+      if (!estimate && updatedProject.status !== 'draft') {
+        router.refresh();
       }
     } catch {
       /* silent */
@@ -289,20 +301,31 @@ export default function VisionResultsView({
   }, [conceptImages.length, estimate, projectId, router]);
 
   useEffect(() => {
-    if (!needsPolling || pollCount >= 20) return;
+    if (!needsPolling || pollCount >= 20 || isTimedOut) return;
     const delay =
       pollCount < 4 ? 8000 : pollCount < 10 ? 15000 : 30000;
     pollTimerRef.current = setTimeout(pollForData, delay);
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
     };
-  }, [needsPolling, pollCount, pollForData]);
+  }, [needsPolling, pollCount, pollForData, isTimedOut]);
 
   useEffect(() => {
     if (initialEstimate && !estimate) setEstimate(initialEstimate);
     if (initialMaterials && !materials) setMaterials(initialMaterials);
     if (initialBrief && !brief) setBrief(initialBrief);
+    // If initial props came through, clear timeout
+    if (initialEstimate || initialMaterials) {
+      if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+      timeoutTimerRef.current = null;
+    }
   }, [initialEstimate, initialMaterials, initialBrief, estimate, materials, brief]);
+
+  const handleRetry = useCallback(() => {
+    setIsTimedOut(false);
+    setPollCount(0);
+    router.refresh();
+  }, [router]);
 
   /* ─── State ─── */
   const originalImage = project.uploaded_image_urls?.[0];
@@ -405,23 +428,48 @@ export default function VisionResultsView({
   if (!estimate) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
-        <div className="relative mb-8">
-          <Loader2 className="h-12 w-12 animate-spin text-sand-dark" />
-        </div>
-        <h2 className="text-2xl font-bold text-ink">Your estimate is being calculated</h2>
-        <p className="mt-2 text-center text-sm text-ink-500">
-          Analyzing your photos and cross-referencing local market data.
-          <br />
-          This page refreshes automatically.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-ink-400">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-mint" /> Photos uploaded
-          </span>
-          <span className="flex items-center gap-2">
-            <Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Analyzing
-          </span>
-        </div>
+        {isTimedOut ? (
+          <>
+            <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
+              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-ink">Estimate taking longer than expected</h2>
+            <p className="mt-2 text-center text-sm text-ink-500">
+              Sorry, we couldn&apos;t finish generating your estimate within 30 seconds.
+              <br />
+              This can happen during peak usage. Please try again.
+            </p>
+            <button
+              onClick={handleRetry}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Try again
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="relative mb-8">
+              <Loader2 className="h-12 w-12 animate-spin text-sand-dark" />
+            </div>
+            <h2 className="text-2xl font-bold text-ink">Your estimate is being calculated</h2>
+            <p className="mt-2 text-center text-sm text-ink-500">
+              Analyzing your photos and cross-referencing local market data.
+              <br />
+              This page refreshes automatically.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-ink-400">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-mint" /> Photos uploaded
+              </span>
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Analyzing
+              </span>
+            </div>
+          </>
+        )}
       </div>
     );
   }

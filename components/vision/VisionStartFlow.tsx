@@ -267,7 +267,8 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
       const remaining = MAX_FILES - prev.length;
       const toAdd = acceptedFiles.slice(0, remaining);
       if (toAdd.length === 0) return prev;
-      setPreviews((p) => [...p, ...toAdd.map((f) => URL.createObjectURL(f))]);
+      const newPreviews = toAdd.map((f) => URL.createObjectURL(f));
+      setPreviews((p) => [...p, ...newPreviews]);
       setError(null);
       return [...prev, ...toAdd];
     });
@@ -294,6 +295,27 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
     revokePreviewUrls([previews[index]]);
     setFiles((prev) => prev.filter((_, i) => i !== index));
     setPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /** Helper: fetch with timeout */
+  const fetchWithTimeout = async (
+    url: string,
+    options: RequestInit,
+    timeoutMs = 20000
+  ): Promise<Response | null> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return res;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   };
 
   const handleGenerate = async () => {
@@ -362,81 +384,84 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
         throw new Error('Could not upload photos.');
       }
 
-      // 3. Navigate to analysis page immediately
+      // 3. Fire ALL APIs in parallel, each with a 20s timeout.
+      //    We collect results and navigate regardless of individual failures.
+      const results = await Promise.allSettled([
+        fetchWithTimeout('/api/vision/analyze-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_url: referenceImageUrl,
+            category,
+            zip_code: zipCode.trim(),
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            location_type: PROJECT_CATEGORIES[category].type,
+            style,
+            quality_tier: qualityTier,
+            zip_code: zipCode.trim(),
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            estimate_mid: 15000,
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            notes: notes.trim() || undefined,
+            estimate_low: 10000,
+            estimate_high: 20000,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/generate-concepts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            notes: notes.trim() || undefined,
+            reference_image_url: referenceImageUrl,
+            count: 2,
+          }),
+        }),
+      ]);
+
+      // Log which APIs succeeded/failed
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.warn(
+          `${failed.length}/${results.length} API calls failed/ timed out. Navigating anyway.`
+        );
+      }
+
+      // 4. Navigate to results after all API calls complete
       setStep('working');
       hasPushedRef.current = true;
-      router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}&image=${encodeURIComponent(referenceImageUrl)}`);
-
-      // 4. Fire analysis + estimate + materials + brief + concepts in parallel (fire-and-forget)
-      const fireApi = async (path: string, body: Record<string, unknown>) => {
-        try {
-          await fetch(path, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          });
-        } catch {
-          // silent — results page handles missing data
-        }
-      };
-
-      const analysisBody = {
-        image_url: referenceImageUrl,
-        category,
-        zip_code: zipCode.trim(),
-        notes: notes.trim() || undefined,
-      };
-
-      fireApi('/api/vision/analyze-photo', analysisBody);
-
-      const estimateBody = {
-        project_id: projectId,
-        category,
-        location_type: PROJECT_CATEGORIES[category].type,
-        style,
-        quality_tier: qualityTier,
-        zip_code: zipCode.trim(),
-        notes: notes.trim() || undefined,
-      };
-
-      fireApi('/api/vision/estimate', estimateBody);
-
-      const materialsBody = {
-        project_id: projectId,
-        category,
-        style,
-        quality_tier: qualityTier,
-        estimate_mid: 15000,
-        notes: notes.trim() || undefined,
-      };
-
-      fireApi('/api/vision/materials', materialsBody);
-
-      const briefBody = {
-        project_id: projectId,
-        category,
-        style,
-        quality_tier: qualityTier,
-        notes: notes.trim() || undefined,
-        estimate_low: 10000,
-        estimate_high: 20000,
-      };
-
-      fireApi('/api/vision/brief', briefBody);
-      fireApi('/api/vision/generate-concepts', {
-        project_id: projectId,
-        category,
-        style,
-        quality_tier: qualityTier,
-        notes: notes.trim() || undefined,
-        reference_image_url: referenceImageUrl,
-        count: 2,
-      });
-
-      // Navigate to results after a brief delay to let APIs start
-      setTimeout(() => {
-        router.push(`/vision/results/${projectId}`);
-      }, 1200);
+      router.push(`/vision/results/${projectId}`);
 
       posthog.capture('naili_generation_completed', {
         category,

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import VisionStartFlow from '@/components/vision/VisionStartFlow';
 
 export const metadata: Metadata = {
@@ -28,7 +29,9 @@ export default async function VisionStartPage({ searchParams }: PageProps) {
       <Nav />
       <section className="px-4 pb-16 pt-28 sm:px-6 md:pt-32 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <VisionStartFlow initialPrefill={params} />
+          <ErrorBoundary>
+            <VisionStartFlow initialPrefill={params} />
+          </ErrorBoundary>
         </div>
       </section>
       <Footer />
