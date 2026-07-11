@@ -1,14 +1,24 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
-import { CheckCircle2, Sparkles, Trash2, Upload } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import posthog from 'posthog-js';
+import {
+  CheckCircle2,
+  Info,
+  Loader2,
+  MapPin,
+  Sparkles,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type QualityTier, type StylePreference } from '@/types';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import { cn } from '@/lib/utils';
+import { v4 as uuidv4 } from 'uuid';
+import posthog from 'posthog-js';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, or WEBP up to 10MB';
@@ -29,12 +39,54 @@ function getFileRejectionMessage(rejections: FileRejection[]) {
   return firstError.message || `Please upload ${SUPPORTED_IMAGE_LABEL}.`;
 }
 
+const QUALITY_TIERS = [
+  { value: 'budget' as QualityTier, label: 'Budget', emoji: '💰' },
+  { value: 'mid' as QualityTier, label: 'Mid-range', emoji: '⭐' },
+  { value: 'premium' as QualityTier, label: 'Premium', emoji: '💎' },
+];
+
+const CATEGORIES_FOR_DISPLAY = Object.entries(PROJECT_CATEGORIES).map(([key, val]) => ({
+  value: key as ProjectCategory,
+  ...val,
+}));
+
+/* ── Progress Status Definitions ── */
+const PROGRESS_STEPS = [
+  { key: 'analyzing', label: 'Analyzing your photos...', icon: '📸' },
+  { key: 'estimating', label: 'Calculating your estimate...', icon: '📐' },
+  { key: 'materials', label: 'Finding materials...', icon: '📦' },
+  { key: 'brief', label: 'Preparing your project brief...', icon: '📝' },
+  { key: 'concepts', label: 'Generating design concepts...', icon: '🎨' },
+] as const;
+
+type ProgressKey = (typeof PROGRESS_STEPS)[number]['key'];
+
+/* ═══════════════════════════════════════════════════════════════════
+   Main Component — Single-page renovation quote flow
+   ═══════════════════════════════════════════════════════════════════ */
 export default function HomePage() {
   const router = useRouter();
+  const hasPushedRef = useRef(false);
+
+  /* ── Input state ── */
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [zipCode, setZipCode] = useState('');
+  const [category, setCategory] = useState<ProjectCategory>('interior_paint');
+  const [style, setStyle] = useState<StylePreference>('modern');
+  const [qualityTier, setQualityTier] = useState<QualityTier>('mid');
+  const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  /* ── Generation state ── */
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<ProgressKey[]>([]);
+  const [finishedSteps, setFinishedSteps] = useState<Set<ProgressKey>>(new Set());
+
+  const canSubmit = useMemo(
+    () => files.length > 0 && zipCode.trim().length === 5,
+    [files.length, zipCode]
+  );
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles((prev) => {
@@ -72,36 +124,291 @@ export default function HomePage() {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const canSubmit = files.length > 0 && zipCode.trim().length === 5;
-
-  const handleGo = () => {
-    if (!canSubmit) return;
-    posthog.capture('naili_home_submitted', { photo_count: files.length, zip: zipCode.trim() });
-    router.push(`/vision/start?zip=${encodeURIComponent(zipCode.trim())}`);
+  const fetchWithTimeout = async (
+    url: string,
+    options: RequestInit,
+    timeoutMs = 20000
+  ): Promise<Response | null> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return res;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   };
 
+  const markFinished = (key: ProgressKey) => {
+    setFinishedSteps((prev) => new Set(prev).add(key));
+  };
+
+  const handleGenerate = async () => {
+    if (!canSubmit) {
+      if (files.length === 0) setError('Drop at least one photo.');
+      else if (zipCode.trim().length !== 5) setError('Enter a valid ZIP code.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setProgress(['analyzing', 'estimating', 'materials', 'brief', 'concepts']);
+    setFinishedSteps(new Set());
+
+    try {
+      const sessionId = uuidv4();
+
+      posthog.capture('naili_generation_started', {
+        category,
+        style,
+        quality_tier: qualityTier,
+        photo_count: files.length,
+      });
+
+      // 1. Create project
+      markFinished('analyzing');
+      const projectRes = await fetch('/api/projects/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location_type: PROJECT_CATEGORIES[category].type,
+          project_category: category,
+          zip_code: zipCode.trim(),
+          style_preference: style,
+          quality_tier: qualityTier,
+          notes: notes.trim() || undefined,
+          session_id: sessionId,
+        }),
+      });
+
+      if (!projectRes.ok) {
+        const body = await projectRes.json().catch(() => ({}));
+        throw new Error(
+          (body as { error?: string }).error || 'Could not create project.'
+        );
+      }
+
+      const { project } = (await projectRes.json()) as { project: { id: string } };
+      const projectId = project.id;
+      markFinished('estimating');
+
+      // 2. Upload photos
+      let referenceImageUrl = '';
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('project_id', projectId);
+        const uploadRes = await fetch('/api/projects/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+        if (uploadRes.ok) {
+          const { url } = (await uploadRes.json()) as { url: string };
+          if (!referenceImageUrl) referenceImageUrl = url;
+        }
+      }
+
+      if (!referenceImageUrl) {
+        throw new Error('Could not upload photos.');
+      }
+
+      // 3. Fire ALL APIs in parallel
+      markFinished('materials');
+      const results = await Promise.allSettled([
+        fetchWithTimeout('/api/vision/analyze-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image_url: referenceImageUrl,
+            category,
+            zip_code: zipCode.trim(),
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            location_type: PROJECT_CATEGORIES[category].type,
+            style,
+            quality_tier: qualityTier,
+            zip_code: zipCode.trim(),
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            estimate_mid: 15000,
+            notes: notes.trim() || undefined,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/brief', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            notes: notes.trim() || undefined,
+            estimate_low: 10000,
+            estimate_high: 20000,
+          }),
+        }),
+        fetchWithTimeout('/api/vision/generate-concepts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            category,
+            style,
+            quality_tier: qualityTier,
+            notes: notes.trim() || undefined,
+            reference_image_url: referenceImageUrl,
+            count: 2,
+          }),
+        }),
+      ]);
+
+      // Log which APIs succeeded/failed
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length > 0) {
+        console.warn(
+          `${failed.length}/${results.length} API calls failed/timed out. Navigating anyway.`
+        );
+      }
+
+      markFinished('brief');
+      markFinished('concepts');
+
+      // 4. Navigate to results after a brief pause so user sees completion
+      hasPushedRef.current = true;
+      await new Promise((r) => setTimeout(r, 600));
+      router.push(`/vision/results/${projectId}`);
+
+      posthog.capture('naili_generation_completed', {
+        category,
+        style,
+        quality_tier: qualityTier,
+        project_id: projectId,
+      });
+    } catch (err) {
+      console.error(err);
+      posthog.capture('naili_generation_failed', {
+        category,
+        style,
+        quality_tier: qualityTier,
+      });
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please try again.'
+      );
+      setLoading(false);
+      setProgress([]);
+      setFinishedSteps(new Set());
+    }
+  };
+
+  /* ═══════════════════════ RENDER ═══════════════════════ */
+
+  // ── Progress screen during generation ──
+  if (loading) {
+    return (
+      <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.12),transparent_55%)]" />
+        <div className="relative z-10 mx-auto w-full max-w-lg text-center">
+          <Card className="p-8 sm:p-10">
+            {/* Animated icon */}
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sand-light/20">
+              <Loader2 className="h-8 w-8 animate-spin text-sand-dark" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-ink">Building your plan</h2>
+            <p className="mt-2 text-sm text-ink-500">
+              Analyzing your photos and crunching the numbers...
+            </p>
+
+            {/* Progress steps */}
+            <div className="mt-8 space-y-3 text-left">
+              {PROGRESS_STEPS.map((step) => {
+                const isFinished = finishedSteps.has(step.key);
+                const isActive = progress.includes(step.key) && !isFinished;
+                return (
+                  <div
+                    key={step.key}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all',
+                      isFinished
+                        ? 'bg-mint/10 text-ink'
+                        : isActive
+                          ? 'bg-sand-light/10 text-ink'
+                          : 'text-ink-400'
+                    )}
+                  >
+                    <span className="shrink-0 text-lg">
+                      {isFinished ? '✅' : step.icon}
+                    </span>
+                    <span className="flex-1 font-medium">{step.label}</span>
+                    {isFinished && (
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-mint" />
+                    )}
+                    {isActive && (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sand-dark" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-6 text-xs text-ink-400">
+              This usually takes about 15–30 seconds
+            </p>
+          </Card>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Input form ──
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
+    <main className="relative flex min-h-screen flex-col items-center bg-canvas px-4 py-12 sm:py-16">
       {/* Subtle ambient glow */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.12),transparent_55%)]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-2xl">
-        {/* Brand */}
+      <div className="relative z-10 mx-auto w-full max-w-3xl">
+        {/* ── Hero ── */}
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-            naili
+            See exactly what your renovation will cost
           </h1>
-          <p className="mt-2 text-base text-ink-500">
-            Upload photos of your space. Get a forensic estimate in seconds.
+          <p className="mx-auto mt-3 max-w-xl text-base text-ink-500">
+            Upload a photo, enter your ZIP, get a real estimate in seconds.
           </p>
         </div>
 
-        <Card className="p-6 sm:p-8">
-          {/* Upload Zone */}
+        {/* ── Photo upload ── */}
+        <Card className="p-5 sm:p-6">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+            Upload photos
+          </p>
           <div
             {...getRootProps()}
             className={cn(
-              'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-8 text-center transition-colors',
+              'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-6 text-center transition-colors sm:p-8',
               isDragActive
                 ? 'border-sand-dark bg-canvas-200'
                 : 'border-panel hover:border-sand hover:bg-canvas-50'
@@ -153,45 +460,7 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* ZIP + Go */}
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <Input
-                label="Your ZIP code for local pricing"
-                placeholder="10001"
-                value={zipCode}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
-                  setZipCode(v);
-                }}
-                required
-              />
-            </div>
-            <Button
-              size="lg"
-              onClick={handleGo}
-              disabled={!canSubmit}
-              className="shrink-0"
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Get my estimate
-            </Button>
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
-
-          {!error && !canSubmit && (
-            <div className="mt-3 text-center text-xs text-ink-400">
-              {files.length === 0 && 'Drop a photo above'}
-              {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code'}
-            </div>
-          )}
-
-          {/* Tips row */}
+          {/* Tips */}
           <div className="mt-4 flex flex-wrap gap-4 text-xs text-ink-500">
             <span className="flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3 text-mint" /> Good lighting
@@ -205,7 +474,160 @@ export default function HomePage() {
           </div>
         </Card>
 
-        {/* Trust line */}
+        {/* ── ZIP Code ── */}
+        <div className="mt-5">
+          <Card className="p-5 sm:p-6">
+            <Input
+              label="Your ZIP code for local pricing"
+              placeholder="10001"
+              value={zipCode}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                setZipCode(v);
+              }}
+              required
+            />
+          </Card>
+        </div>
+
+        {/* ── Project category ── */}
+        <div className="mt-5">
+          <Card className="p-5 sm:p-6">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+              What are you planning?
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {CATEGORIES_FOR_DISPLAY.map((cat) => (
+                <button
+                  key={cat.value}
+                  onClick={() => setCategory(cat.value)}
+                  className={cn(
+                    'rounded-xl border px-3 py-4 text-left transition-all',
+                    category === cat.value
+                      ? 'border-sand-dark bg-sand-light/10 ring-1 ring-sand-dark'
+                      : 'border-panel bg-canvas-50 hover:border-sand hover:bg-canvas-100'
+                  )}
+                >
+                  <span className="text-xl">{cat.emoji}</span>
+                  <p className="mt-1 text-sm font-semibold text-ink">{cat.label}</p>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* ── Style + quality ── */}
+        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <Card className="p-5 sm:p-6">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+              Style direction
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(STYLE_OPTIONS).map(([key, val]) => (
+                <button
+                  key={key}
+                  onClick={() => setStyle(key as StylePreference)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2 text-sm transition-all',
+                    style === key
+                      ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
+                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand'
+                  )}
+                >
+                  {val.label}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-5 sm:p-6">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+              Finish quality
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {QUALITY_TIERS.map((tier) => (
+                <button
+                  key={tier.value}
+                  onClick={() => setQualityTier(tier.value)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2 text-sm transition-all',
+                    qualityTier === tier.value
+                      ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
+                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand'
+                  )}
+                >
+                  {tier.emoji} {tier.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-ink-500">
+              {QUALITY_TIERS.find((t) => t.value === qualityTier)?.label === 'Budget'
+                ? 'Cost-conscious materials, good for rentals or quick cleanups.'
+                : qualityTier === 'mid'
+                  ? 'Best default — balances durability, looks, and resale value.'
+                  : 'Higher-end finishes, upgraded materials, custom detailing.'}
+            </p>
+          </Card>
+        </div>
+
+        {/* ── Notes ── */}
+        <div className="mt-5">
+          <Card className="p-5 sm:p-6">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+              Anything else to share? (optional)
+            </p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Describe what you're hoping to change, any specific materials, or concerns..."
+              className="min-h-[80px] w-full resize-y rounded-xl border border-panel bg-canvas-50 p-3 text-sm text-ink placeholder:text-ink-400 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark"
+              rows={3}
+            />
+          </Card>
+        </div>
+
+        {/* ── Error ── */}
+        {error && (
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* ── Generate button ── */}
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <Button
+            size="lg"
+            onClick={handleGenerate}
+            disabled={!canSubmit}
+            className="w-full max-w-md px-10 py-5 text-lg"
+          >
+            <Sparkles className="mr-2 h-5 w-5" />
+            Generate my plan
+          </Button>
+
+          {!error && !canSubmit && (
+            <p className="text-xs text-ink-400">
+              {files.length === 0 && 'Drop at least one photo to get started'}
+              {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code to continue'}
+            </p>
+          )}
+        </div>
+
+        {/* ── Trust line ── */}
+        <div className="mt-8">
+          <Card className="p-5 text-center">
+            <div className="mb-2 flex items-center justify-center gap-2 font-semibold text-ink">
+              <Info className="h-4 w-4 text-sand-dark" />
+              Built for confidence
+            </div>
+            <p className="text-sm text-ink-500">
+              Your estimate uses your photos, your choices, and real regional cost
+              data — not a generic average. Every assumption is listed so you know
+              where the number comes from.
+            </p>
+          </Card>
+        </div>
+
         <p className="mt-6 text-center text-xs text-ink-400">
           Your photos are used only to generate your estimate and design concepts.
           <br />
