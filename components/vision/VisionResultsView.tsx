@@ -480,39 +480,33 @@ export default function VisionResultsView({
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
       {/* ════ SECTION: THE VERDICT ════ */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-8 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-10">
+      <section className="relative overflow-hidden rounded-[2rem] bg-[linear-gradient(135deg,#1b1d22_0%,#242831_46%,#1b1d22_100%)] px-6 py-10 text-white shadow-[0_24px_90px_rgba(15,23,42,0.26)] print:hidden sm:px-8 sm:py-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(216,185,138,0.22),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(184,216,200,0.14),transparent_24%)]" />
         <div className="relative">
-          {/* Badge line */}
-          <div className="mb-5 flex flex-wrap items-center gap-2">
+          {/* Minimal badge line — just what matters */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <Badge variant="blue" className="border-white/15 bg-white/10 text-white">
-              naili vision
-            </Badge>
-            <Badge variant="gray" className="border-white/15 bg-white/10 text-white">
               {categoryLabel}
             </Badge>
-            {estimate && (
-              <Badge variant="green" className="border-white/15 bg-white/10 text-white">
-                Forensic estimate
-              </Badge>
-            )}
+            <Badge variant="gray" className="border-white/15 bg-white/10 text-white">
+              ZIP {project.zip_code}
+            </Badge>
           </div>
 
-          {/* HERO: THE VERDICT */}
+          {/* HERO: THE VERDICT — estimate number is THE star */}
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-3xl">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
-                THE VERDICT
+              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/40">
+                Estimated range
               </p>
-              <h1 className="text-4xl font-bold leading-tight sm:text-6xl">
+              <h1 className="text-5xl font-bold leading-[1.1] tracking-tight sm:text-7xl">
                 {formatCurrencyRange(
                   estimate.low_estimate,
                   estimate.high_estimate
                 )}
               </h1>
-              <p className="mt-3 text-base text-white/60 sm:text-lg">
-                Your {categoryLabel.toLowerCase()} estimate, built from your
-                photos, finish level, and local market data.
+              <p className="mt-3 max-w-lg text-base text-white/50 sm:text-lg">
+                {categoryLabel} &middot; {tierLabel(project.quality_tier)} finish &middot; {materials?.line_items?.length || 25}+ data points
               </p>
             </div>
 
@@ -528,21 +522,9 @@ export default function VisionResultsView({
             </div>
           </div>
 
-          {/* Data stats badge */}
-          <p className="mt-4 text-sm text-white/50">
-            Based on {materials?.line_items?.length || 25}+ market data points
-            across ZIP {project.zip_code}
-          </p>
-
           {/* Action buttons row */}
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             <ShareButton shareUrl={shareUrl} variant="dark" />
-            <Button
-              className="border border-white/20 bg-white/10 text-white hover:bg-white/15"
-              onClick={() => window.print()}
-            >
-              <Download className="mr-2 h-4 w-4" /> Print PDF
-            </Button>
             <Link
               href={matchHref}
               onClick={() =>
@@ -551,25 +533,25 @@ export default function VisionResultsView({
                   placement: 'hero',
                 })
               }
-              className="inline-flex items-center justify-center rounded-xl bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-opacity hover:opacity-95"
+              className="inline-flex items-center justify-center rounded-xl bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all duration-300 hover:scale-[1.02] hover:shadow-lift"
             >
-              <UserPlus className="mr-2 h-4 w-4" /> Match with Contractors{' '}
+              <UserPlus className="mr-2 h-4 w-4" /> Find Contractors{' '}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ════ SECTION: PHOTO FORENSICS ════ */}
+      {/* ════ SECTION: PHOTO FORENSICS — simplified to a compact summary */}
       <section className="mt-8 print:hidden">
-        <div className="mb-4 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <Camera className="h-5 w-5 text-sand-dark" />
           <h2 className="text-2xl font-bold text-ink sm:text-3xl">
-            Photo Forensics
+            Your Photo
           </h2>
         </div>
-        <p className="mb-6 text-sm text-ink-500">
-          What we detected from your photos and what we&apos;re confident about.
+        <p className="mt-1 mb-5 text-sm text-ink-500">
+          What we detected — {detectedFeatures.length} data points extracted from your image.
         </p>
 
         <PhotoForensics
@@ -581,7 +563,7 @@ export default function VisionResultsView({
       </section>
 
       {/* ════ SECTION: ESTIMATE BREAKDOWN ════ */}
-      <section id="section-estimate" className="mt-10 scroll-mt-24 print:hidden">
+      <section id="section-estimate" className="mt-8 scroll-mt-24 print:hidden">
         <div className="mb-4 flex items-center gap-2">
           <Wallet className="h-5 w-5 text-sand-dark" />
           <h2 className="text-2xl font-bold text-ink sm:text-3xl">
@@ -589,8 +571,7 @@ export default function VisionResultsView({
           </h2>
         </div>
         <p className="mb-6 text-sm text-ink-500">
-          Every dollar tracked — labor, materials, and fees — with a transparency
-          note for each line.
+          Every dollar tracked — labor, materials, and fees.
         </p>
 
         <EstimateBreakdown
@@ -604,40 +585,41 @@ export default function VisionResultsView({
         />
       </section>
 
-      {/* ════ SECTION: MARKET CONTEXT ════ */}
-      <section className="mt-10 print:hidden">
-        <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-sand-dark" />
-          <h2 className="text-2xl font-bold text-ink sm:text-3xl">
-            Market Context
-          </h2>
+      {/* ════ SECTION: MARKET CONTEXT — simplified to one stat line */}
+      <section className="mt-8 print:hidden">
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-100 p-5 shadow-soft">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-canvas-200">
+                <TrendingUp className="h-5 w-5 text-sand-dark" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-ink">
+                  {regionNote(estimate.region_multiplier)} in ZIP {project.zip_code}
+                </p>
+                <p className="text-xs text-ink-500">
+                  Regional adjustment: {estimate.region_multiplier?.toFixed(2) ?? '1.00'}x
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="mb-6 text-sm text-ink-500">
-          How your local area compares to national averages.
-        </p>
-
-        <MarketContext
-          zipCode={project.zip_code}
-          regionMultiplier={estimate.region_multiplier ?? 1}
-          nationalAvgMid={Math.round(
-            estimate.mid_estimate / (estimate.region_multiplier ?? 1)
-          )}
-          localMid={estimate.mid_estimate}
-        />
       </section>
 
-      {/* ════ SECTION: ASSUMPTIONS & RISK NOTES ════ */}
-      <section className="mt-10 print:hidden">
+      {/* ════ SECTION: ASSUMPTIONS & RISK NOTES — alternating cards */}
+      <section className="mt-8 print:hidden">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Assumptions */}
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-100 p-6 shadow-soft">
             <div className="mb-4 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-mint" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint/20">
+                <CheckCircle2 className="h-4 w-4 text-mint" />
+              </div>
               <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-ink-500">
                 Key Assumptions
               </h3>
             </div>
-            <ul className="space-y-3 text-sm text-ink-600">
+            <ul className="space-y-2 text-sm text-ink-600">
               {estimateAssumptions.length > 0
                 ? estimateAssumptions.slice(0, 6).map((item, i) => (
                     <li key={i} className="flex gap-2">
@@ -659,14 +641,16 @@ export default function VisionResultsView({
           </div>
 
           {/* Risk notes */}
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
             <div className="mb-4 flex items-center gap-2">
-              <PenSquare className="h-5 w-5 text-sand-dark" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sand-light/30">
+                <PenSquare className="h-4 w-4 text-sand-dark" />
+              </div>
               <h3 className="text-sm font-semibold uppercase tracking-[0.15em] text-ink-500">
                 What to verify
               </h3>
             </div>
-            <ul className="space-y-3 text-sm text-ink-600">
+            <ul className="space-y-2 text-sm text-ink-600">
               {riskNotes.length > 0
                 ? riskNotes.slice(0, 5).map((item, i) => (
                     <li key={i} className="flex gap-2">
@@ -687,7 +671,7 @@ export default function VisionResultsView({
 
       {/* ════ SECTION: DESIGN CONCEPTS ════ */}
       {originalImage && (
-        <section className="mt-10 print:hidden">
+        <section className="mt-8 print:hidden">
           <div className="mb-4 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-sand-dark" />
             <h2 className="text-2xl font-bold text-ink sm:text-3xl">
@@ -733,15 +717,48 @@ export default function VisionResultsView({
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-              <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" />
-              <div>
-                <p className="font-semibold text-ink">
-                  Generating design concepts...
-                </p>
-                <p className="mt-1 text-sm text-ink-500">
-                  This page refreshes automatically.
-                </p>
+            <div className="relative overflow-hidden rounded-[1.75rem] border border-hairline bg-canvas-50 shadow-soft">
+              {/* Pulsing gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-sand-light/20 via-mint/10 to-slate-smart/10 animate-pulse-soft" />
+              
+              {/* Shimmer line that sweeps across */}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute inset-0 bg-[length:200%_100%] bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
+              </div>
+
+              <div className="relative z-10 flex flex-col items-center gap-5 px-6 py-10 sm:flex-row sm:py-8">
+                {/* Animated sketch/drawing icon */}
+                <div className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center sm:h-24 sm:w-24">
+                  {/* Outer ring */}
+                  <div className="absolute inset-0 animate-[spin_4s_linear_infinite] rounded-full border-2 border-dashed border-sand-dark/30" />
+                  {/* Pulsing dot */}
+                  <div className="absolute inset-2 animate-[pulse-soft_2.2s_ease-in-out_infinite] rounded-full bg-gradient-to-br from-sand-dark/10 to-mint/10" />
+                  {/* Sparkle icon */}
+                  <Sparkles className="h-9 w-9 text-sand-dark animate-[float_3s_ease-in-out_infinite]" />
+                </div>
+
+                <div className="text-center sm:text-left">
+                  <p className="text-lg font-bold text-ink">
+                    Creating your design concept
+                  </p>
+                  <p className="mt-1 text-sm text-ink-500">
+                    AI is generating photorealistic visuals from your photo and style
+                    preferences. This page refreshes automatically.
+                  </p>
+
+                  {/* Animated progress dots */}
+                  <div className="mt-4 flex items-center justify-center gap-1.5 sm:justify-start">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="h-2 w-2 rounded-full bg-sand-dark/40"
+                        style={{
+                          animation: `pulse-soft 1.5s ease-in-out ${i * 0.3}s infinite`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -749,7 +766,7 @@ export default function VisionResultsView({
       )}
 
       {/* ════ SECTION: MATERIALS ════ */}
-      <section id="section-materials" className="mt-10 scroll-mt-24 print:hidden">
+      <section id="section-materials" className="mt-8 scroll-mt-24 print:hidden">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -810,7 +827,7 @@ export default function VisionResultsView({
       </section>
 
       {/* ════ SECTION: CONTRACTOR BRIEF ════ */}
-      <section id="section-brief" className="mt-10 scroll-mt-24">
+      <section id="section-brief" className="mt-8 scroll-mt-24">
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -869,7 +886,7 @@ export default function VisionResultsView({
       {/* ════ CTA: LEAD ENGINE ════ */}
       <section
         id="section-next"
-        className="mt-10 scroll-mt-24 rounded-[1.75rem] border border-hairline bg-canvas-50 p-5 shadow-soft print:hidden sm:p-6"
+        className="mt-8 scroll-mt-24 rounded-[1.75rem] border border-hairline bg-canvas-100 p-5 shadow-soft print:hidden sm:p-6"
       >
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>

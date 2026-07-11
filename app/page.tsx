@@ -11,6 +11,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Camera,
 } from 'lucide-react';
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type QualityTier, type StylePreference } from '@/types';
 import Card from '@/components/ui/Card';
@@ -391,27 +392,34 @@ export default function HomePage() {
 
       <div className="relative z-10 mx-auto w-full max-w-3xl">
         {/* ── Hero ── */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl">
-            See exactly what your renovation will cost
+        <div className="mb-10 text-center animate-reveal-up">
+          <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl lg:text-6xl">
+            See exactly what your{' '}
+            <span className="bg-gradient-to-r from-sand-dark to-amber-600 bg-clip-text text-transparent">
+              renovation
+            </span>{' '}
+            will cost
           </h1>
-          <p className="mx-auto mt-3 max-w-xl text-base text-ink-500">
+          <p className="mx-auto mt-4 max-w-xl text-base text-ink-500 sm:text-lg">
             Upload a photo, enter your ZIP, get a real estimate in seconds.
+            Powered by AI that actually looks at your space.
           </p>
         </div>
 
         {/* ── Photo upload ── */}
-        <Card className="p-5 sm:p-6">
+        <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
           <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
             Upload photos
           </p>
           <div
             {...getRootProps()}
             className={cn(
-              'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-6 text-center transition-colors sm:p-8',
+              'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-6 text-center transition-all duration-300 sm:p-8',
               isDragActive
-                ? 'border-sand-dark bg-canvas-200'
-                : 'border-panel hover:border-sand hover:bg-canvas-50'
+                ? 'border-sand-dark bg-sand-light/20 scale-[1.02] shadow-glow'
+                : files.length === 0
+                  ? 'border-panel hover:border-sand hover:bg-canvas-50 animate-pulse-soft'
+                  : 'border-panel hover:border-sand hover:bg-canvas-50'
             )}
           >
             <input {...getInputProps()} />
@@ -419,12 +427,12 @@ export default function HomePage() {
               <div className="space-y-4">
                 <div className="flex flex-wrap justify-center gap-3">
                   {previews.map((preview, idx) => (
-                    <div key={preview} className="relative">
+                    <div key={preview} className="group relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={preview}
                         alt={`Upload ${idx + 1}`}
-                        className="h-24 w-32 rounded-2xl object-cover shadow-sm sm:h-28 sm:w-36"
+                        className="h-24 w-32 rounded-2xl object-cover shadow-sm transition-all duration-300 group-hover:scale-[1.02] sm:h-28 sm:w-36"
                       />
                       <button
                         type="button"
@@ -432,7 +440,7 @@ export default function HomePage() {
                           e.stopPropagation();
                           removePhoto(idx);
                         }}
-                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-sm hover:bg-canvas-200"
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-sm opacity-0 transition-opacity duration-200 hover:bg-canvas-200 group-hover:opacity-100"
                       >
                         <Trash2 className="h-3 w-3 text-ink-600" />
                       </button>
@@ -447,7 +455,7 @@ export default function HomePage() {
               </div>
             ) : (
               <>
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200 text-sand-dark">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200 text-sand-dark transition-transform duration-300 hover:scale-110">
                   <Upload className="h-8 w-8" />
                 </div>
                 <p className="text-lg font-semibold text-ink">
@@ -476,7 +484,7 @@ export default function HomePage() {
 
         {/* ── ZIP Code ── */}
         <div className="mt-5">
-          <Card className="p-5 sm:p-6">
+          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
             <Input
               label="Your ZIP code for local pricing"
               placeholder="10001"
@@ -492,7 +500,7 @@ export default function HomePage() {
 
         {/* ── Project category ── */}
         <div className="mt-5">
-          <Card className="p-5 sm:p-6">
+          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
               What are you planning?
             </p>
@@ -502,10 +510,10 @@ export default function HomePage() {
                   key={cat.value}
                   onClick={() => setCategory(cat.value)}
                   className={cn(
-                    'rounded-xl border px-3 py-4 text-left transition-all',
+                    'rounded-xl border px-3 py-4 text-left transition-all duration-200 hover:-translate-y-0.5',
                     category === cat.value
-                      ? 'border-sand-dark bg-sand-light/10 ring-1 ring-sand-dark'
-                      : 'border-panel bg-canvas-50 hover:border-sand hover:bg-canvas-100'
+                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 ring-1 ring-sand-dark shadow-soft'
+                      : 'border-panel bg-canvas-50 hover:border-sand hover:shadow-soft'
                   )}
                 >
                   <span className="text-xl">{cat.emoji}</span>
@@ -518,7 +526,7 @@ export default function HomePage() {
 
         {/* ── Style + quality ── */}
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <Card className="p-5 sm:p-6">
+          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
               Style direction
             </p>
@@ -528,10 +536,10 @@ export default function HomePage() {
                   key={key}
                   onClick={() => setStyle(key as StylePreference)}
                   className={cn(
-                    'rounded-xl border px-3 py-2 text-sm transition-all',
+                    'rounded-xl border px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5',
                     style === key
-                      ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
-                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand'
+                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 font-semibold text-ink shadow-soft'
+                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand hover:shadow-soft'
                   )}
                 >
                   {val.label}
@@ -540,7 +548,7 @@ export default function HomePage() {
             </div>
           </Card>
 
-          <Card className="p-5 sm:p-6">
+          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
               Finish quality
             </p>
@@ -550,10 +558,10 @@ export default function HomePage() {
                   key={tier.value}
                   onClick={() => setQualityTier(tier.value)}
                   className={cn(
-                    'rounded-xl border px-3 py-2 text-sm transition-all',
+                    'rounded-xl border px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5',
                     qualityTier === tier.value
-                      ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
-                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand'
+                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 font-semibold text-ink shadow-soft'
+                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand hover:shadow-soft'
                   )}
                 >
                   {tier.emoji} {tier.label}
@@ -572,7 +580,7 @@ export default function HomePage() {
 
         {/* ── Notes ── */}
         <div className="mt-5">
-          <Card className="p-5 sm:p-6">
+          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
               Anything else to share? (optional)
             </p>
@@ -580,7 +588,7 @@ export default function HomePage() {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Describe what you're hoping to change, any specific materials, or concerns..."
-              className="min-h-[80px] w-full resize-y rounded-xl border border-panel bg-canvas-50 p-3 text-sm text-ink placeholder:text-ink-400 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark"
+              className="min-h-[80px] w-full resize-y rounded-xl border border-panel bg-canvas-50 p-3 text-sm text-ink placeholder:text-ink-400 transition-all duration-200 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark focus:shadow-soft"
               rows={3}
             />
           </Card>
@@ -588,25 +596,25 @@ export default function HomePage() {
 
         {/* ── Error ── */}
         {error && (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="mt-5 animate-reveal-up rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft">
             {error}
           </div>
         )}
 
         {/* ── Generate button ── */}
-        <div className="mt-6 flex flex-col items-center gap-3">
+        <div className="mt-8 flex flex-col items-center gap-3">
           <Button
             size="lg"
             onClick={handleGenerate}
             disabled={!canSubmit}
-            className="w-full max-w-md px-10 py-5 text-lg"
+            className="w-full max-w-md px-10 py-5 text-lg shadow-soft transition-all duration-300 hover:shadow-lift hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100"
           >
             <Sparkles className="mr-2 h-5 w-5" />
-            Generate my plan
+            Get your estimate
           </Button>
 
           {!error && !canSubmit && (
-            <p className="text-xs text-ink-400">
+            <p className="text-xs text-ink-400 animate-reveal-up">
               {files.length === 0 && 'Drop at least one photo to get started'}
               {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code to continue'}
             </p>
@@ -614,11 +622,11 @@ export default function HomePage() {
         </div>
 
         {/* ── Trust line ── */}
-        <div className="mt-8">
-          <Card className="p-5 text-center">
+        <div className="mt-10">
+          <Card className="p-5 text-center transition-all duration-300 hover:shadow-lift sm:p-6">
             <div className="mb-2 flex items-center justify-center gap-2 font-semibold text-ink">
-              <Info className="h-4 w-4 text-sand-dark" />
-              Built for confidence
+              <Camera className="h-4 w-4 text-sand-dark" />
+              Built from your photo, not a formula
             </div>
             <p className="text-sm text-ink-500">
               Your estimate uses your photos, your choices, and real regional cost
@@ -628,7 +636,7 @@ export default function HomePage() {
           </Card>
         </div>
 
-        <p className="mt-6 text-center text-xs text-ink-400">
+        <p className="mt-8 text-center text-xs text-ink-400">
           Your photos are used only to generate your estimate and design concepts.
           <br />
           No generic averages. Every number comes from your photo + local market data.
