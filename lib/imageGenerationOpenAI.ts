@@ -359,7 +359,7 @@ function buildEditPrompt(
     categoryInstruction,
     buildStyleGuidance(category, styleDesc, constraints, notes),
     extraGuidance ? `Variation guidance: ${extraGuidance}` : '',
-    'CRITICAL INSTRUCTION: The edited image must be a photorealistic ''after'' version that could be shown side-by-side with the original as a believable before-and-after. The camera angle, room layout, building structure, and all unrenovated elements must remain EXACTLY as in the original. If a stranger saw these two photos together, they should believe it''s the same space after construction.',
+    'CRITICAL INSTRUCTION: The edited image must be a photorealistic after version that could be shown side-by-side with the original as a believable before-and-after. The camera angle, room layout, building structure, and all unrenovated elements must remain EXACTLY as in the original. If a stranger saw these two photos together, they should believe it is the same space after construction.',
     '=== FINAL REMINDER: Do NOT hallucinate changes to anything outside the explicit scope. Every element not being modified must look exactly like the original photo. ===',
     'Return one highly believable concept, not multiple alternatives inside one image.',
   ].filter(Boolean).join('\n\n');
