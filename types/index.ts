@@ -148,6 +148,41 @@ export interface QuoteScan {
   created_at: string;
 }
 
+export interface IntelligenceReport {
+  id: string;
+  project_id: string;
+  local_market_summary: string;
+  comparable_sales_impact: string;
+  contractor_density_note: string;
+  permit_timeline_note: string;
+  seasonal_pricing_note: string;
+  material_availability_note: string;
+  created_at: string;
+}
+
+export interface ProjectVideo {
+  id: string;
+  project_id: string;
+  video_url: string;
+  thumbnail_url?: string;
+  prompt: string;
+  model: string;
+  duration_seconds: number;
+  status: 'generating' | 'ready' | 'failed';
+  created_at: string;
+}
+
+export interface LeadSubmission {
+  project_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  prefer_real_estimate?: boolean;
+  timing?: string;
+  notes?: string;
+}
+
 export const PROJECT_CATEGORIES: Record<ProjectCategory, { label: string; emoji: string; description: string; type: LocationType }> = {
   roofing: { label: 'Roofing', emoji: '🏠', description: 'Full replacement or major repair', type: 'exterior' },
   exterior_paint: { label: 'Exterior Paint', emoji: '🎨', description: 'Fresh coat for curb appeal', type: 'exterior' },

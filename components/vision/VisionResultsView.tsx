@@ -27,7 +27,11 @@ import ShareButton from '@/components/vision/ShareButton';
 import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
 import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
-import type { Estimate, MaterialList, Project, ProjectBrief } from '@/types';
+import type { Estimate, IntelligenceReport, MaterialList, Project, ProjectBrief, ProjectVideo, QualityTier, StylePreference, ProjectCategory } from '@/types';
+import IntelligenceReportComponent from '@/components/vision/IntelligenceReport';
+import CostPlayground from '@/components/vision/CostPlayground';
+import VideoFlythrough from '@/components/vision/VideoFlythrough';
+import ContractorLeadModal from '@/components/vision/ContractorLeadModal';
 
 interface Props {
   projectId: string;
@@ -200,6 +204,68 @@ export default function VisionResultsView({
       console.error('Regenerate materials error:', err);
     } finally { setIsRegenerating(false); }
   };
+
+  // State for new features (Intelligence Report, Video, Lead)
+  const [intelligenceReport, setIntelligenceReport] = useState<IntelligenceReport | null | undefined>(undefined);
+  const [isLoadingIntelligence, setIsLoadingIntelligence] = useState(false);
+  const [projectVideo, setProjectVideo] = useState<ProjectVideo | null>(null);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [leadSubmitted, setLeadSubmitted] = useState(false);
+  const [hasAttemptedIntelligence, setHasAttemptedIntelligence] = useState(false);
+  const [hasAttemptedVideo, setHasAttemptedVideo] = useState(false);
+
+  // Fetch intelligence report when estimate is ready
+  useEffect(() => {
+    if (!estimate || hasAttemptedIntelligence) return;
+    setHasAttemptedIntelligence(true);
+    setIsLoadingIntelligence(true);
+    fetch('/api/vision/intelligence-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        zip_code: project.zip_code,
+        category: project.project_category,
+        style: project.style_preference,
+        quality_tier: project.quality_tier,
+        notes: project.notes,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setIntelligenceReport((data.report as IntelligenceReport) || null);
+      })
+      .catch(() => setIntelligenceReport(null))
+      .finally(() => setIsLoadingIntelligence(false));
+  }, [estimate, hasAttemptedIntelligence, project.zip_code, project.project_category, project.quality_tier, project.style_preference, project.notes, projectId]);
+
+  // Fetch video flythrough when concept images are ready
+  useEffect(() => {
+    if (!hasAnyConcepts || hasAttemptedVideo) return;
+    const conceptUrl = conceptImages[selectedConcept];
+    if (!conceptUrl) return;
+    setHasAttemptedVideo(true);
+    setIsGeneratingVideo(true);
+    fetch('/api/vision/video-flythrough', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        image_url: conceptUrl,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === 'ready' && data.video_url) {
+          setProjectVideo({ ...data, status: 'ready' } as ProjectVideo);
+        } else {
+          setProjectVideo(null);
+        }
+      })
+      .catch(() => setProjectVideo(null))
+      .finally(() => setIsGeneratingVideo(false));
+  }, [hasAnyConcepts, hasAttemptedVideo, conceptImages, selectedConcept, projectId]);
 
   useEffect(() => {
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
@@ -412,20 +478,103 @@ export default function VisionResultsView({
           </div>
         </section>
 
-        {/* 6. NEXT STEPS CTA */}
+        {/* 6. MARKET INTELLIGENCE REPORT */}
+        <section className="mx-auto w-full max-w-4xl">
+          <IntelligenceReportComponent report={intelligenceReport ?? null} />
+        </section>
+
+        {/* 7. COST PLAYGROUND */}
+        {estimate && (
+          <section className="mx-auto w-full max-w-4xl">
+            <CostPlayground
+              initialEstimate={estimate}
+              initialTier={project.quality_tier}
+              initialStyle={project.style_preference || 'modern'}
+              projectId={projectId}
+              category={project.project_category}
+              zipCode={project.zip_code}
+              notes={project.notes || ''}
+              onEstimateUpdate={(newEstimate) => setEstimate(newEstimate)}
+            />
+          </section>
+        )}
+
+        {/* 8. VIDEO FLYTHROUGH */}
+        <section className="mx-auto w-full max-w-4xl">
+          <VideoFlythrough
+            videoUrl={projectVideo?.video_url || undefined}
+            thumbnailUrl={projectVideo?.thumbnail_url || undefined}
+            isGenerating={isGeneratingVideo}
+          />
+        </section>
+
+        {/* 9. CONTRACTOR LEAD CAPTURE */}
         <section className="mx-auto w-full max-w-4xl print:hidden">
-          <div className="rounded-[1.75rem] border border-hairline bg-gradient-to-br from-indigo-50 to-white p-6 shadow-soft sm:p-8">
+          <div className={cn(
+            'rounded-[1.75rem] border p-6 shadow-soft sm:p-8 transition-all',
+            leadSubmitted
+              ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'
+              : 'border-hairline bg-gradient-to-br from-indigo-50 to-white'
+          )}>
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100"><UserPlus className="h-7 w-7 text-indigo-600" /></div><div><h2 className="text-lg font-bold text-ink">Ready to compare bids?</h2><p className="mt-1 text-sm text-ink-500">Share your brief with local pros who understand the scope.</p></div></div>
-              <Link href={matchHref} onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })} className="inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:opacity-95 hover:shadow-lift">
-                Find Contractors <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  'flex h-14 w-14 items-center justify-center rounded-2xl',
+                  leadSubmitted ? 'bg-emerald-100' : 'bg-indigo-100'
+                )}>
+                  {leadSubmitted ? (
+                    <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                  ) : (
+                    <UserPlus className="h-7 w-7 text-indigo-600" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-ink">
+                    {leadSubmitted ? 'Request Submitted!' : 'Ready to get started?'}
+                  </h2>
+                  <p className="mt-1 text-sm text-ink-500">
+                    {leadSubmitted
+                      ? 'Your project scope is locked and ready. A Naili advisor will connect you with qualified contractors.'
+                      : 'Submit your project scope to get matched with verified local contractors.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {leadSubmitted ? (
+                  <Badge variant="green" className="text-sm">{'\u2713'} Lead submitted</Badge>
+                ) : (
+                  <Link
+                    href={matchHref}
+                    onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
+                    className="inline-flex items-center justify-center rounded-xl border border-hairline bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+                  >
+                    Browse contractors
+                  </Link>
+                )}
+                {!leadSubmitted && (
+                  <button
+                    type="button"
+                    onClick={() => setLeadModalOpen(true)}
+                    className="inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:opacity-95 hover:shadow-lift"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" /> Get Connected
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </section>
 
         <Disclaimer text={DISCLAIMERS.estimate} className="print:hidden" />
       </div>
+
+      {/* LEAD MODAL */}
+      <ContractorLeadModal
+        isOpen={leadModalOpen}
+        onClose={() => setLeadModalOpen(false)}
+        projectId={projectId}
+        estimateMid={estimate.mid_estimate}
+      />
     </div>
   );
 }
