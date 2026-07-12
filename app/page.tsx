@@ -5,18 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useDropzone, type FileRejection } from 'react-dropzone';
 import {
   CheckCircle2,
-  Info,
   Loader2,
   MapPin,
   Sparkles,
   Trash2,
   Upload,
   Camera,
+  ArrowRight,
+  Shield,
+  ChevronRight,
 } from 'lucide-react';
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type QualityTier, type StylePreference } from '@/types';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import posthog from 'posthog-js';
@@ -63,7 +62,7 @@ const PROGRESS_STEPS = [
 type ProgressKey = (typeof PROGRESS_STEPS)[number]['key'];
 
 /* ═══════════════════════════════════════════════════════════════════
-   Main Component — Single-page renovation quote flow
+   Main Component — Full-width exciting landing page
    ═══════════════════════════════════════════════════════════════════ */
 export default function HomePage() {
   const router = useRouter();
@@ -329,17 +328,21 @@ export default function HomePage() {
   // ── Progress screen during generation ──
   if (loading) {
     return (
-      <main className="relative flex min-h-screen flex-col items-center justify-center bg-canvas px-4">
-        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.12),transparent_55%)]" />
+      <main className="relative min-h-screen bg-gradient-to-br from-[#1b1d22] via-[#242831] to-[#1b1d22] flex flex-col items-center justify-center px-4">
+        {/* Ambient glow */}
+        <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.10),transparent_55%)]" />
         <div className="relative z-10 mx-auto w-full max-w-lg text-center">
-          <Card className="p-8 sm:p-10">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] backdrop-blur-xl p-8 sm:p-10">
             {/* Animated icon */}
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-sand-light/20">
-              <Loader2 className="h-8 w-8 animate-spin text-sand-dark" />
+            <div className="mx-auto mb-6 relative">
+              <div className="absolute inset-0 animate-[spin_4s_linear_infinite] rounded-full border-2 border-dashed border-sand/20" />
+              <div className="relative flex h-16 w-16 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-sand" />
+              </div>
             </div>
 
-            <h2 className="text-2xl font-bold text-ink">Building your plan</h2>
-            <p className="mt-2 text-sm text-ink-500">
+            <h2 className="text-2xl font-bold text-white">Building your plan</h2>
+            <p className="mt-2 text-sm text-white/50">
               Analyzing your photos and crunching the numbers...
             </p>
 
@@ -354,10 +357,10 @@ export default function HomePage() {
                     className={cn(
                       'flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all',
                       isFinished
-                        ? 'bg-mint/10 text-ink'
+                        ? 'bg-mint/10 text-white'
                         : isActive
-                          ? 'bg-sand-light/10 text-ink'
-                          : 'text-ink-400'
+                          ? 'bg-white/5 text-white'
+                          : 'text-white/30'
                     )}
                   >
                     <span className="shrink-0 text-lg">
@@ -368,279 +371,314 @@ export default function HomePage() {
                       <CheckCircle2 className="h-4 w-4 shrink-0 text-mint" />
                     )}
                     {isActive && (
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sand-dark" />
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sand" />
                     )}
                   </div>
                 );
               })}
             </div>
 
-            <p className="mt-6 text-xs text-ink-400">
+            <p className="mt-6 text-xs text-white/30">
               This usually takes about 15–30 seconds
             </p>
-          </Card>
+          </div>
         </div>
       </main>
     );
   }
 
-  // ── Input form ──
+  // ── Full-width exciting landing page ──
   return (
-    <main className="relative flex min-h-screen flex-col items-center bg-canvas px-4 py-12 sm:py-16">
-      {/* Subtle ambient glow */}
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.12),transparent_55%)]" />
+    <main className="relative min-h-screen overflow-x-hidden">
+      {/* Background — warm gradient with subtle texture */}
+      <div className="fixed inset-0 bg-gradient-to-br from-[#F6F3EE] via-[#FBF8F4] to-[#F1ECE5]" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(216,185,138,0.12),transparent_50%),radial-gradient(ellipse_at_70%_80%,rgba(184,216,200,0.08),transparent_50%)]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl">
-        {/* ── Hero ── */}
-        <div className="mb-10 text-center animate-reveal-up">
-          <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl lg:text-6xl">
-            See exactly what your{' '}
-            <span className="bg-gradient-to-r from-sand-dark to-amber-600 bg-clip-text text-transparent">
-              renovation
-            </span>{' '}
-            will cost
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-ink-500 sm:text-lg">
-            Upload a photo, enter your ZIP, get a real estimate in seconds.
-            Powered by AI that actually looks at your space.
-          </p>
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        {/* ════ HERO ════ */}
+        <div className="pt-16 sm:pt-20 lg:pt-24 pb-8 text-center">
+          <div className="animate-reveal-up">
+            {/* Trust badge */}
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sand/30 bg-sand/10 px-4 py-1.5 text-sm text-sand-dark">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Trusted by homeowners in 50 states</span>
+            </div>
+
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.05]">
+              <span className="text-ink">See what your </span>
+              <span className="bg-gradient-to-r from-sand-dark via-sand to-amber-500 bg-clip-text text-transparent">
+                renovation
+              </span>
+              <br />
+              <span className="text-ink">will cost</span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-lg sm:text-xl text-ink-500 leading-relaxed">
+              Upload a photo, answer a few questions. Naili analyzes your space and gives you a{' '}
+              <span className="font-semibold text-ink">real, data-backed estimate</span>.
+            </p>
+          </div>
         </div>
 
-        {/* ── Photo upload ── */}
-        <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
-            Upload photos
-          </p>
-          <div
-            {...getRootProps()}
-            className={cn(
-              'cursor-pointer rounded-[1.75rem] border-2 border-dashed p-6 text-center transition-all duration-300 sm:p-8',
-              isDragActive
-                ? 'border-sand-dark bg-sand-light/20 scale-[1.02] shadow-glow'
-                : files.length === 0
-                  ? 'border-panel hover:border-sand hover:bg-canvas-50 animate-pulse-soft'
-                  : 'border-panel hover:border-sand hover:bg-canvas-50'
-            )}
-          >
-            <input {...getInputProps()} />
-            {previews.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap justify-center gap-3">
-                  {previews.map((preview, idx) => (
-                    <div key={preview} className="group relative">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={preview}
-                        alt={`Upload ${idx + 1}`}
-                        className="h-24 w-32 rounded-2xl object-cover shadow-sm transition-all duration-300 group-hover:scale-[1.02] sm:h-28 sm:w-36"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removePhoto(idx);
-                        }}
-                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-sm opacity-0 transition-opacity duration-200 hover:bg-canvas-200 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-3 w-3 text-ink-600" />
-                      </button>
+        {/* ════ MAIN CONTENT — Photo upload front and center ════ */}
+        <div className="mx-auto max-w-3xl">
+          {/* Photo Upload — THE ACTION */}
+          <div className="animate-reveal-up" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
+            <div
+              {...getRootProps()}
+              className={cn(
+                'relative cursor-pointer rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
+                isDragActive
+                  ? 'border-sand bg-sand/10 scale-[1.02] shadow-[0_0_60px_rgba(216,185,138,0.25)]'
+                  : previews.length > 0
+                    ? 'border-sand-dark/40 bg-white/60 hover:border-sand-dark hover:shadow-[0_0_40px_rgba(216,185,138,0.15)]'
+                    : 'border-ink/15 bg-white/70 hover:border-sand-dark/50 hover:bg-white/80 hover:shadow-[0_0_40px_rgba(216,185,138,0.12)]'
+              )}
+            >
+              {/* Glow border when empty */}
+              {previews.length === 0 && !isDragActive && (
+                <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-sand/0 group-hover:ring-sand/20 transition-all duration-700" />
+              )}
+              <input {...getInputProps()} />
+              {previews.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {previews.map((preview, idx) => (
+                      <div key={preview} className="group relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={preview}
+                          alt={`Upload ${idx + 1}`}
+                          className="h-28 w-36 rounded-2xl object-cover shadow-md transition-all duration-300 group-hover:scale-[1.03] sm:h-32 sm:w-40"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePhoto(idx);
+                          }}
+                          className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-white shadow-md opacity-0 transition-all duration-200 hover:bg-canvas-200 group-hover:opacity-100"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-ink-600" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {files.length < MAX_FILES && (
+                    <p className="text-sm text-ink-500">
+                      Drop more photos or click to add
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="mx-auto mb-5 relative">
+                    <div className="absolute inset-0 animate-[float_3s_ease-in-out_infinite]">
+                      <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-sand/20 to-amber-50 blur-xl" />
                     </div>
-                  ))}
-                </div>
-                {files.length < MAX_FILES && (
-                  <p className="text-sm text-ink-500">
-                    Drop more photos or click to add
+                    <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-sand/20 to-amber-50 text-sand-dark mx-auto transition-transform duration-300 hover:scale-110">
+                      <Camera className="h-9 w-9" />
+                    </div>
+                  </div>
+                  <p className="text-xl font-bold text-ink">Upload your space</p>
+                  <p className="mt-2 text-sm text-ink-500 max-w-md mx-auto">
+                    Drop a photo of the room or area you want to renovate. The more angles, the better your estimate.
                   </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200 text-sand-dark transition-transform duration-300 hover:scale-110">
-                  <Upload className="h-8 w-8" />
-                </div>
-                <p className="text-lg font-semibold text-ink">
-                  Drop your photos here
-                </p>
-                <p className="mt-1 text-sm text-ink-500">
-                  {SUPPORTED_IMAGE_LABEL} &middot; Up to {MAX_FILES} photos
-                </p>
-              </>
-            )}
+                  <p className="mt-3 text-xs text-ink-400">
+                    {SUPPORTED_IMAGE_LABEL} &middot; Up to {MAX_FILES} photos
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Tips */}
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-ink-500">
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3 text-mint" /> Good lighting
+          {/* Tips row */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-ink-500 animate-reveal-up" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-mint" /> Good lighting
             </span>
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3 text-mint" /> Show the whole room
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-mint" /> Show the whole room
             </span>
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3 text-mint" /> Multiple angles help
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5 text-mint" /> Multiple angles help
             </span>
           </div>
-        </Card>
 
-        {/* ── ZIP Code ── */}
-        <div className="mt-5">
-          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-            <Input
-              label="Your ZIP code for local pricing"
-              placeholder="10001"
-              value={zipCode}
-              onChange={(e) => {
-                const v = e.target.value.replace(/\D/g, '').slice(0, 5);
-                setZipCode(v);
-              }}
-              required
-            />
-          </Card>
-        </div>
-
-        {/* ── Project category ── */}
-        <div className="mt-5">
-          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
+          {/* ════ Category Selector ════ */}
+          <div className="mt-8 animate-reveal-up" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500 text-center">
               What are you planning?
             </p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
               {CATEGORIES_FOR_DISPLAY.map((cat) => (
                 <button
                   key={cat.value}
                   onClick={() => setCategory(cat.value)}
                   className={cn(
-                    'rounded-xl border px-3 py-4 text-left transition-all duration-200 hover:-translate-y-0.5',
+                    'rounded-xl border px-2 py-3 text-center transition-all duration-200 hover:-translate-y-0.5',
                     category === cat.value
-                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 ring-1 ring-sand-dark shadow-soft'
-                      : 'border-panel bg-canvas-50 hover:border-sand hover:shadow-soft'
+                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/30 to-amber-50 ring-1 ring-sand-dark shadow-soft'
+                      : 'border-panel bg-white/60 hover:border-sand hover:shadow-soft backdrop-blur-sm'
                   )}
                 >
-                  <span className="text-xl">{cat.emoji}</span>
-                  <p className="mt-1 text-sm font-semibold text-ink">{cat.label}</p>
+                  <span className="text-xl sm:text-2xl">{cat.emoji}</span>
+                  <p className="mt-1 text-[11px] sm:text-xs font-semibold text-ink leading-tight">{cat.label}</p>
                 </button>
               ))}
             </div>
-          </Card>
-        </div>
+          </div>
 
-        {/* ── Style + quality ── */}
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
-              Style direction
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(STYLE_OPTIONS).map(([key, val]) => (
-                <button
-                  key={key}
-                  onClick={() => setStyle(key as StylePreference)}
-                  className={cn(
-                    'rounded-xl border px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5',
-                    style === key
-                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 font-semibold text-ink shadow-soft'
-                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand hover:shadow-soft'
-                  )}
-                >
-                  {val.label}
-                </button>
-              ))}
+          {/* ════ ZIP + Style + Quality — condensed row ════ */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-3 animate-reveal-up" style={{ animationDelay: '0.35s', animationFillMode: 'both' }}>
+            {/* ZIP */}
+            <div className="rounded-xl border border-panel bg-white/60 backdrop-blur-sm p-4 transition-all hover:border-sand/50 hover:shadow-soft">
+              <label className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-500 flex items-center gap-1.5 mb-2">
+                <MapPin className="h-3 w-3" /> ZIP code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="10001"
+                value={zipCode}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 5);
+                  setZipCode(v);
+                }}
+                className="w-full bg-transparent text-ink text-lg font-bold placeholder:text-ink-300 focus:outline-none"
+                required
+              />
             </div>
-          </Card>
 
-          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
-              Finish quality
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {QUALITY_TIERS.map((tier) => (
-                <button
-                  key={tier.value}
-                  onClick={() => setQualityTier(tier.value)}
-                  className={cn(
-                    'rounded-xl border px-3 py-2 text-sm transition-all duration-200 hover:-translate-y-0.5',
-                    qualityTier === tier.value
-                      ? 'border-sand-dark bg-gradient-to-br from-sand-light/20 to-amber-50 font-semibold text-ink shadow-soft'
-                      : 'border-panel bg-canvas-50 text-ink-600 hover:border-sand hover:shadow-soft'
-                  )}
-                >
-                  {tier.emoji} {tier.label}
-                </button>
-              ))}
+            {/* Style */}
+            <div className="rounded-xl border border-panel bg-white/60 backdrop-blur-sm p-4 transition-all hover:border-sand/50 hover:shadow-soft">
+              <label className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-500 mb-2 block">Style</label>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(STYLE_OPTIONS).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => setStyle(key as StylePreference)}
+                    className={cn(
+                      'rounded-lg border px-2 py-1 text-[11px] transition-all',
+                      style === key
+                        ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
+                        : 'border-panel bg-white/40 text-ink-500 hover:border-sand'
+                    )}
+                  >
+                    {val.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="mt-2 text-xs text-ink-500">
-              {QUALITY_TIERS.find((t) => t.value === qualityTier)?.label === 'Budget'
-                ? 'Cost-conscious materials, good for rentals or quick cleanups.'
-                : qualityTier === 'mid'
-                  ? 'Best default — balances durability, looks, and resale value.'
-                  : 'Higher-end finishes, upgraded materials, custom detailing.'}
-            </p>
-          </Card>
-        </div>
 
-        {/* ── Notes ── */}
-        <div className="mt-5">
-          <Card className="p-5 transition-all duration-300 hover:shadow-lift sm:p-6">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-ink-500">
-              Anything else to share? (optional)
-            </p>
+            {/* Quality */}
+            <div className="rounded-xl border border-panel bg-white/60 backdrop-blur-sm p-4 transition-all hover:border-sand/50 hover:shadow-soft">
+              <label className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-500 mb-2 block">Finish</label>
+              <div className="flex gap-1.5">
+                {QUALITY_TIERS.map((tier) => (
+                  <button
+                    key={tier.value}
+                    onClick={() => setQualityTier(tier.value)}
+                    className={cn(
+                      'flex-1 rounded-lg border px-2 py-1 text-[11px] text-center transition-all',
+                      qualityTier === tier.value
+                        ? 'border-sand-dark bg-sand-light/20 font-semibold text-ink'
+                        : 'border-panel bg-white/40 text-ink-500 hover:border-sand'
+                    )}
+                  >
+                    {tier.emoji} {tier.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ════ Notes ════ */}
+          <div className="mt-4 animate-reveal-up" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Describe what you're hoping to change, any specific materials, or concerns..."
-              className="min-h-[80px] w-full resize-y rounded-xl border border-panel bg-canvas-50 p-3 text-sm text-ink placeholder:text-ink-400 transition-all duration-200 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark focus:shadow-soft"
-              rows={3}
+              placeholder="Anything else to share? (optional) — specific materials, colors, or concerns..."
+              className="w-full resize-y rounded-xl border border-panel bg-white/60 backdrop-blur-sm p-3 text-sm text-ink placeholder:text-ink-400 transition-all duration-200 focus:border-sand-dark focus:outline-none focus:ring-1 focus:ring-sand-dark focus:shadow-soft"
+              rows={2}
             />
-          </Card>
-        </div>
-
-        {/* ── Error ── */}
-        {error && (
-          <div className="mt-5 animate-reveal-up rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft">
-            {error}
           </div>
-        )}
 
-        {/* ── Generate button ── */}
-        <div className="mt-8 flex flex-col items-center gap-3">
-          <Button
-            size="lg"
-            onClick={handleGenerate}
-            disabled={!canSubmit}
-            className="w-full max-w-md px-10 py-5 text-lg shadow-soft transition-all duration-300 hover:shadow-lift hover:scale-[1.02] active:scale-[0.98] disabled:hover:scale-100"
-          >
-            <Sparkles className="mr-2 h-5 w-5" />
-            Get your estimate
-          </Button>
-
-          {!error && !canSubmit && (
-            <p className="text-xs text-ink-400 animate-reveal-up">
-              {files.length === 0 && 'Drop at least one photo to get started'}
-              {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code to continue'}
-            </p>
-          )}
-        </div>
-
-        {/* ── Trust line ── */}
-        <div className="mt-10">
-          <Card className="p-5 text-center transition-all duration-300 hover:shadow-lift sm:p-6">
-            <div className="mb-2 flex items-center justify-center gap-2 font-semibold text-ink">
-              <Camera className="h-4 w-4 text-sand-dark" />
-              Built from your photo, not a formula
+          {/* ════ Error ════ */}
+          {error && (
+            <div className="mt-4 animate-reveal-up rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-soft">
+              {error}
             </div>
-            <p className="text-sm text-ink-500">
-              Your estimate uses your photos, your choices, and real regional cost
-              data — not a generic average. Every assumption is listed so you know
-              where the number comes from.
-            </p>
-          </Card>
+          )}
+
+          {/* ════ MASSIVE CTA BUTTON ════ */}
+          <div className="mt-8 flex flex-col items-center gap-3 animate-reveal-up" style={{ animationDelay: '0.45s', animationFillMode: 'both' }}>
+            <button
+              onClick={handleGenerate}
+              disabled={!canSubmit}
+              className={cn(
+                'group relative w-full max-w-lg overflow-hidden rounded-2xl px-10 py-5 text-xl font-bold transition-all duration-300',
+                canSubmit
+                  ? 'bg-ink text-canvas-50 hover:scale-[1.02] active:scale-[0.98] shadow-[0_8px_32px_rgba(23,24,28,0.2)] hover:shadow-[0_12px_40px_rgba(23,24,28,0.3)]'
+                  : 'bg-ink/60 text-white/50 cursor-not-allowed'
+              )}
+            >
+              {/* Shimmer overlay */}
+              {canSubmit && (
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[length:200%_100%] bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+                </div>
+              )}
+              <span className="relative z-10 flex items-center justify-center gap-3">
+                <Sparkles className="h-6 w-6" />
+                Get my realistic estimate
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </span>
+            </button>
+
+            {!error && !canSubmit && (
+              <p className="text-xs text-ink-400 animate-reveal-up">
+                {files.length === 0 && 'Drop at least one photo to get started'}
+                {files.length > 0 && zipCode.trim().length !== 5 && 'Enter a 5-digit ZIP code to continue'}
+              </p>
+            )}
+          </div>
+
+          {/* ════ Social proof / trust line ════ */}
+          <div className="mt-6 text-center animate-reveal-up" style={{ animationDelay: '0.5s', animationFillMode: 'both' }}>
+            <div className="inline-flex items-center gap-3 text-xs text-ink-400">
+              <span className="flex items-center gap-1">
+                <Camera className="h-3 w-3 text-sand-dark" /> Based on your actual photos
+              </span>
+              <span className="w-px h-3 bg-ink/10" />
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-sand-dark" /> Local pricing data
+              </span>
+              <span className="w-px h-3 bg-ink/10" />
+              <span className="flex items-center gap-1">
+                💯 No generic averages
+              </span>
+            </div>
+          </div>
         </div>
 
-        <p className="mt-8 text-center text-xs text-ink-400">
-          Your photos are used only to generate your estimate and design concepts.
-          <br />
-          No generic averages. Every number comes from your photo + local market data.
-        </p>
+        {/* ════ How it works — quick teaser ════ */}
+        <div className="mt-16 sm:mt-20 pb-16 animate-reveal-up" style={{ animationDelay: '0.55s', animationFillMode: 'both' }}>
+          <div className="mx-auto max-w-4xl">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {[
+                { step: '1', emoji: '📸', title: 'Upload your photo', desc: 'Snap a picture of the space you want to renovate' },
+                { step: '2', emoji: '🤖', title: 'AI analyzes your space', desc: 'Naili detects room type, materials, condition, and more' },
+                { step: '3', emoji: '📋', title: 'Get your estimate', desc: 'A complete plan with costs, materials, and design concepts' },
+              ].map((item) => (
+                <div key={item.step} className="group rounded-2xl border border-panel bg-white/50 backdrop-blur-sm p-5 text-center transition-all hover:-translate-y-1 hover:shadow-soft hover:border-sand/40">
+                  <span className="text-3xl mb-2 block">{item.emoji}</span>
+                  <p className="font-semibold text-ink">{item.title}</p>
+                  <p className="mt-1 text-xs text-ink-500">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   );
