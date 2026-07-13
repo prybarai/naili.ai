@@ -256,7 +256,10 @@ export default function VisionResultsView({
   useEffect(() => {
     if (!hasAnyConcepts || hasAttemptedVideo) return;
     const conceptUrl = conceptImages[selectedConcept];
-    if (!conceptUrl) return;
+    if (!conceptUrl) {
+      // Try again when concept images update
+      return;
+    }
     setHasAttemptedVideo(true);
     setIsGeneratingVideo(true);
 
