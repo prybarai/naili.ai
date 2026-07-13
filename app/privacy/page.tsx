@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
  return (
-  <main className="relative z-10 min-h-screen bg-canvas">
+  <div className="relative z-10 min-h-screen bg-canvas">
    <Nav />
    <section className="px-6 pb-16 pt-32 md:px-10 md:pt-40">
     <div className="mx-auto max-w-3xl">
@@ -76,6 +76,6 @@ export default function PrivacyPage() {
     </div>
    </section>
    <Footer />
-  </main>
+  </div>
  );
 }

@@ -146,7 +146,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50">
       <Nav />
       <section className="flex items-center justify-center px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-28 md:pt-32">
         <Suspense fallback={
@@ -157,6 +157,6 @@ export default function LoginPage() {
           <LoginForm />
         </Suspense>
       </section>
-    </main>
+    </div>
   );
 }

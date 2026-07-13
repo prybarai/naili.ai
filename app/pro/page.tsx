@@ -15,8 +15,6 @@ import {
  FileText,
  ExternalLink,
 } from "lucide-react";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import ContractorSignupForm from "@/components/ContractorSignupForm";
 import { absoluteUrl } from "@/lib/site";
 
@@ -118,12 +116,11 @@ export default function ProPage() {
  };
 
  return (
-  <main className="relative z-10 bg-stone-50">
+  <div className="relative z-10 bg-stone-50">
    <script
     type="application/ld+json"
     dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
    />
-   <Nav />
 
    {/* Hero — mobile-first */}
    <section className="relative overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-20 sm:pt-28 md:px-10 md:pt-36">
@@ -413,7 +410,6 @@ export default function ProPage() {
     </div>
    </section>
 
-   <Footer />
-  </main>
+  </div>
  );
 }

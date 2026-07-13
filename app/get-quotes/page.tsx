@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import { absoluteUrl } from "@/lib/site";
 import LeadCaptureForm from "@/components/LeadCaptureForm";
 
@@ -19,16 +17,14 @@ export default function GetQuotesPage({
 }) {
   return (
     <>
-      <Nav />
-      <main className="min-h-screen bg-canvas">
+      <div className="min-h-screen bg-canvas">
         <LeadCaptureForm
           projectId={searchParams.project}
           zip={searchParams.zip}
           category={searchParams.category}
           estimate={searchParams.estimate}
         />
-      </main>
-      <Footer />
+      </div>
     </>
   );
 }

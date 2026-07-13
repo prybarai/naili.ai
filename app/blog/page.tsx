@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { COST_GUIDES } from "@/lib/costGuides";
 import { absoluteUrl } from "@/lib/site";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Renovation Cost Guides — Naili",
@@ -15,8 +13,7 @@ export const metadata: Metadata = {
 export default function BlogIndex() {
   return (
     <>
-      <Nav />
-      <main className="relative min-h-screen overflow-x-hidden">
+      <div className="relative min-h-screen overflow-x-hidden">
         <div className="fixed inset-0 bg-gradient-to-br from-[#F6F3EE] via-[#FBF8F4] to-[#F1ECE5]" />
         <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-28 pb-16">
           <p className="nl-eyebrow text-center">Renovation Guides</p>
@@ -64,8 +61,7 @@ export default function BlogIndex() {
             </Link>
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
     </>
   );
 }

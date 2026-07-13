@@ -225,7 +225,7 @@ function SignupForm() {
 
 export default function SignupPage() {
   return (
-    <main className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50">
       <Nav />
       <section className="flex items-center justify-center px-0 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-28 md:pt-32">
         <Suspense fallback={
@@ -236,6 +236,6 @@ export default function SignupPage() {
           <SignupForm />
         </Suspense>
       </section>
-    </main>
+    </div>
   );
 }

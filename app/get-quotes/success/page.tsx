@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 import Link from "next/link";
 import { absoluteUrl } from "@/lib/site";
 
@@ -36,8 +34,7 @@ export default function SuccessPage({
 
   return (
     <>
-      <Nav />
-      <main className="min-h-screen bg-canvas flex items-center justify-center px-4">
+      <div className="min-h-screen bg-canvas flex items-center justify-center px-4">
         <div className="max-w-lg w-full text-center py-20">
           {/* Success animation */}
           <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-green-50 flex items-center justify-center">
@@ -127,8 +124,7 @@ export default function SuccessPage({
             We never sell your data.
           </p>
         </div>
-      </main>
-      <Footer />
+      </div>
     </>
   );
 }

@@ -4,8 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { PROJECT_CATEGORIES, type ProjectCategory, type QualityTier } from '@/types';
 import { cn } from '@/lib/utils';
-import Nav from '@/components/Nav';
-import Footer from '@/components/Footer';
 
 const CATEGORIES = Object.entries(PROJECT_CATEGORIES).map(([key, val]) => ({
   value: key as ProjectCategory,
@@ -62,8 +60,7 @@ export default function CalculatorsPage() {
 
   return (
     <>
-      <Nav />
-      <main className="relative min-h-screen overflow-x-hidden">
+      <div className="relative min-h-screen overflow-x-hidden">
         <div className="fixed inset-0 bg-gradient-to-br from-[#F6F3EE] via-[#FBF8F4] to-[#F1ECE5]" />
         <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(216,185,138,0.08),transparent_50%)]" />
         <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-28 pb-16">
@@ -282,8 +279,7 @@ export default function CalculatorsPage() {
             </Link>
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
     </>
   );
 }

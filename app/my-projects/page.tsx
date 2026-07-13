@@ -1,8 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Plus, Sparkles, ArrowRight, Upload } from 'lucide-react';
-import Nav from '@/components/Nav';
-import Footer from '@/components/Footer';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyRange } from '@/lib/utils';
@@ -96,8 +94,7 @@ export default async function MyProjectsPage() {
   });
 
   return (
-    <main className="relative z-10 min-h-screen bg-stone-50">
-      <Nav />
+    <div className="relative z-10 min-h-screen bg-stone-50">
       <section className="px-4 pb-6 pt-20 sm:px-6 sm:pb-8 sm:pt-28 md:pt-36">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -204,7 +201,6 @@ export default async function MyProjectsPage() {
           )}
         </div>
       </section>
-      <Footer />
-    </main>
+    </div>
   );
 }

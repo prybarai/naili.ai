@@ -17,8 +17,6 @@ import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type QualityTi
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import posthog from 'posthog-js';
-import Nav from '@/components/Nav';
-import Footer from '@/components/Footer';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, or WEBP up to 10MB';
@@ -192,7 +190,7 @@ export default function HomePage() {
   /* ── Progress screen ── */
   if (loading) {
     return (
-      <main className="relative min-h-screen bg-gradient-to-br from-[#1b1d22] via-[#242831] to-[#1b1d22] flex flex-col items-center justify-center px-4">
+      <div className="relative min-h-screen bg-gradient-to-br from-[#1b1d22] via-[#242831] to-[#1b1d22] flex flex-col items-center justify-center px-4">
         <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,rgba(216,185,138,0.10),transparent_55%)]" />
         <div className="relative z-10 mx-auto w-full max-w-lg text-center">
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] backdrop-blur-xl p-8 sm:p-10">
@@ -221,18 +219,17 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   /* ── Landing page ── */
   return (
-    <main className="relative min-h-screen overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden">
       <div className="fixed inset-0 bg-gradient-to-br from-[#F6F3EE] via-[#FBF8F4] to-[#F1ECE5]" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(216,185,138,0.12),transparent_50%),radial-gradient(ellipse_at_70%_80%,rgba(184,216,200,0.08),transparent_50%)]" />
 
       <div className="relative z-20">
-        <Nav />
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -525,7 +522,6 @@ export default function HomePage() {
       </div>
 
       {/* ═══════════ FOOTER ═══════════ */}
-      <Footer />
-    </main>
+    </div>
   );
 }

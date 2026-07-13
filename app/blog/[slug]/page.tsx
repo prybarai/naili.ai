@@ -4,8 +4,6 @@ import Link from "next/link";
 import Script from "next/script";
 import { COST_GUIDE_MAP, type CostGuide } from "@/lib/costGuides";
 import { absoluteUrl } from "@/lib/site";
-import Nav from "@/components/Nav";
-import Footer from "@/components/Footer";
 
 /* ── Static param generation ── */
 export function generateStaticParams() {
@@ -39,8 +37,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
   return (
     <>
       <GuideJsonLd guide={guide} />
-      <Nav />
-      <main className="relative min-h-screen overflow-x-hidden">
+      <div className="relative min-h-screen overflow-x-hidden">
         <div className="fixed inset-0 bg-gradient-to-br from-[#F6F3EE] via-[#FBF8F4] to-[#F1ECE5]" />
         <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 pb-16">
 
@@ -189,8 +186,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
+      </div>
     </>
   );
 }
