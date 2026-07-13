@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, User, LogOut, FolderOpen, Sparkles } from "lucide-react";
+import { Menu, X, User, LogOut, FolderOpen, Sparkles, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -14,6 +14,18 @@ export default function Nav() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { user, loading } = useAuth();
+  const [isProUser, setIsProUser] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetch(`/api/stripe/check-status?userId=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => setIsProUser(data.isPro === true))
+        .catch(() => setIsProUser(false));
+    } else {
+      setIsProUser(false);
+    }
+  }, [user]);
   const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,6 +81,11 @@ export default function Nav() {
 
               {!loading && user ? (
                 <div className="relative ml-3" ref={accountRef}>
+                  {isProUser && (
+                    <span className="absolute -right-1 -top-1 z-10 inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700 shadow-sm">
+                      <Crown className="h-2.5 w-2.5" /> Pro
+                    </span>
+                  )}
                   <button onClick={() => setAccountOpen(!accountOpen)}
                     className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:shadow-md hover:border-stone-300">
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-50">
