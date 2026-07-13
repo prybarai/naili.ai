@@ -224,9 +224,9 @@ export default function VisionResultsView({
   const [hasAttemptedIntelligence, setHasAttemptedIntelligence] = useState(false);
   const [hasAttemptedVideo, setHasAttemptedVideo] = useState(false);
 
-  // Fetch intelligence report when estimate is ready
+  // Fetch intelligence report when project data is available (does not need estimate)
   useEffect(() => {
-    if (!estimate || hasAttemptedIntelligence) return;
+    if (!project?.zip_code || hasAttemptedIntelligence) return;
     setHasAttemptedIntelligence(true);
     setIsLoadingIntelligence(true);
     fetch('/api/vision/intelligence-report', {
@@ -247,7 +247,7 @@ export default function VisionResultsView({
       })
       .catch(() => setIntelligenceReport(null))
       .finally(() => setIsLoadingIntelligence(false));
-  }, [estimate, hasAttemptedIntelligence, project.zip_code, project.project_category, project.quality_tier, project.style_preference, project.notes, projectId]);
+  }, [project?.zip_code, hasAttemptedIntelligence, project.zip_code, project.project_category, project.quality_tier, project.style_preference, project.notes, projectId]);
 
   // Fetch video flythrough when concept images are ready
   // Uses polling pattern: POST starts prediction, then client polls via GET
@@ -563,10 +563,12 @@ export default function VisionResultsView({
           </div>
         </section>
 
-        {/* 6. MARKET INTELLIGENCE REPORT */}
-        <section className="mx-auto w-full max-w-4xl">
-          <IntelligenceReportComponent report={intelligenceReport ?? null} />
-        </section>
+        {/* 6. MARKET INTELLIGENCE REPORT — only render when data is available or still loading */}
+        {intelligenceReport !== null && (
+          <section className="mx-auto w-full max-w-4xl">
+            <IntelligenceReportComponent report={intelligenceReport ?? null} />
+          </section>
+        )}
 
         {/* 7. COST PLAYGROUND */}
         {estimate && (
@@ -584,14 +586,16 @@ export default function VisionResultsView({
           </section>
         )}
 
-        {/* 8. VIDEO FLYTHROUGH */}
-        <section className="mx-auto w-full max-w-4xl">
-          <VideoFlythrough
-            videoUrl={projectVideo?.video_url || undefined}
-            thumbnailUrl={projectVideo?.thumbnail_url || undefined}
-            isGenerating={isGeneratingVideo}
-          />
-        </section>
+        {/* 8. VIDEO FLYTHROUGH — only render when generating or video is ready */}
+        {(isGeneratingVideo || projectVideo?.video_url) && (
+          <section className="mx-auto w-full max-w-4xl">
+            <VideoFlythrough
+              videoUrl={projectVideo?.video_url || undefined}
+              thumbnailUrl={projectVideo?.thumbnail_url || undefined}
+              isGenerating={isGeneratingVideo}
+            />
+          </section>
+        )}
 
         {/* 9. CONTRACTOR LEAD CAPTURE */}
         <section className="mx-auto w-full max-w-4xl print:hidden">

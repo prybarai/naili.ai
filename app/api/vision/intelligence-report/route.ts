@@ -41,24 +41,31 @@ export async function POST(req: NextRequest) {
       report = generateFallbackReport(params.zip_code, params.category);
     }
 
-    // Save to DB
-    const { data, error } = await supabaseAdmin
-      .from('intelligence_reports')
-      .insert({
-        project_id: params.project_id,
-        local_market_summary: report.local_market_summary,
-        comparable_sales_impact: report.comparable_sales_impact,
-        contractor_density_note: report.contractor_density_note,
-        permit_timeline_note: report.permit_timeline_note,
-        seasonal_pricing_note: report.seasonal_pricing_note,
-        material_availability_note: report.material_availability_note,
-      })
-      .select()
-      .single();
+    // Save to DB (best-effort, table may not exist)
+    let savedReport = report;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('intelligence_reports')
+        .insert({
+          project_id: params.project_id,
+          local_market_summary: report.local_market_summary,
+          comparable_sales_impact: report.comparable_sales_impact,
+          contractor_density_note: report.contractor_density_note,
+          permit_timeline_note: report.permit_timeline_note,
+          seasonal_pricing_note: report.seasonal_pricing_note,
+          material_availability_note: report.material_availability_note,
+        })
+        .select()
+        .single();
 
-    if (error) throw error;
+      if (!error && data) {
+        savedReport = data;
+      }
+    } catch {
+      // Table may not exist — fall through to return report data anyway
+    }
 
-    return NextResponse.json({ report: data });
+    return NextResponse.json({ report: savedReport });
   } catch (error) {
     console.error('[intelligence-report] error:', error);
     // Even on fatal error, return a fallback so the frontend never shows an empty state
