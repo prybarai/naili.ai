@@ -697,16 +697,15 @@ export default function VisionResultsView({
           </section>
         )}
 
-        {/* 8. VIDEO FLYTHROUGH — only render when generating or video is ready */}
-        {(isGeneratingVideo || projectVideo?.video_url) && (
-          <section className="mx-auto w-full max-w-4xl">
-            <VideoFlythrough
-              videoUrl={projectVideo?.video_url || undefined}
-              thumbnailUrl={projectVideo?.thumbnail_url || undefined}
-              isGenerating={isGeneratingVideo}
-            />
-          </section>
-        )}
+        {/* 8. VIDEO FLYTHROUGH — always show (CSS Ken Burns fallback when no video) */}
+        <section className="mx-auto w-full max-w-4xl">
+          <VideoFlythrough
+            videoUrl={projectVideo?.video_url || undefined}
+            thumbnailUrl={projectVideo?.thumbnail_url || undefined}
+            isGenerating={isGeneratingVideo}
+            conceptImageUrl={conceptImages[selectedConcept] || undefined}
+          />
+        </section>
 
         {/* 9. CONTRACTOR LEAD CAPTURE */}
         <section className="mx-auto w-full max-w-4xl print:hidden">

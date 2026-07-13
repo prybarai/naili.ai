@@ -436,6 +436,23 @@
   opacity: 0;
 }
 
+.animate-ken-burns-scale {
+  animation: ken-burns 8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  transform-origin: center center;
+}
+
+@keyframes ken-burns {
+  0% {
+    transform: scale(1) translateX(0);
+  }
+  50% {
+    transform: scale(1.08) translateX(-1%);
+  }
+  100% {
+    transform: scale(1.15) translateX(-2%);
+  }
+}
+
 .animate-shimmer {
   animation: shimmer 2s ease-in-out infinite;
 }
