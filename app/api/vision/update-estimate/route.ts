@@ -9,6 +9,7 @@ const schema = z.object({
   quality_tier: z.enum(['budget', 'mid', 'premium']).optional(),
   style: z.string().optional(),
   notes: z.string().optional(),
+  scope_selections: z.string().optional(),
   material_changes: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -61,11 +62,32 @@ export async function POST(req: NextRequest) {
 
       // Apply scope multiplier from notes if they changed
       let scopeMultiplier = 1;
+
+      // First, apply scope_selections from CostPlayground toggles
+      if (params.scope_selections) {
+        const selected = params.scope_selections.split(',');
+        // Each additional scope item adds ~5% scope adjustment
+        const baseItems = selected.filter(
+          s => ['permit_included', 'demo_included', 'design_consultation', 'standard_deck', 'standard_install', 'standard_replace', 'tear_off', 'lawn_beds', 'walls_only', 'full_exterior', 'full_gut', 'full_remodel', 'with_railing'].indexOf(s) === -1
+        ).length;
+        scopeMultiplier = 1 + baseItems * 0.05;
+
+        // Specific scope items have predefined adjustments
+        if (selected.includes('full_yard')) scopeMultiplier += 0.25;
+        if (selected.includes('hardscape')) scopeMultiplier += 0.2;
+        if (selected.includes('premium_materials') || selected.includes('premium_install')) scopeMultiplier += 0.12;
+        if (selected.includes('subfloor_prep')) scopeMultiplier += 0.08;
+        if (selected.includes('demo_included')) scopeMultiplier += 0.1;
+        if (selected.includes('with_railing')) scopeMultiplier += 0.08;
+        if (selected.includes('design_consultation')) scopeMultiplier += 0.04;
+      }
+
+      // Then overlay notes-based adjustment
       const text = (updatedNotes || '').toLowerCase();
       if (/(gut|full remodel|full renovation|layout change|move plumbing|structural|addition|custom)/.test(text)) {
-        scopeMultiplier = category === 'kitchen' || category === 'bathroom' ? 1.35 : 1.2;
+        scopeMultiplier *= (category === 'kitchen' || category === 'bathroom' ? 1.35 : 1.2);
       } else if (/(repair|patch|touch up|small area|partial|single room|cosmetic|refresh|paint only)/.test(text)) {
-        scopeMultiplier = category === 'kitchen' || category === 'bathroom' ? 0.8 : 0.85;
+        scopeMultiplier *= (category === 'kitchen' || category === 'bathroom' ? 0.8 : 0.85);
       }
 
       const adjustedMid = Math.round(newMid * scopeMultiplier);

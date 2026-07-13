@@ -168,8 +168,9 @@ export interface ProjectVideo {
   prompt: string;
   model: string;
   duration_seconds: number;
-  status: 'generating' | 'ready' | 'failed';
+  status: 'generating' | 'ready' | 'failed' | 'unavailable';
   created_at: string;
+  replicate_prediction_id?: string;
 }
 
 export interface LeadSubmission {

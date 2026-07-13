@@ -133,8 +133,12 @@ function humanizeAssumptions(raw: string[]): string[] {
       return `${size.charAt(0).toUpperCase() + size.slice(1)}-sized bathroom based on photo analysis.`;
     }
     // Kitchen-specific
-    if (/kitchen.*scope/i.test(s) && /cabinet/i.test(s)) return 'Kitchen renovation including cabinet work.';
-    if (/kitchen.*scope/i.test(s)) return 'Kitchen renovation scope.';
+    if (/kitchen.*scope/i.test(s)) {
+      if (/cabinet/i.test(s)) return 'Kitchen renovation including cabinet work and custom cabinetry.';
+      if (/gut|full remodel|full renovation/i.test(s)) return 'Full kitchen remodel — complete tear-out and rebuild.';
+      if (/cosmetic|refresh|simple/i.test(s)) return 'Cosmetic kitchen refresh — updating surfaces and hardware.';
+      return 'Kitchen renovation scope based on photo analysis.';
+    }
     // Roofing-specific
     if (/roofing.*scope/i.test(s) || /roof.*replacement/i.test(s)) return 'Roof replacement scope.';
     // Deck/patio
@@ -165,8 +169,6 @@ function humanizeAssumptions(raw: string[]): string[] {
     if (/deduction/i.test(s)) return 'Adjusted for openings and non-work areas.';
     // Allowance strings
     if (/allowance/i.test(s)) return 'Budget allowance included for this category.'
-    // Kitchen-specific
-    if (/kitchen.*scope/i.test(s)) return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) + '.';
     // Flooring
     if (/flooring area/i.test(s)) return 'Flooring area estimated from visible room dimensions.';
     // Generic cleanup: replace underscores, capitalize first letter
@@ -268,7 +270,8 @@ export default async function VisionResultsPage({ params }: PageProps) {
   };
   const categoryLabel = categoryMap[project.project_category] || toTitleCase(project.project_category);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.naili.ai';
-  const shareUrl = `${appUrl}/vision/results/${project_id}`;
+  const baseUrl = appUrl.endsWith('/') ? appUrl.slice(0, -1) : appUrl;
+  const shareUrl = `${baseUrl}/vision/results/${project_id}`;
   const estimateAssumptions = humanizeAssumptions(cleanList(estimate?.assumptions));
   const riskNotes = humanizeRiskNotes(cleanList(estimate?.risk_notes));
   const likelyTrades = cleanList((brief as ProjectBrief & { likely_trades?: string[] } | null)?.likely_trades);

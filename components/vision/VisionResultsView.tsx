@@ -241,30 +241,97 @@ export default function VisionResultsView({
   }, [estimate, hasAttemptedIntelligence, project.zip_code, project.project_category, project.quality_tier, project.style_preference, project.notes, projectId]);
 
   // Fetch video flythrough when concept images are ready
+  // Uses polling pattern: POST starts prediction, then client polls via GET
   useEffect(() => {
     if (!hasAnyConcepts || hasAttemptedVideo) return;
     const conceptUrl = conceptImages[selectedConcept];
     if (!conceptUrl) return;
     setHasAttemptedVideo(true);
     setIsGeneratingVideo(true);
-    fetch('/api/vision/video-flythrough', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        project_id: projectId,
-        image_url: conceptUrl,
-      }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
+
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const startVideo = async () => {
+      try {
+        const res = await fetch('/api/vision/video-flythrough', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: projectId,
+            image_url: conceptUrl,
+          }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+
         if (data.status === 'ready' && data.video_url) {
-          setProjectVideo({ ...data, status: 'ready' } as ProjectVideo);
+          setProjectVideo({ video_url: data.video_url, status: 'ready' } as ProjectVideo);
+          setIsGeneratingVideo(false);
+          return;
+        }
+
+        if (data.status === 'unavailable') {
+          setProjectVideo(null);
+          setIsGeneratingVideo(false);
+          return;
+        }
+
+        if (data.status === 'generating' && data.prediction_id) {
+          // Poll for completion
+          const pollUrl = data.poll_url || `/api/vision/video-poll?id=${data.prediction_id}&project_id=${projectId}`;
+          let polls = 0;
+          const maxPolls = 40; // ~2 minutes max (3s intervals)
+
+          const poll = async () => {
+            if (cancelled || polls >= maxPolls) {
+              setIsGeneratingVideo(false);
+              return;
+            }
+            polls++;
+            try {
+              const pollRes = await fetch(pollUrl);
+              const pollData = await pollRes.json();
+              if (cancelled) return;
+
+              if (pollData.status === 'ready' && pollData.video_url) {
+                setProjectVideo({ video_url: pollData.video_url, status: 'ready' } as ProjectVideo);
+                setIsGeneratingVideo(false);
+                return;
+              }
+
+              if (pollData.status === 'failed' || pollData.status === 'unavailable') {
+                setProjectVideo(null);
+                setIsGeneratingVideo(false);
+                return;
+              }
+
+              // Still generating — poll again
+              pollTimer = setTimeout(poll, 3000);
+            } catch {
+              if (!cancelled) pollTimer = setTimeout(poll, 5000);
+            }
+          };
+
+          pollTimer = setTimeout(poll, 3000);
         } else {
           setProjectVideo(null);
+          setIsGeneratingVideo(false);
         }
-      })
-      .catch(() => setProjectVideo(null))
-      .finally(() => setIsGeneratingVideo(false));
+      } catch {
+        if (!cancelled) {
+          setProjectVideo(null);
+          setIsGeneratingVideo(false);
+        }
+      }
+    };
+
+    startVideo();
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [hasAnyConcepts, hasAttemptedVideo, conceptImages, selectedConcept, projectId]);
 
   useEffect(() => {

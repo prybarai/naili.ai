@@ -146,6 +146,11 @@ export default function CostPlayground({
   const handleRecalculate = useCallback(async () => {
     setIsRecalculating(true);
     try {
+      const scopeSelections = Object.entries(scopeToggles)
+        .filter(([, checked]) => checked)
+        .map(([id]) => id)
+        .join(',');
+
       const res = await fetch('/api/vision/update-estimate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,6 +158,7 @@ export default function CostPlayground({
           project_id: projectId,
           quality_tier: localTier,
           notes: customNotes || undefined,
+          scope_selections: scopeSelections || undefined,
         }),
       });
 

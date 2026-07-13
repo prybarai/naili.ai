@@ -23,8 +23,11 @@ CREATE TABLE IF NOT EXISTS project_videos (
   model TEXT DEFAULT 'gpt-image-1',
   duration_seconds INTEGER DEFAULT 5,
   status TEXT DEFAULT 'generating',
+  replicate_prediction_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_project_videos_prediction ON project_videos(replicate_prediction_id);
 
 CREATE INDEX IF NOT EXISTS idx_project_videos_project ON project_videos(project_id);
 
