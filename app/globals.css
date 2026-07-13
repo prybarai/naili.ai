@@ -5,18 +5,28 @@
 :root {
  --canvas: #F6F3EE;
  --canvas-50: #FBF8F4;
+ --canvas-100: #F6F3EE;
  --canvas-200: #F1ECE5;
+ --canvas-300: #E8E2D8;
  --ink: #17181C;
  --ink-600: #5E6470;
  --ink-500: #7B8190;
+ --ink-400: #9BA1AE;
  --sand: #D8B98A;
+ --sand-light: #E6CEA6;
+ --sand-dark: #B89A6C;
  --clay: #CBB69A;
  --slate-smart: #7C90B0;
  --mint: #B8D8C8;
+ --mint-light: #C8E4D4;
  --graphite: #1B1D22;
  --graphite-600: #242831;
+ --graphite-700: #1B1D22;
  --hairline: rgba(23,24,28,0.08);
  --panel-border: rgba(23,24,28,0.12);
+ --naili-radius: 1rem;
+ --naili-radius-lg: 1.5rem;
+ --naili-radius-xl: 2rem;
 }
 
 @layer base {
@@ -207,6 +217,197 @@
  background-clip: text;
  -webkit-text-fill-color: transparent;
  }
+}
+
+/* ── GrowGardens-inspired design system utilities ── */
+
+/* Card component: rounded surfaces with subtle depth */
+.nl-card {
+  background: var(--canvas-50);
+  border: 1px solid var(--hairline);
+  border-radius: var(--naili-radius-lg);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+.nl-card:hover {
+  border-color: rgba(216,185,138,0.35);
+  box-shadow: 0 1px 2px rgba(23,24,28,0.04), 0 8px 24px rgba(23,24,28,0.06);
+}
+
+/* Elevated card variant */
+.nl-card--elevated {
+  background: var(--canvas-50);
+  border: 1px solid rgba(23,24,28,0.06);
+  border-radius: var(--naili-radius-lg);
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(23,24,28,0.04), 0 12px 28px rgba(23,24,28,0.08);
+}
+
+/* Eyebrow label: small uppercase muted text above headings */
+.nl-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--ink-500);
+  margin-bottom: 0.5rem;
+}
+
+/* Section container: centered max-width with padding */
+.nl-section {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 3rem 1rem;
+}
+@media (min-width: 640px) {
+  .nl-section { padding: 4rem 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .nl-section { padding: 5rem 2rem; }
+}
+
+/* Pill button base */
+.nl-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+}
+.nl-pill--primary {
+  background: var(--ink);
+  color: var(--canvas-50);
+  box-shadow: 0 1px 2px rgba(23,24,28,0.08), 0 8px 20px rgba(23,24,28,0.12);
+}
+.nl-pill--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(23,24,28,0.10), 0 14px 28px rgba(23,24,28,0.16);
+}
+.nl-pill--secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid rgba(23,24,28,0.14);
+}
+.nl-pill--secondary:hover {
+  background: rgba(23,24,28,0.04);
+  border-color: rgba(23,24,28,0.22);
+}
+
+/* Gradient text for stats / signatures */
+.nl-gradient-text {
+  background: linear-gradient(135deg, var(--sand-dark), var(--sand), #f0b849);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Step number circle */
+.nl-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--sand);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Stat grid card */
+.nl-stat {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: var(--canvas-50);
+  border: 1px solid var(--hairline);
+  border-radius: var(--naili-radius-lg);
+}
+.nl-stat__value {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+.nl-stat__label {
+  font-size: 0.8125rem;
+  color: var(--ink-500);
+}
+
+/* Zone card (content link) */
+.nl-zone {
+  display: block;
+  background: var(--canvas-200);
+  border: 1px solid transparent;
+  border-radius: var(--naili-radius);
+  padding: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
+}
+.nl-zone:hover {
+  border-color: rgba(216,185,138,0.3);
+  background: var(--canvas-50);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 2px rgba(23,24,28,0.04), 0 8px 24px rgba(23,24,28,0.06);
+}
+.nl-zone__name {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+/* Image break (decorative full-width image between sections) */
+.nl-image-break {
+  width: 100%;
+  border-radius: var(--naili-radius-lg);
+  overflow: hidden;
+  max-height: 240px;
+  margin: 2rem 0;
+}
+.nl-image-break img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+}
+
+/* Newsletter form */
+.nl-newsletter {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  background: var(--canvas-50);
+  border: 1px solid var(--hairline);
+  border-radius: var(--naili-radius-xl);
+}
+.nl-newsletter form {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.nl-newsletter input[type="email"] {
+  flex: 1 1 240px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--canvas);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+.nl-newsletter input[type="email"]:focus {
+  border-color: var(--sand);
+  box-shadow: 0 0 0 2px rgba(216,185,138,0.15);
 }
 
 /* ── Entrance animations for landing page ── */
