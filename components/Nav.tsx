@@ -12,8 +12,15 @@ export default function Nav() {
   const isPro = pathname?.startsWith("/pro");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { user, loading } = useAuth();
   const accountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -29,10 +36,12 @@ export default function Nav() {
   return (
     <>
       <header className={cn(
-        "fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 md:px-10",
+        "fixed inset-x-0 top-0 z-50 flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 md:px-10 transition-shadow duration-300",
         isPro
           ? "border-b border-white/5 bg-graphite-700/70 backdrop-blur-md"
-          : "border-b border-stone-200/60 bg-white/80 backdrop-blur-lg"
+          : scrolled
+            ? "border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur-lg"
+            : "border-b border-stone-200/60 bg-white/80 backdrop-blur-lg"
       )}>
         <Link href="/" className="group flex items-center gap-2">
           <Logo dark={isPro} />

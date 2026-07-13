@@ -219,9 +219,24 @@ function humanizeBriefText(text: string | undefined | null): string {
 
 export async function generateMetadata({ params }: PageProps) {
   const { project_id } = await params;
+
+  // Fetch project to get dynamic metadata values
+  const projectRes = await supabaseAdmin.from('projects').select('project_category, zip_code').eq('id', project_id).single();
+  const project = projectRes.data as { project_category: string; zip_code: string } | null;
+
+  const categoryMap: Record<string, string> = {
+    custom_project: 'Home Project', bathroom: 'Bathroom', kitchen: 'Kitchen',
+    roofing: 'Roofing', deck_patio: 'Deck & Patio', landscaping: 'Landscaping',
+    exterior_paint: 'Exterior Paint', flooring: 'Flooring', interior_paint: 'Interior Paint',
+  };
+
+  const catLabel = (project && categoryMap[project.project_category]) ||
+    (project ? project.project_category.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Renovation');
+  const zip = project?.zip_code || '';
+
   return {
-    title: "Here's your naili plan",
-    description: `Review your Naili project plan for ${project_id}.`,
+    title: `${catLabel} Estimate — Naili`,
+    description: `Review your complete ${catLabel.toLowerCase()} plan for ${zip ? `ZIP ${zip}` : 'your area'}. AI-powered estimate, materials list, and design concepts.`,
     robots: {
       index: false,
       follow: false,

@@ -81,7 +81,7 @@ export default function CalculatorsPage() {
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn(
                 'rounded-full px-4 py-2 text-sm font-medium transition-all',
                 activeTab === tab.id
-                  ? 'bg-ink text-canvas-50 shadow-md'
+                  ? 'bg-ink text-canvas-50 shadow-md ring-1 ring-sand-dark/30'
                   : 'bg-white/70 text-ink-500 hover:bg-white border border-panel'
               )}>
                 {tab.label}

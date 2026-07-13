@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
+  ArrowUp,
   CheckCircle2,
   Download,
   FileText,
@@ -348,42 +349,139 @@ export default function VisionResultsView({
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
   }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
-  // Show partial content if estimate isn't ready yet, with a loading placeholder
+  // Loading skeleton: show placeholder layout while estimate loads
   if (!estimate) {
+    if (isTimedOut) {
+      return (
+        <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
+          <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
+            <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-ink">Still working on your plan...</h2>
+          <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment. If it doesn&apos;t load soon, please try again.</p>
+          <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90">
+            <RefreshCw className="h-4 w-4" /> Try again
+          </button>
+        </div>
+      );
+    }
+
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
-        {isTimedOut ? (
-          <>
-            <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
-              <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
+      <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8 lg:pb-16">
+        {/* Skeleton: Hero */}
+        <section className="relative mb-0 overflow-hidden rounded-b-[2rem] bg-[linear-gradient(135deg,#0f1115_0%,#1a1d25_50%,#0f1115_100%)] shadow-[0_32px_100px_rgba(0,0,0,0.3)] sm:rounded-b-[2.5rem]">
+          <div className="px-4 pb-10 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:px-12">
+            <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+              <div className="h-6 w-24 rounded-full bg-stone-700/50 animate-pulse" />
+              <div className="h-6 w-20 rounded-full bg-stone-700/50 animate-pulse" />
+              <div className="h-6 w-16 rounded-full bg-stone-700/50 animate-pulse" />
             </div>
-            <h2 className="text-2xl font-bold text-ink">Still working on your plan...</h2>
-            <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment. If it doesn&apos;t load soon, please try again.</p>
-            <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90">
-              <RefreshCw className="h-4 w-4" /> Try again
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="relative mb-8"><Loader2 className="h-12 w-12 animate-spin text-sand-dark" /></div>
-            <h2 className="text-2xl font-bold text-ink">Your estimate is being calculated</h2>
-            <p className="mt-2 text-center text-sm text-ink-500">We&apos;re building a complete project plan. The full results page will load in just a moment.</p>
-            {/* Show partial content that's already loaded */}
-            {(materials || brief || conceptImages.length > 0) && (
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                {materials && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Materials ready</span>}
-                {brief && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Brief ready</span>}
-                {conceptImages.length > 0 && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Concepts ready</span>}
+            <div className="mb-8 text-center">
+              <div className="mx-auto mb-2 h-3 w-40 rounded-full bg-stone-700/40 animate-pulse" />
+              <div className="mx-auto h-16 w-72 rounded-xl bg-stone-700/50 animate-pulse sm:h-20 sm:w-96" />
+              <div className="mx-auto mt-3 h-3 w-48 rounded-full bg-stone-700/40 animate-pulse" />
+            </div>
+            <div className="mx-auto max-w-4xl">
+              <div className="aspect-[4/3] w-full rounded-[1.5rem] bg-stone-700/40 animate-pulse" />
+            </div>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <div className="h-12 w-44 rounded-xl bg-stone-600/50 animate-pulse" />
+              <div className="h-12 w-40 rounded-xl bg-stone-700/40 animate-pulse" />
+            </div>
+          </div>
+        </section>
+
+        <div className="-mt-4 space-y-10 sm:space-y-14 lg:space-y-16">
+          {/* Skeleton: Cost breakdown bar */}
+          <section className="mx-auto w-full max-w-4xl">
+            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+              <div className="mb-5 flex items-center gap-2">
+                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-5 w-48 rounded bg-stone-100 animate-pulse" />
+                  <div className="mt-1 h-3 w-36 rounded bg-stone-100 animate-pulse" />
+                </div>
               </div>
-            )}
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-ink-400">
-              <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-mint" /> Photos uploaded</span>
-              <span className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Crunching numbers</span>
+              <div className="mb-6 h-7 w-full rounded-full bg-stone-100 animate-pulse" />
+              <div className="flex flex-wrap gap-6">
+                <div className="h-4 w-24 rounded bg-stone-100 animate-pulse" />
+                <div className="h-4 w-28 rounded bg-stone-100 animate-pulse" />
+                <div className="h-4 w-28 rounded bg-stone-100 animate-pulse" />
+              </div>
             </div>
-          </>
-        )}
+          </section>
+
+          {/* Skeleton: What we found */}
+          <section className="mx-auto w-full max-w-4xl">
+            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+              <div className="mb-5 flex items-center gap-2">
+                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-5 w-36 rounded bg-stone-100 animate-pulse" />
+                  <div className="mt-1 h-3 w-44 rounded bg-stone-100 animate-pulse" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="flex items-center justify-between rounded-xl border border-hairline bg-canvas-50 px-4 py-3">
+                    <div className="flex-1">
+                      <div className="h-3 w-20 rounded bg-stone-100 animate-pulse" />
+                      <div className="mt-1 h-4 w-28 rounded bg-stone-100 animate-pulse" />
+                    </div>
+                    <div className="h-5 w-12 rounded-full bg-stone-100 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Skeleton: Concept images grid */}
+          <section className="mx-auto w-full max-w-4xl">
+            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+              <div className="mb-5 flex items-center gap-2">
+                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-5 w-40 rounded bg-stone-100 animate-pulse" />
+                  <div className="mt-1 h-3 w-32 rounded bg-stone-100 animate-pulse" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="aspect-[4/3] rounded-xl bg-stone-100 animate-pulse" />
+                <div className="aspect-[4/3] rounded-xl bg-stone-100 animate-pulse" />
+              </div>
+            </div>
+          </section>
+
+          {/* Skeleton: Materials list */}
+          <section className="mx-auto w-full max-w-4xl">
+            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+              <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                  <div>
+                    <div className="h-5 w-32 rounded bg-stone-100 animate-pulse" />
+                    <div className="mt-1 h-3 w-24 rounded bg-stone-100 animate-pulse" />
+                  </div>
+                </div>
+                <div className="h-6 w-16 rounded-full bg-stone-100 animate-pulse" />
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl border border-hairline bg-canvas-50 p-4">
+                    <div className="h-14 w-14 rounded-lg bg-stone-100 animate-pulse" />
+                    <div className="flex-1">
+                      <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
+                      <div className="mt-1 h-3 w-24 rounded bg-stone-100 animate-pulse" />
+                    </div>
+                    <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     );
   }
@@ -562,7 +660,7 @@ export default function VisionResultsView({
           <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex items-center gap-2"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50"><FileText className="h-5 w-5 text-purple-500" /></div><div><h2 className="text-xl font-bold text-ink sm:text-2xl">Contractor Brief</h2><p className="text-sm text-ink-400 print:hidden">Print or share with your contractor for accurate quotes</p></div></div>
             <div className="flex gap-2 print:hidden">
-              <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"><Download className="h-4 w-4" /> Print</button>
+              <button aria-label="Print contractor brief" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"><Download className="h-4 w-4" /> Print</button>
               <div className="w-44"><ShareButton shareUrl={shareUrl} variant="light" projectTitle={`${categoryLabel} brief`} /></div>
             </div>
           </div>
@@ -653,6 +751,7 @@ export default function VisionResultsView({
                 {!leadSubmitted && (
                   <button
                     type="button"
+                    aria-label="Get connected with contractors"
                     onClick={() => setLeadModalOpen(true)}
                     className="inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:opacity-95 hover:shadow-lift"
                   >
@@ -666,6 +765,19 @@ export default function VisionResultsView({
 
         <Disclaimer text={DISCLAIMERS.estimate} className="print:hidden" />
       </div>
+
+      {/* Back to top button */}
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Scroll to top"
+        className={cn(
+          'fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 hover:bg-stone-50 hover:shadow-[0_6px_24px_rgba(0,0,0,0.2)] print:hidden',
+          stickyVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
+        )}
+      >
+        <ArrowUp className="h-5 w-5" />
+      </button>
 
       {/* LEAD MODAL */}
       <ContractorLeadModal

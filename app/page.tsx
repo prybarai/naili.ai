@@ -353,8 +353,8 @@ export default function HomePage() {
                     {previews.map((preview, idx) => (
                       <div key={preview} className="group relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={preview} alt={`Upload ${idx + 1}`} className="h-28 w-36 rounded-2xl object-cover shadow-md transition-all duration-300 group-hover:scale-[1.03] sm:h-32 sm:w-40" />
-                        <button type="button" onClick={(e) => { e.stopPropagation(); removePhoto(idx); }} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-white shadow-md opacity-0 transition-all duration-200 hover:bg-canvas-200 group-hover:opacity-100">
+                        <img src={preview} alt={`Upload ${idx + 1}`} loading="lazy" className="h-28 w-36 rounded-2xl object-cover shadow-md transition-all duration-300 group-hover:scale-[1.03] sm:h-32 sm:w-40" />
+                        <button type="button" aria-label="Remove photo" onClick={(e) => { e.stopPropagation(); removePhoto(idx); }} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-white shadow-md opacity-0 transition-all duration-200 hover:bg-canvas-200 group-hover:opacity-100">
                           <Trash2 className="h-3.5 w-3.5 text-ink-600" />
                         </button>
                       </div>
