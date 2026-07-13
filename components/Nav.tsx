@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, User, LogOut, FolderOpen, Upload } from "lucide-react";
+import { Menu, X, User, LogOut, FolderOpen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -92,10 +92,10 @@ export default function Nav() {
                 </Link>
               )}
 
-              <Link href="/#upload"
+              <Link href="/"
                 className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-stone-900 hover:shadow-lg active:scale-95">
-                <Upload className="h-3.5 w-3.5" />
-                Upload Your Space
+                <Sparkles className="h-3.5 w-3.5" />
+                Start Estimate
               </Link>
             </>
           )}
@@ -154,7 +154,7 @@ export default function Nav() {
                   )}
                   <Link href="/#upload" onClick={() => setMobileOpen(false)}
                     className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition active:scale-95">
-                    <Upload className="h-4 w-4" /> Upload Your Space
+                    <Sparkles className="h-4 w-4" /> Start Estimate
                   </Link>
                 </>
               )}

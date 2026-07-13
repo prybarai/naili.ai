@@ -11,6 +11,7 @@ import {
   Layers,
   Loader2,
   MapPin,
+  MessageSquareText,
   RefreshCw,
   Ruler,
   Search,
@@ -396,9 +397,18 @@ export default function VisionResultsView({
             <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">Estimate</span>
             <span className="text-xl font-bold text-ink">{formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}</span>
           </div>
-          <Link href={matchHref} onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'sticky' })} className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90">
-            Find Contractors <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLeadModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-ink px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              <MessageSquareText className="h-3.5 w-3.5" /> Get Contractor Quotes
+            </button>
+            <Link href={matchHref} onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'sticky' })} className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3.5 py-2 text-xs font-semibold text-ink transition-all hover:bg-canvas-50">
+              Browse All <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
 

@@ -38,7 +38,7 @@ export function generateMetadata({ params }: CityPageProps): Metadata {
 
   const costLabel = city.costIndex >= 1.5 ? 'higher-than-average' : city.costIndex >= 1.1 ? 'slightly above average' : 'affordable';
   const title = `Renovation Costs in ${city.name}, ${city.stateAbbr} | Local Pricing & Contractor Guide | Naili`;
-  const description = `Looking for renovation costs in ${city.name}, ${city.stateAbbr}? Get localized pricing for kitchen remodels, bathroom remodels, roofing, and more. ${city.permitAuthority} permit info, climate considerations, and trusted contractor tips for ${city.name} homeowners.`;
+  const description = city.metaDescription;
 
   return {
     title,

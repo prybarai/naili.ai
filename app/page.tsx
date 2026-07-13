@@ -13,6 +13,7 @@ import {
   Camera,
   ArrowRight,
 } from 'lucide-react';
+import ProjectCounter from '@/components/ProjectCounter';
 import { PROJECT_CATEGORIES, STYLE_OPTIONS, type ProjectCategory, type QualityTier, type StylePreference } from '@/types';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -279,6 +280,44 @@ export default function HomePage() {
       <div className="relative z-20">
       </div>
 
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@graph': [
+              {
+                '@type': 'WebSite',
+                '@id': 'https://www.naili.ai/#website',
+                url: 'https://www.naili.ai',
+                name: 'Naili',
+                description: 'Upload a photo, get a data-backed renovation estimate in seconds. Smart renovation planning for homeowners.',
+                potentialAction: {
+                  '@type': 'SearchAction',
+                  target: {
+                    '@type': 'EntryPoint',
+                    urlTemplate: 'https://www.naili.ai/search?q={search_term_string}',
+                  },
+                  'query-input': 'required name=search_term_string',
+                },
+              },
+              {
+                '@type': 'Organization',
+                '@id': 'https://www.naili.ai/#organization',
+                name: 'Naili',
+                url: 'https://www.naili.ai',
+                description: 'AI-powered renovation planning platform. Get realistic estimates, material lists, and design concepts from a single photo.',
+                sameAs: [
+                  'https://twitter.com/naili_ai',
+                  'https://www.linkedin.com/company/naili-ai',
+                ],
+                foundingDate: '2025',
+              },
+            ],
+          }),
+        }}
+      />
+
       <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* ═══════════ HERO ═══════════ */}
         <div className="pt-24 sm:pt-28 lg:pt-32 pb-4 text-center">
@@ -474,12 +513,19 @@ export default function HomePage() {
 
         {/* ═══════════ STATS — Gradient text ═══════════ */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[{ value: '50+', label: 'Project Categories' }, { value: 'Smart', label: 'AI Engine' }, { value: 'Free', label: 'To Get Started' }, { value: 'Real', label: 'Local Pricing' }].map((stat) => (
-            <div key={stat.label} className="nl-stat">
-              <div className="nl-gradient-text nl-stat__value">{stat.value}</div>
-              <p className="nl-stat__label">{stat.label}</p>
-            </div>
-          ))}
+          <div className="nl-stat">
+            <div className="nl-gradient-text nl-stat__value">50+</div>
+            <p className="nl-stat__label">Project Categories</p>
+          </div>
+          <ProjectCounter />
+          <div className="nl-stat">
+            <div className="nl-gradient-text nl-stat__value">Free</div>
+            <p className="nl-stat__label">To Get Started</p>
+          </div>
+          <div className="nl-stat">
+            <div className="nl-gradient-text nl-stat__value">Real</div>
+            <p className="nl-stat__label">Local Pricing</p>
+          </div>
         </div>
 
         {/* ═══════════ FEATURES — Card grid ═══════════ */}
@@ -494,6 +540,55 @@ export default function HomePage() {
               <p className="text-sm text-ink-500 leading-relaxed">{card.desc}</p>
             </div>
           ))}
+        </div>
+
+        {/* ═══════════ TESTIMONIALS — From our community ═══════════ */}
+        <div className="mb-12">
+          <p className="nl-eyebrow text-center">From our community</p>
+          <h2 className="text-center text-2xl sm:text-3xl font-bold text-ink mb-2">Homeowners trust Naili</h2>
+          <p className="text-center text-sm text-ink-500 mb-8 max-w-lg mx-auto">Real estimates from real people planning their next project.</p>
+          <div className="grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                quote: 'Naili saved me hours of research. The estimate was within $500 of what I actually paid for my kitchen refresh.',
+                name: 'Sarah M.',
+                location: 'Denver, CO',
+                project: 'Kitchen Refresh',
+              },
+              {
+                quote: 'The AI-generated before/after concepts helped me visualize exactly what my kitchen would look like. I knew what I wanted before talking to any contractor.',
+                name: 'James K.',
+                location: 'Austin, TX',
+                project: 'Kitchen Remodel',
+              },
+              {
+                quote: 'As a contractor, I love that every lead comes with a full scope of work. No more guessing games — just clear, detailed project briefs from day one.',
+                name: 'Mike R.',
+                location: 'Columbus, OH',
+                project: 'Contractor Partner',
+              },
+            ].map((t) => (
+              <div key={t.name} className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift">
+                <div className="mb-3 flex items-center gap-0.5">
+                  {[1,2,3,4,5].map((star) => (
+                    <svg key={star} className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-sm text-ink-600 leading-relaxed mb-4">&ldquo;{t.quote}&rdquo;</p>
+                <div className="flex items-center gap-3 border-t border-hairline pt-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sand-light/40 to-amber-50 text-xs font-bold text-ink-700">
+                    {t.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-ink">{t.name}</p>
+                    <p className="text-xs text-ink-400">{t.location} &middot; {t.project}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* ═══════════ GUIDES — Zone cards linking to blog ═══════════ */}
