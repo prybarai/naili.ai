@@ -127,6 +127,16 @@ export default function HomePage() {
     } catch { return null; } finally { clearTimeout(timer); }
   };
 
+  // Extended timeout for image generation which takes 30-60s
+  const fetchWithLongTimeout = async (url: string, options: RequestInit): Promise<Response | null> => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120_000);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      return res;
+    } catch { return null; } finally { clearTimeout(timer); }
+  };
+
   const markFinished = (key: ProgressKey) => setFinishedSteps((prev) => new Set(prev).add(key));
 
   const handleGenerate = async () => {
@@ -165,14 +175,51 @@ export default function HomePage() {
         }
       }
       if (!referenceImageUrl) throw new Error('Could not upload photos.');
-      markFinished('materials');
+
+      // Step 1: Analyze photo via DeepSeek vision
+      const photoAnalysisRes = await fetchWithTimeout('/api/vision/analyze-photo', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: referenceImageUrl, category, zip_code: zipCode.trim(), notes: notes.trim() || undefined }),
+      });
+
+      // Step 2: Get the real estimate (this produces mid/low/high values we need)
+      const estimateRes = await fetchWithTimeout('/api/vision/estimate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId, category, location_type: PROJECT_CATEGORIES[category].type,
+          style, quality_tier: qualityTier, zip_code: zipCode.trim(), notes: notes.trim() || undefined,
+        }),
+      });
+
+      // Extract real estimate values for downstream calls
+      let estimateMid = 15000;
+      let estimateLow = 10000;
+      let estimateHigh = 20000;
+      if (estimateRes && estimateRes.ok) {
+        const estimateData = await estimateRes.json();
+        const est = estimateData.estimate || estimateData;
+        estimateMid = est.estimate_mid ?? est.mid ?? estimateMid;
+        estimateLow = est.estimate_low ?? est.low ?? estimateLow;
+        estimateHigh = est.estimate_high ?? est.high ?? estimateHigh;
+      }
+      markFinished('estimating');
+
+      // Step 3: Fire materials, brief, and concepts in parallel with REAL estimate values
       await Promise.allSettled([
-        fetchWithTimeout('/api/vision/analyze-photo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image_url: referenceImageUrl, category, zip_code: zipCode.trim(), notes: notes.trim() || undefined }) }),
-        fetchWithTimeout('/api/vision/estimate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: projectId, category, location_type: PROJECT_CATEGORIES[category].type, style, quality_tier: qualityTier, zip_code: zipCode.trim(), notes: notes.trim() || undefined }) }),
-        fetchWithTimeout('/api/vision/materials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, estimate_mid: 15000, notes: notes.trim() || undefined }) }),
-        fetchWithTimeout('/api/vision/brief', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notes.trim() || undefined, estimate_low: 10000, estimate_high: 20000 }) }),
-        fetchWithTimeout('/api/vision/generate-concepts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notes.trim() || undefined, reference_image_url: referenceImageUrl, count: 2 }) }),
+        fetchWithTimeout('/api/vision/materials', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, estimate_mid: estimateMid, notes: notes.trim() || undefined }),
+        }),
+        fetchWithTimeout('/api/vision/brief', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notes.trim() || undefined, estimate_low: estimateLow, estimate_high: estimateHigh }),
+        }),
+        fetchWithLongTimeout('/api/vision/generate-concepts', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, category, style, quality_tier: qualityTier, notes: notes.trim() || undefined, reference_image_url: referenceImageUrl, count: 2 }),
+        }),
       ]);
+      markFinished('materials');
       markFinished('brief');
       markFinished('concepts');
       hasPushedRef.current = true;

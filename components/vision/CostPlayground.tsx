@@ -157,6 +157,8 @@ export default function CostPlayground({
         body: JSON.stringify({
           project_id: projectId,
           quality_tier: localTier,
+          style: _initialStyle,
+          category,
           notes: customNotes || undefined,
           scope_selections: scopeSelections || undefined,
         }),

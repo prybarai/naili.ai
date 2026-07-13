@@ -117,6 +117,9 @@ export default function VisionResultsView({
   const [isTimedOut, setIsTimedOut] = useState(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const conceptImageCountRef = useRef(conceptImages.length);
+  // Keep ref in sync
+  conceptImageCountRef.current = conceptImages.length;
   const needsPolling = !estimate || !materials || !brief || conceptImages.length === 0;
 
   useEffect(() => {
@@ -138,10 +141,10 @@ export default function VisionResultsView({
       if (data.materials) setMaterials(data.materials);
       if (data.brief) setBrief(data.brief as ProjectBrief);
       const nc = Array.isArray(data.project.generated_image_urls) ? data.project.generated_image_urls : [];
-      if (nc.length > conceptImages.length) setConceptImages(nc);
+      if (nc.length > conceptImageCountRef.current) setConceptImages(nc);
     } catch { /* silent */ }
     setPollCount(c => c + 1);
-  }, [conceptImages.length, estimate, projectId]);
+  }, [projectId]);
 
   useEffect(() => {
     if (!needsPolling || pollCount >= 20 || isTimedOut) return;
@@ -197,7 +200,13 @@ export default function VisionResultsView({
       });
       if (!res.ok) throw new Error('Failed to regenerate');
       const { materials: nm } = await res.json();
-      setMaterials(nm);
+      // Patch in the parent record fields so materials retains full MaterialList shape
+      setMaterials({
+        ...nm,
+        id: materials?.id || '',
+        project_id: projectId,
+        created_at: materials?.created_at || new Date().toISOString(),
+      });
       posthog.capture('naili_materials_regenerated', { project_id: projectId });
     } catch (err) {
       setRegenError('Could not refresh materials. Please try again.');
@@ -338,6 +347,7 @@ export default function VisionResultsView({
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
   }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
+  // Show partial content if estimate isn't ready yet, with a loading placeholder
   if (!estimate) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
@@ -348,8 +358,8 @@ export default function VisionResultsView({
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-ink">Estimate taking longer than expected</h2>
-            <p className="mt-2 max-w-md text-center text-sm text-ink-500">Sorry, we couldn&apos;t finish generating your estimate within 30 seconds. This can happen during peak usage. Please try again.</p>
+            <h2 className="text-2xl font-bold text-ink">Still working on your plan...</h2>
+            <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment. If it doesn&apos;t load soon, please try again.</p>
             <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90">
               <RefreshCw className="h-4 w-4" /> Try again
             </button>
@@ -358,10 +368,18 @@ export default function VisionResultsView({
           <>
             <div className="relative mb-8"><Loader2 className="h-12 w-12 animate-spin text-sand-dark" /></div>
             <h2 className="text-2xl font-bold text-ink">Your estimate is being calculated</h2>
-            <p className="mt-2 text-center text-sm text-ink-500">Analyzing your photos and cross-referencing local market data.<br />This page refreshes automatically.</p>
+            <p className="mt-2 text-center text-sm text-ink-500">We&apos;re building a complete project plan. The full results page will load in just a moment.</p>
+            {/* Show partial content that's already loaded */}
+            {(materials || brief || conceptImages.length > 0) && (
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                {materials && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Materials ready</span>}
+                {brief && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Brief ready</span>}
+                {conceptImages.length > 0 && <span className="flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700"><CheckCircle2 className="h-3 w-3" /> Concepts ready</span>}
+              </div>
+            )}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-ink-400">
               <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-mint" /> Photos uploaded</span>
-              <span className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Analyzing</span>
+              <span className="flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin text-sand-dark" /> Crunching numbers</span>
             </div>
           </>
         )}
