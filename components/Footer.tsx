@@ -37,6 +37,7 @@ export default function Footer() {
               <div className="space-y-2.5 text-sm">
                 <Link href="/" className="block text-white/40 hover:text-white transition-colors">Estimate</Link>
                 <Link href="/blog" className="block text-white/40 hover:text-white transition-colors">Cost Guides</Link>
+                <Link href="/cities" className="block text-white/40 hover:text-white transition-colors">City Guides</Link>
                 <Link href="/calculators" className="block text-white/40 hover:text-white transition-colors">Calculators</Link>
                 <Link href="/pro" className="block text-white/40 hover:text-white transition-colors">For Pros</Link>
               </div>

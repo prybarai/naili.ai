@@ -1,4 +1,14 @@
 import { getPricingPlanningRanges, getPricingPublicSources } from '@/lib/pricing';
+import { GUIDE_DATA as flooringCostGuide } from '@/content/cost-guides/flooring-cost';
+import { GUIDE_DATA as hvacCostGuide } from '@/content/cost-guides/hvac-replacement-cost';
+import { GUIDE_DATA as electricalCostGuide } from '@/content/cost-guides/electrical-wiring-cost';
+import { GUIDE_DATA as plumbingCostGuide } from '@/content/cost-guides/plumbing-repair-cost';
+import { GUIDE_DATA as sidingCostGuide } from '@/content/cost-guides/siding-installation-cost';
+import { GUIDE_DATA as windowCostGuide } from '@/content/cost-guides/window-replacement-cost';
+import { GUIDE_DATA as landscapingCostGuide } from '@/content/cost-guides/landscaping-budget';
+import { GUIDE_DATA as basementCostGuide } from '@/content/cost-guides/basement-finishing-cost';
+import { GUIDE_DATA as additionCostGuide } from '@/content/cost-guides/home-addition-cost';
+import { GUIDE_DATA as fencingCostGuide } from '@/content/cost-guides/fence-installation-cost';
 
 export interface CostGuideRange {
   label: string;
@@ -524,4 +534,19 @@ export const COST_GUIDES: CostGuide[] = BASE_COST_GUIDES.map((guide) => ({
   ...GUIDE_ENHANCEMENTS[guide.slug],
 }));
 
-export const COST_GUIDE_MAP = Object.fromEntries(COST_GUIDES.map((guide) => [guide.slug, guide]));
+const NEW_GUIDES = [
+  flooringCostGuide,
+  hvacCostGuide,
+  electricalCostGuide,
+  plumbingCostGuide,
+  sidingCostGuide,
+  windowCostGuide,
+  landscapingCostGuide,
+  basementCostGuide,
+  additionCostGuide,
+  fencingCostGuide,
+];
+
+export const COST_GUIDES_ALL = [...COST_GUIDES, ...NEW_GUIDES];
+
+export const COST_GUIDE_MAP = Object.fromEntries(COST_GUIDES_ALL.map((guide) => [guide.slug, guide]));

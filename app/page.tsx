@@ -453,13 +453,16 @@ export default function HomePage() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <div><p className="nl-eyebrow">Renovation Guides</p><h2 className="font-bold text-lg text-ink">What you need to know</h2></div>
-            <Link href="/blog" className="text-xs text-ink-500 hover:text-ink transition-colors">View all →</Link>
+            <Link href="/blog" className="text-xs text-ink-500 hover:text-ink transition-colors">View all 15+ guides →</Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               { slug: 'kitchen-remodel-cost', name: 'Kitchen Renovation Costs', desc: 'What to expect for a full kitchen remodel in 2026 — from budget to premium.' },
-              { slug: 'bathroom-remodel-cost', name: 'Bathroom Remodel Guide', desc: 'Step-by-step walkthrough of a bathroom renovation, including permits and timeline.' },
-              { slug: 'interior-painting-cost', name: 'Painting & Finishing Tips', desc: 'How to estimate paint quantities, prep surfaces, and choose the right finish.' },
+              { slug: 'bathroom-remodel-cost', name: 'Bathroom Remodel Guide', desc: 'Step-by-step walkthrough of a bathroom renovation.' },
+              { slug: 'flooring-cost', name: 'Flooring Cost Guide', desc: 'Hardwood, tile, LVP, and carpet — what each costs per square foot.' },
+              { slug: 'roof-replacement-cost', name: 'Roof Replacement Costs', desc: 'Asphalt, metal, tile — what a new roof costs for your home.' },
+              { slug: 'hvac-replacement-cost', name: 'HVAC Replacement Budget', desc: 'Furnace, AC, heat pump — complete system pricing and lifespan.' },
+              { slug: 'basement-finishing-cost', name: 'Basement Finishing Guide', desc: 'Waterproofing, finishing, and adding living space below grade.' },
             ].map((guide) => (
               <Link key={guide.slug} href={`/blog/${guide.slug}`} className="nl-zone">
                 <div className="nl-zone__name">{guide.name}</div>
@@ -469,11 +472,11 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ═══════════ CALCULATORS — One more nudge ═══════════ */}
+        {/* ═══════════ CALCULATORS + CITY GUIDES ═══════════ */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <div><p className="nl-eyebrow">Free Tools</p><h2 className="font-bold text-lg text-ink">Renovation calculators</h2></div>
-            <Link href="/calculators" className="text-xs text-ink-500 hover:text-ink transition-colors">Try them →</Link>
+            <div><p className="nl-eyebrow">Free Tools</p><h2 className="font-bold text-lg text-ink">Renovation calculators & city guides</h2></div>
+            <Link href="/calculators" className="text-xs text-ink-500 hover:text-ink transition-colors">Try calculators →</Link>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <Link href="/calculators" className="nl-zone">
@@ -484,9 +487,9 @@ export default function HomePage() {
               <div className="nl-zone__name">📈 ROI Calculator</div>
               <p className="text-sm text-ink-500">See typical resale value recoup rates for kitchens, baths, roofing, and more.</p>
             </Link>
-            <Link href="/calculators" className="nl-zone">
-              <div className="nl-zone__name">📦 Material Estimator</div>
-              <p className="text-sm text-ink-500">Quick quantity estimates for paint, flooring, tile, and other materials.</p>
+            <Link href="/cities" className="nl-zone">
+              <div className="nl-zone__name">🏙️ City Cost Guides</div>
+              <p className="text-sm text-ink-500">Local pricing for 50 US cities — NYC to LA, Chicago to Houston.</p>
             </Link>
           </div>
         </div>
