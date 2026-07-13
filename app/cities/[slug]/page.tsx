@@ -74,7 +74,7 @@ export default function CityPage({ params }: CityPageProps) {
     Pacific: '🌊',
   };
 
-  const structuredData = {
+  const articleJson = {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: `Renovation Costs in ${city.name}, ${city.stateAbbr}`,
@@ -84,6 +84,20 @@ export default function CityPage({ params }: CityPageProps) {
     datePublished: '2026-04-17',
     dateModified: '2026-07-13',
     mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.naili.ai/cities/${city.slug}` },
+  };
+
+  const breadcrumbJson = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.naili.ai/' },
+      { '@type': 'ListItem', position: 2, name: `${city.name} Renovation Guide`, item: `https://www.naili.ai/cities/${city.slug}` },
+    ],
+  };
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [articleJson, breadcrumbJson],
   };
 
   return (

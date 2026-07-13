@@ -193,7 +193,7 @@ export default function GuidePage({ params }: { params: { slug: string } }) {
 
 /* ── JSON-LD Schema ── */
 function GuideJsonLd({ guide }: { guide: CostGuide }) {
-  const jsonLd = {
+  const articleJson = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: guide.title,
@@ -203,11 +203,27 @@ function GuideJsonLd({ guide }: { guide: CostGuide }) {
     author: { "@type": "Organization", name: guide.author.name },
     url: absoluteUrl(`/blog/${guide.slug}`),
   };
+
+  const breadcrumbJson = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      { "@type": "ListItem", position: 2, name: "Guides", item: absoluteUrl("/blog") },
+      { "@type": "ListItem", position: 3, name: guide.title, item: absoluteUrl(`/blog/${guide.slug}`) },
+    ],
+  };
+
+  const combinedJson = {
+    "@context": "https://schema.org",
+    "@graph": [articleJson, breadcrumbJson],
+  };
+
   return (
     <Script
       id="ld-json"
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(combinedJson) }}
     />
   );
 }

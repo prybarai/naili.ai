@@ -9,6 +9,21 @@ import { GUIDE_DATA as landscapingCostGuide } from '@/content/cost-guides/landsc
 import { GUIDE_DATA as basementCostGuide } from '@/content/cost-guides/basement-finishing-cost';
 import { GUIDE_DATA as additionCostGuide } from '@/content/cost-guides/home-addition-cost';
 import { GUIDE_DATA as fencingCostGuide } from '@/content/cost-guides/fence-installation-cost';
+import { GUIDE_DATA as garageDoorCostGuide } from '@/content/cost-guides/garage-door-replacement-cost';
+import { GUIDE_DATA as atticInsulationCostGuide } from '@/content/cost-guides/attic-insulation-cost';
+import { GUIDE_DATA as waterDamageCostGuide } from '@/content/cost-guides/water-damage-restoration-cost';
+import { GUIDE_DATA as foundationRepairCostGuide } from '@/content/cost-guides/foundation-repair-cost';
+import { GUIDE_DATA as solarPanelCostGuide } from '@/content/cost-guides/solar-panel-installation-cost';
+import { GUIDE_DATA as drivewayPavingCostGuide } from '@/content/cost-guides/driveway-paving-cost';
+import { GUIDE_DATA as poolInstallationCostGuide } from '@/content/cost-guides/pool-installation-cost';
+import { GUIDE_DATA as concreteWorkCostGuide } from '@/content/cost-guides/concrete-work-cost';
+import { GUIDE_DATA as drywallRepairCostGuide } from '@/content/cost-guides/drywall-repair-cost';
+import { GUIDE_DATA as bathroomWaterproofingCostGuide } from '@/content/cost-guides/bathroom-waterproofing-cost';
+import { GUIDE_DATA as garageConversionCostGuide } from '@/content/cost-guides/garage-conversion-cost';
+import { GUIDE_DATA as frenchDrainCostGuide } from '@/content/cost-guides/french-drain-installation-cost';
+import { GUIDE_DATA as treeRemovalCostGuide } from '@/content/cost-guides/tree-removal-cost';
+import { GUIDE_DATA as generatorInstallationCostGuide } from '@/content/cost-guides/generator-installation-cost';
+import { GUIDE_DATA as acUnitInstallationCostGuide } from '@/content/cost-guides/ac-unit-installation-cost';
 
 export interface CostGuideRange {
   label: string;
@@ -545,6 +560,21 @@ const NEW_GUIDES = [
   basementCostGuide,
   additionCostGuide,
   fencingCostGuide,
+  garageDoorCostGuide,
+  atticInsulationCostGuide,
+  waterDamageCostGuide,
+  foundationRepairCostGuide,
+  solarPanelCostGuide,
+  drivewayPavingCostGuide,
+  poolInstallationCostGuide,
+  concreteWorkCostGuide,
+  drywallRepairCostGuide,
+  bathroomWaterproofingCostGuide,
+  garageConversionCostGuide,
+  frenchDrainCostGuide,
+  treeRemovalCostGuide,
+  generatorInstallationCostGuide,
+  acUnitInstallationCostGuide,
 ];
 
 export const COST_GUIDES_ALL = [...COST_GUIDES, ...NEW_GUIDES];

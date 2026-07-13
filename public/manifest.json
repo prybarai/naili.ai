@@ -1,0 +1,10 @@
+{
+  "name": "Naili — AI-powered home planning",
+  "short_name": "Naili",
+  "description": "Upload a photo of your space. Get AI-powered cost estimates, material lists, and design concepts.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F3EE",
+  "theme_color": "#F6F3EE",
+  "icons": []
+}

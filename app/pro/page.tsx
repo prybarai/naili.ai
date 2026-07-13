@@ -16,6 +16,7 @@ import {
  ExternalLink,
 } from "lucide-react";
 import ContractorSignupForm from "@/components/ContractorSignupForm";
+import ProSubscribeButton from "@/components/ProSubscribeButton";
 import { absoluteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -339,6 +340,64 @@ export default function ProPage() {
          </div>
         ))}
        </div>
+      </div>
+     </div>
+    </div>
+   </section>
+
+   {/* Pro Plan — Pricing */}
+   <section className="px-4 py-12 sm:px-6 sm:py-16 md:px-10 md:py-20 bg-white">
+    <div className="mx-auto max-w-7xl">
+     <div className="mx-auto max-w-2xl text-center mb-8 sm:mb-10">
+      <div className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 mb-3 sm:mb-4">
+       <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+       <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">Pro plan</span>
+      </div>
+      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-stone-800">
+        Unlock the full contractor toolkit
+      </h2>
+      <p className="mt-2 sm:mt-3 text-sm sm:text-base text-stone-500 max-w-lg mx-auto">
+        Priority lead matching, Prybar.ai integration, and premium features for serious contractors.
+      </p>
+     </div>
+
+     <div className="mx-auto max-w-md">
+      <div className="rounded-2xl sm:rounded-3xl border-2 border-amber-200 bg-white p-6 sm:p-8 shadow-lg relative">
+       <div className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 px-4 py-1 text-xs font-bold uppercase tracking-wider text-stone-900 shadow-md">
+        <Sparkles className="h-3 w-3" /> Most popular
+       </div>
+
+       <div className="text-center mb-6 pt-4">
+        <p className="text-4xl sm:text-5xl font-bold text-stone-800">
+          $29<span className="text-lg sm:text-xl font-medium text-stone-400">/mo</span>
+        </p>
+        <p className="mt-1 text-sm text-stone-500">Cancel anytime</p>
+       </div>
+
+       <div className="space-y-3 mb-8">
+        {[
+          "Priority lead matching — be first in line",
+          "Unlimited project briefs & scope packets",
+          "Prybar.ai contractor tools included",
+          "Bid management & client portal",
+          "Pro badge on your Naili profile",
+          "Early access to new features",
+          "Email support within 24 hours",
+        ].map((item) => (
+         <div key={item} className="flex items-start gap-2.5">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+          <span className="text-sm text-stone-600">{item}</span>
+         </div>
+        ))}
+       </div>
+
+       <div className="text-center">
+        <ProSubscribeButton />
+       </div>
+
+       <p className="mt-4 text-center text-xs text-stone-400">
+        Secure payments via Stripe. No hidden fees.
+       </p>
       </div>
      </div>
     </div>
