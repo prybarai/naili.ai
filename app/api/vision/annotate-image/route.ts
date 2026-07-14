@@ -172,6 +172,79 @@ function getEmojiForCategory(cat: string): string {
   return '🔧';
 }
 
+/**
+ * Map a material's name and category to its most logical position in the image.
+ */
+function getPositionForMaterial(
+  name: string,
+  category: string,
+  index: number,
+  totalItems: number
+): { x: number; y: number } {
+  const combined = `${name} ${category}`.toLowerCase();
+
+  // Category-to-position matching — items belong in specific zones
+  if (/countertop|counter|quartz|granite|marble|butcher/i.test(combined))
+    return { x: 25, y: 55 };
+  if (/floor|flooring|hardwood|tile|vinyl|laminat|baseboard|underlaym/i.test(combined))
+    return { x: 40, y: 85 };
+  if (/cabinet|cabinetry|pantry|drawer|vanity/i.test(combined))
+    return { x: 20, y: 30 };
+  if (/tile|backsplash|subway|ceramic|mosaic|grout/i.test(combined))
+    return { x: 50, y: 45 };
+  if (/paint|wall|primer|stain|color|finish|drywall|plaster/i.test(combined))
+    return { x: 75, y: 30 };
+  if (/plumbing|pipe|drain|p-trap|water.?line|shutoff|faucet|sink/i.test(combined))
+    return { x: 50, y: 55 };
+  if (/lighting|light|sconce|pendant|chandelier|lamp|bulb|fixture/i.test(combined))
+    return { x: 50, y: 15 };
+  if (/appliance|refrigerator|stove|oven|dishwasher|hood|washer|dryer/i.test(combined))
+    return { x: 80, y: 40 };
+  if (/hardware|handle|knob|pull|hinge|drawer.?slide/i.test(combined))
+    return { x: 85, y: 60 };
+  if (/shower|toilet|bathtub|tub|bath/i.test(combined))
+    return { x: 60, y: 75 };
+  if (/window|frame|sash|glazing|glass/i.test(combined))
+    return { x: 30, y: 25 };
+  if (/door|jamb|casing|entry/i.test(combined))
+    return { x: 10, y: 40 };
+  if (/roof|shingle|flashing|ridge|gutter|eave|fascia|soffit/i.test(combined))
+    return { x: 50, y: 15 };
+  if (/deck|composite|tread|stringer|railing|pergola/i.test(combined))
+    return { x: 40, y: 55 };
+  if (/patio|pav(?:e|er)|stone|brick|concrete|cement|rebar|gravel/i.test(combined))
+    return { x: 30, y: 70 };
+  if (/landscaping|plant|shrub|flower|mulch|soil|seed|sod|tree|lawn|garden/i.test(combined))
+    return { x: 20, y: 55 };
+  if (/trim|baseboard|molding|crown|casings/i.test(combined))
+    return { x: 10, y: 85 };
+  if (/insulation|framing|lumber|stud/i.test(combined))
+    return { x: 50, y: 35 };
+  if (/electrical|outlet|switch|wire|breaker|conduit|hvac|vent|duct/i.test(combined))
+    return { x: 50, y: 20 };
+
+  // No match — spread evenly across the image based on index
+  const columns = Math.ceil(Math.sqrt(totalItems));
+  const rows = Math.ceil(totalItems / columns);
+  const col = index % columns;
+  const row = Math.floor(index / columns);
+  const marginX = 15;
+  const marginY = 15;
+  const spacingX = (100 - 2 * marginX) / Math.max(columns - 1, 1);
+  const spacingY = (100 - 2 * marginY) / Math.max(rows - 1, 1);
+  return {
+    x: Math.round((marginX + col * spacingX) * 10) / 10,
+    y: Math.round((marginY + row * spacingY) * 10) / 10,
+  };
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function buildAnnotations(
   category: string,
   materials: MaterialLineItem[]
@@ -190,15 +263,19 @@ function buildAnnotations(
     }));
   }
 
-  return materials.map((material, i) => ({
-    materialName: material.item,
-    category: material.category,
-    x: positions[i % positions.length].x + (i >= positions.length ? 5 : 0),
-    y: positions[i % positions.length].y + (i >= positions.length ? 4 : 0),
-    price: `\$${material.estimated_cost_low.toLocaleString()} – $${material.estimated_cost_high.toLocaleString()}`,
-    shopUrl: undefined, // populated by DeepSeek enhancement if available
-    quantity: `${material.quantity} ${material.unit}`,
-  }));
+  return materials.map((material, i) => {
+    const pos = getPositionForMaterial(material.item, material.category, i, materials.length);
+    const slug = slugify(material.item);
+    return {
+      materialName: material.item,
+      category: material.category,
+      x: pos.x,
+      y: pos.y,
+      price: `\$${material.estimated_cost_low.toLocaleString()} – $${material.estimated_cost_high.toLocaleString()}`,
+      shopUrl: `https://www.homedepot.com/s/${slug}`,
+      quantity: `${material.quantity} ${material.unit}`,
+    };
+  });
 }
 
 function categorizeMaterial(item: string, cat: string): string {

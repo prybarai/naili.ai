@@ -87,11 +87,11 @@ function tierLabel(tier: Project['quality_tier']) {
 
 function categoryEmoji(cat: string): string {
   const m: Record<string, string> = {
-    kitchen: '\U0001F373', bathroom: '\U0001F6BF', roofing: '\U0001F3E0',
-    deck_patio: '\U0001FAAC', landscaping: '\U0001F33F', exterior_paint: '\U0001F3A8',
-    flooring: '\U0001FAB5', interior_paint: '\U0001F58C\uFE0F', custom_project: '\U0001F3E1',
+    kitchen: '🍳', bathroom: '🚿', roofing: '🏠',
+    deck_patio: '🪬', landscaping: '🌿', exterior_paint: '🎨',
+    flooring: '🪵', interior_paint: '🖌️', custom_project: '🏡',
   };
-  return m[cat] || '\U0001F528';
+  return m[cat] || '🔨';
 }
 
 function shortCategoryLabel(cat: string) {
@@ -335,7 +335,7 @@ export default function VisionResultsView({
           type="button"
           onClick={() => scrollToSection(id)}
           className={cn(
-            'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200',
+            'relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-300',
             activeSection === id
               ? 'bg-ink/5 text-ink shadow-sm'
               : 'text-ink-400 hover:bg-canvas-100 hover:text-ink-600'
@@ -344,7 +344,7 @@ export default function VisionResultsView({
           <Icon className="h-4 w-4 flex-shrink-0" />
           <span className="truncate">{label}</span>
           {activeSection === id && (
-            <span className="ml-auto h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500/60" />
+            <span className="ml-auto h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500/60 transition-all duration-300" />
           )}
         </button>
       ))}
@@ -439,21 +439,21 @@ export default function VisionResultsView({
       </div>
 
       {/* MOBILE TABBAR NAV */}
-      <div className="sticky top-0 z-30 overflow-x-auto border-b border-hairline bg-white/90 backdrop-blur-md lg:hidden print:hidden">
-        <div className="flex gap-1 px-3 py-2">
+      <div className="sticky top-0 z-30 overflow-x-auto border-b border-hairline bg-white/90 backdrop-blur-md lg:hidden print:hidden scrollbar-none">
+        <div className="flex gap-1.5 px-4 py-2.5 min-w-max">
           {NAV_SECTIONS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => scrollToSection(id)}
               className={cn(
-                'flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all whitespace-nowrap',
+                'flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap',
                 activeSection === id
                   ? 'bg-ink text-white shadow-sm'
                   : 'text-ink-500 hover:bg-canvas-100'
               )}
             >
-              <Icon className="h-3 w-3" />
+              <Icon className="h-3.5 w-3.5" />
               {label}
             </button>
           ))}
@@ -463,8 +463,8 @@ export default function VisionResultsView({
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 lg:pb-16">
         <div className="flex gap-8">
           {/* DESKTOP SIDEBAR NAV */}
-          <aside className="hidden lg:sticky lg:top-24 lg:block lg:w-56 lg:flex-shrink-0 lg:self-start">
-            <div className="rounded-xl border border-hairline bg-canvas-50 p-3 shadow-soft">
+          <aside className="hidden lg:sticky lg:top-24 lg:block lg:w-64 lg:flex-shrink-0 lg:self-start">
+            <div className="rounded-xl border border-hairline bg-white/70 backdrop-blur-xl p-3 shadow-soft">
               <div className="mb-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-ink-400">
                 <List className="mr-1.5 inline-block h-3 w-3" />
                 Sections
@@ -489,8 +489,8 @@ export default function VisionResultsView({
                     <h1 className="text-3xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-5xl">
                       Your {categoryLabel} Renovation Plan
                     </h1>
-                    <p className="mt-3 text-sm text-white/40">
-                      {categoryLabel} &middot; {tierLabel(project.quality_tier)} finish &middot; ZIP {project.zip_code}
+                    <p className="mt-3 text-sm text-white/50">
+                      📍 {project.zip_code} · {tierLabel(project.quality_tier)} · Photos analyzed: {project.uploaded_image_urls?.length || 1}
                     </p>
                   </div>
                 </div>

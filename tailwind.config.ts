@@ -101,6 +101,10 @@ const config: Config = {
  "0%": { backgroundPosition: "-200% 0" },
  "100%": { backgroundPosition: "200% 0" },
  },
+ "pop-in": {
+ "0%": { opacity: "0", transform: "translateY(8px) scale(0.92)" },
+ "100%": { opacity: "1", transform: "translateY(12px) scale(1)" },
+ },
  },
  animation: {
  "scan-sweep": "scan-sweep 2.4s ease-in-out infinite",
@@ -108,6 +112,7 @@ const config: Config = {
  "pulse-soft": "pulse-soft 2.2s ease-in-out infinite",
  "reveal-up": "reveal-up 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards",
  "shimmer": "shimmer 2.4s linear infinite",
+ "pop-in": "pop-in 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards",
  },
  },
  },
