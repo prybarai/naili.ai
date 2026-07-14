@@ -528,6 +528,7 @@ export default function VisionStartFlow({ initialPrefill }: Props) {
                           src={preview}
                           alt={`Upload ${idx + 1}`}
                           className="h-24 w-32 rounded-2xl object-cover shadow-sm sm:h-28 sm:w-36"
+                          loading="lazy"
                         />
                         <button
                           type="button"

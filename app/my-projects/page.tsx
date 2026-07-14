@@ -119,17 +119,17 @@ export default async function MyProjectsPage() {
       <section className="px-4 pb-12 sm:px-6 sm:pb-16">
         <div className="mx-auto max-w-6xl">
           {projects.length === 0 ? (
-            <div className="rounded-2xl sm:rounded-[2rem] border border-stone-200 bg-white p-10 sm:p-16 text-center shadow-sm">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-stone-100">
-                <Upload className="h-7 w-7 text-stone-400" />
+            <div className="rounded-2xl sm:rounded-[2rem] border border-panel bg-canvas-50 p-10 sm:p-16 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-canvas-200">
+                <Upload className="h-7 w-7 text-ink-400" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-stone-800">No projects yet</h2>
-              <p className="mx-auto mt-2 sm:mt-3 max-w-md text-sm sm:text-base text-stone-500">
+              <h2 className="text-xl sm:text-2xl font-semibold text-ink">No projects yet</h2>
+              <p className="mx-auto mt-2 sm:mt-3 max-w-md text-sm sm:text-base text-ink-500">
                 Upload a photo of any room or space and Naili will create a complete renovation plan with cost estimates, materials, and design concepts.
               </p>
               <Link
                 href="/#upload"
-                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-xl bg-stone-800 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition hover:bg-stone-900 active:scale-95"
+                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3.5 text-base font-semibold text-canvas-50 shadow-lg transition hover:opacity-90 active:scale-95"
               >
                 Start your first project <ArrowRight className="h-4 w-4" />
               </Link>
@@ -155,6 +155,7 @@ export default async function MyProjectsPage() {
                           src={previewImage}
                           alt={category}
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">

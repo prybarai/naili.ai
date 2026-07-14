@@ -218,7 +218,7 @@ export default function CostPlayground({
             <Minus className="h-4 w-4" />
           </button>
           <div className="mx-3 flex flex-1 items-center">
-            <div className="relative h-2 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="relative h-2 w-full overflow-hidden rounded-full bg-canvas-200">
               <div
                 className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-sand-dark via-amber-500 to-amber-600 transition-all duration-500 ease-out"
                 style={{ width: `${((tierIndex) / (TIER_ORDER.length - 1)) * 100}%` }}

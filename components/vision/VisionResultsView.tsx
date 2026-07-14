@@ -377,21 +377,21 @@ export default function VisionResultsView({
         <section className="relative mb-0 overflow-hidden rounded-b-[2rem] bg-[linear-gradient(135deg,#0f1115_0%,#1a1d25_50%,#0f1115_100%)] shadow-[0_32px_100px_rgba(0,0,0,0.3)] sm:rounded-b-[2.5rem]">
           <div className="px-4 pb-10 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:px-12">
             <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-              <div className="h-6 w-24 rounded-full bg-stone-700/50 animate-pulse" />
-              <div className="h-6 w-20 rounded-full bg-stone-700/50 animate-pulse" />
-              <div className="h-6 w-16 rounded-full bg-stone-700/50 animate-pulse" />
+              <div className="h-6 w-24 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-6 w-20 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-6 w-16 rounded-full bg-white/10 animate-pulse" />
             </div>
             <div className="mb-8 text-center">
-              <div className="mx-auto mb-2 h-3 w-40 rounded-full bg-stone-700/40 animate-pulse" />
-              <div className="mx-auto h-16 w-72 rounded-xl bg-stone-700/50 animate-pulse sm:h-20 sm:w-96" />
-              <div className="mx-auto mt-3 h-3 w-48 rounded-full bg-stone-700/40 animate-pulse" />
+              <div className="mx-auto mb-2 h-3 w-40 rounded-full bg-white/5 animate-pulse" />
+              <div className="mx-auto h-16 w-72 rounded-xl bg-white/10 animate-pulse sm:h-20 sm:w-96" />
+              <div className="mx-auto mt-3 h-3 w-48 rounded-full bg-white/5 animate-pulse" />
             </div>
             <div className="mx-auto max-w-4xl">
-              <div className="aspect-[4/3] w-full rounded-[1.5rem] bg-stone-700/40 animate-pulse" />
+              <div className="aspect-[4/3] w-full rounded-[1.5rem] bg-white/5 animate-pulse" />
             </div>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <div className="h-12 w-44 rounded-xl bg-stone-600/50 animate-pulse" />
-              <div className="h-12 w-40 rounded-xl bg-stone-700/40 animate-pulse" />
+              <div className="h-12 w-44 rounded-xl bg-white/10 animate-pulse" />
+              <div className="h-12 w-40 rounded-xl bg-white/5 animate-pulse" />
             </div>
           </div>
         </section>
@@ -401,17 +401,17 @@ export default function VisionResultsView({
           <section className="mx-auto w-full max-w-4xl">
             <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
-                  <div className="h-5 w-48 rounded bg-stone-100 animate-pulse" />
-                  <div className="mt-1 h-3 w-36 rounded bg-stone-100 animate-pulse" />
+                  <div className="h-5 w-48 rounded bg-canvas-200 animate-pulse" />
+                  <div className="mt-1 h-3 w-36 rounded bg-canvas-200 animate-pulse" />
                 </div>
               </div>
-              <div className="mb-6 h-7 w-full rounded-full bg-stone-100 animate-pulse" />
+              <div className="mb-6 h-7 w-full rounded-full bg-canvas-200 animate-pulse" />
               <div className="flex flex-wrap gap-6">
-                <div className="h-4 w-24 rounded bg-stone-100 animate-pulse" />
-                <div className="h-4 w-28 rounded bg-stone-100 animate-pulse" />
-                <div className="h-4 w-28 rounded bg-stone-100 animate-pulse" />
+                <div className="h-4 w-24 rounded bg-canvas-200 animate-pulse" />
+                <div className="h-4 w-28 rounded bg-canvas-200 animate-pulse" />
+                <div className="h-4 w-28 rounded bg-canvas-200 animate-pulse" />
               </div>
             </div>
           </section>
@@ -420,20 +420,20 @@ export default function VisionResultsView({
           <section className="mx-auto w-full max-w-4xl">
             <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
-                  <div className="h-5 w-36 rounded bg-stone-100 animate-pulse" />
-                  <div className="mt-1 h-3 w-44 rounded bg-stone-100 animate-pulse" />
+                  <div className="h-5 w-36 rounded bg-canvas-200 animate-pulse" />
+                  <div className="mt-1 h-3 w-44 rounded bg-canvas-200 animate-pulse" />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <div key={i} className="flex items-center justify-between rounded-xl border border-hairline bg-canvas-50 px-4 py-3">
                     <div className="flex-1">
-                      <div className="h-3 w-20 rounded bg-stone-100 animate-pulse" />
-                      <div className="mt-1 h-4 w-28 rounded bg-stone-100 animate-pulse" />
+                      <div className="h-3 w-20 rounded bg-canvas-200 animate-pulse" />
+                      <div className="mt-1 h-4 w-28 rounded bg-canvas-200 animate-pulse" />
                     </div>
-                    <div className="h-5 w-12 rounded-full bg-stone-100 animate-pulse" />
+                    <div className="h-5 w-12 rounded-full bg-canvas-200 animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -444,15 +444,15 @@ export default function VisionResultsView({
           <section className="mx-auto w-full max-w-4xl">
             <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
-                  <div className="h-5 w-40 rounded bg-stone-100 animate-pulse" />
-                  <div className="mt-1 h-3 w-32 rounded bg-stone-100 animate-pulse" />
+                  <div className="h-5 w-40 rounded bg-canvas-200 animate-pulse" />
+                  <div className="mt-1 h-3 w-32 rounded bg-canvas-200 animate-pulse" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="aspect-[4/3] rounded-xl bg-stone-100 animate-pulse" />
-                <div className="aspect-[4/3] rounded-xl bg-stone-100 animate-pulse" />
+                <div className="aspect-[4/3] rounded-xl bg-canvas-200 animate-pulse" />
+                <div className="aspect-[4/3] rounded-xl bg-canvas-200 animate-pulse" />
               </div>
             </div>
           </section>
@@ -462,23 +462,23 @@ export default function VisionResultsView({
             <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-xl bg-stone-100 animate-pulse" />
+                  <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                   <div>
-                    <div className="h-5 w-32 rounded bg-stone-100 animate-pulse" />
-                    <div className="mt-1 h-3 w-24 rounded bg-stone-100 animate-pulse" />
+                    <div className="h-5 w-32 rounded bg-canvas-200 animate-pulse" />
+                    <div className="mt-1 h-3 w-24 rounded bg-canvas-200 animate-pulse" />
                   </div>
                 </div>
-                <div className="h-6 w-16 rounded-full bg-stone-100 animate-pulse" />
+                <div className="h-6 w-16 rounded-full bg-canvas-200 animate-pulse" />
               </div>
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-3 rounded-xl border border-hairline bg-canvas-50 p-4">
-                    <div className="h-14 w-14 rounded-lg bg-stone-100 animate-pulse" />
+                    <div className="h-14 w-14 rounded-lg bg-canvas-200 animate-pulse" />
                     <div className="flex-1">
-                      <div className="h-4 w-36 rounded bg-stone-100 animate-pulse" />
-                      <div className="mt-1 h-3 w-24 rounded bg-stone-100 animate-pulse" />
+                      <div className="h-4 w-36 rounded bg-canvas-200 animate-pulse" />
+                      <div className="mt-1 h-3 w-24 rounded bg-canvas-200 animate-pulse" />
                     </div>
-                    <div className="h-4 w-16 rounded bg-stone-100 animate-pulse" />
+                    <div className="h-4 w-16 rounded bg-canvas-200 animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -538,7 +538,7 @@ export default function VisionResultsView({
                       {conceptImages.map((url, i) => (
                         <button key={url} onClick={() => setSelectedConcept(i)} className={cn('relative h-16 w-24 overflow-hidden rounded-lg border-2 transition-all duration-200', selectedConcept === i ? 'border-white/70 shadow-[0_0_20px_rgba(255,255,255,0.15)]' : 'border-white/10 opacity-50 hover:opacity-80')}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt={`Concept ${i + 1}`} className="h-full w-full object-cover" />
+                          <img src={url} alt={`Concept ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
                         </button>
                       ))}
                     </div>
@@ -547,7 +547,7 @@ export default function VisionResultsView({
               ) : (
                 <div className="relative overflow-hidden rounded-[1.5rem]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={originalImage} alt="Original photo" className="aspect-[4/3] w-full object-cover" />
+                  <img src={originalImage} alt="Original photo" className="aspect-[4/3] w-full object-cover" loading="lazy" />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                     <div className="flex flex-col items-center gap-3 text-center">
                       <Sparkles className="h-8 w-8 animate-pulse text-sand-light" />

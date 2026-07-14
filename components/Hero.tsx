@@ -35,6 +35,7 @@ export default function Hero() {
             src={item.src}
             alt={item.label}
             className="h-full w-full object-cover"
+            loading="lazy"
           />
         </div>
       ))}

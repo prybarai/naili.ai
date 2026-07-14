@@ -319,7 +319,7 @@ export default function ContractorLeadModal({ isOpen, onClose, projectId, estima
                 type="checkbox"
                 checked={form.prefer_real_estimate}
                 onChange={(e) => setForm((f) => ({ ...f, prefer_real_estimate: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-ink focus:ring-ink"
+                className="mt-0.5 h-4 w-4 rounded border-hairline text-ink focus:ring-ink"
               />
               <div>
                 <span className="text-sm font-semibold text-ink">I want a real estimate, not a lead</span>

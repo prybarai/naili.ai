@@ -52,15 +52,15 @@ export default function Nav() {
         isPro
           ? "border-b border-white/5 bg-graphite-700/70 backdrop-blur-md"
           : scrolled
-            ? "border-b border-stone-200 bg-white/95 shadow-sm backdrop-blur-lg"
-            : "border-b border-stone-200/60 bg-white/80 backdrop-blur-lg"
+            ? "border-b border-panel bg-canvas-50/95 shadow-sm backdrop-blur-lg"
+            : "border-b border-hairline bg-canvas-50/80 backdrop-blur-lg"
       )}>
         <Link href="/" className="group flex items-center gap-2">
           <Logo dark={isPro} />
-          <span className={cn("font-display text-lg sm:text-xl tracking-tight", isPro ? "text-canvas-50" : "text-stone-800")}>
+          <span className={cn("font-display text-lg sm:text-xl tracking-tight", isPro ? "text-canvas-50" : "text-ink")}>
             naili
           </span>
-          <span className={cn("text-[10px] font-mono uppercase tracking-widest", isPro ? "text-mint" : "text-stone-400")}>
+          <span className={cn("text-[10px] font-mono uppercase tracking-widest", isPro ? "text-mint" : "text-ink-500")}>
             {isPro ? "/ PRO" : ""}
           </span>
         </Link>
@@ -87,20 +87,20 @@ export default function Nav() {
                     </span>
                   )}
                   <button onClick={() => setAccountOpen(!accountOpen)}
-                    className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3.5 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:shadow-md hover:border-stone-300">
+                    className="flex items-center gap-2 rounded-full border border-panel bg-canvas-50 px-3.5 py-2 text-sm font-medium text-ink shadow-sm transition hover:shadow-md hover:border-sand/40">
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-50">
                       <User className="h-3.5 w-3.5 text-amber-700" />
                     </div>
                     <span className="max-w-[120px] truncate">{user.email?.split('@')[0]}</span>
                   </button>
                   {accountOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-stone-200 bg-white p-1.5 shadow-xl z-50">
-                      <div className="border-b border-stone-100 px-3 py-2.5 mb-1.5">
-                        <p className="text-[10px] uppercase tracking-wider text-stone-400">Signed in as</p>
-                        <p className="truncate text-sm font-medium text-stone-700">{user.email}</p>
+                    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-panel bg-canvas-50 p-1.5 shadow-xl z-50">
+                      <div className="border-b border-hairline px-3 py-2.5 mb-1.5">
+                        <p className="text-[10px] uppercase tracking-wider text-ink-500">Signed in as</p>
+                        <p className="truncate text-sm font-medium text-ink">{user.email}</p>
                       </div>
                       <Link href="/my-projects" onClick={() => setAccountOpen(false)}
-                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-stone-600 transition hover:bg-stone-50">
+                        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-ink-600 transition hover:bg-canvas-200">
                         <FolderOpen className="h-4 w-4" /> My Projects
                       </Link>
                       <form action="/auth/signout" method="POST">
@@ -113,13 +113,13 @@ export default function Nav() {
                 </div>
               ) : !loading && (
                 <Link href="/auth/login"
-                  className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:shadow-md hover:border-stone-300">
+                  className="rounded-full border border-panel bg-canvas-50 px-4 py-2 text-sm font-medium text-ink shadow-sm transition hover:shadow-md hover:border-sand/40">
                   Sign in
                 </Link>
               )}
 
-              <Link href="/"
-                className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-stone-800 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-stone-900 hover:shadow-lg active:scale-95">
+              <Link href="/#upload"
+                className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-canvas-50 shadow-md transition hover:opacity-90 hover:shadow-lg active:scale-95">
                 <Sparkles className="h-3.5 w-3.5" />
                 Start Estimate
               </Link>
@@ -130,7 +130,7 @@ export default function Nav() {
         {/* Mobile hamburger */}
         <button onClick={() => setMobileOpen(!mobileOpen)}
           className={cn("flex items-center justify-center rounded-xl p-2.5 transition md:hidden active:scale-90",
-            isPro ? "text-canvas-50 hover:bg-white/10" : "text-stone-700 hover:bg-stone-100"
+            isPro ? "text-canvas-50 hover:bg-white/10" : "text-ink hover:bg-canvas-200"
           )} aria-label="Toggle menu">
           {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -141,7 +141,7 @@ export default function Nav() {
         <>
           <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden" onClick={() => setMobileOpen(false)} />
           <div className={cn("fixed inset-x-0 top-[57px] z-40 max-h-[calc(100vh-57px)] overflow-y-auto border-b px-4 pb-6 pt-3 md:hidden",
-            isPro ? "border-white/5 bg-graphite-700/98 backdrop-blur-xl" : "border-stone-200 bg-white/98 backdrop-blur-xl"
+            isPro ? "border-white/5 bg-graphite-700/98 backdrop-blur-xl" : "border-panel bg-canvas-50/98 backdrop-blur-xl"
           )}>
             <nav className="flex flex-col gap-0.5">
               {isPro ? (
@@ -156,15 +156,15 @@ export default function Nav() {
                   <MobileNavLink href="/my-projects">My Projects</MobileNavLink>
                   <MobileNavLink href="/get-quotes">Get Quotes</MobileNavLink>
                   <MobileNavLink href="/pro">For Pros</MobileNavLink>
-                  <div className="my-2 h-px bg-stone-100" />
+                  <div className="my-2 h-px bg-hairline" />
                   {!loading && user && (
-                    <div className="flex items-center gap-3 rounded-xl bg-stone-50 px-4 py-3 mb-1">
+                    <div className="flex items-center gap-3 rounded-xl bg-canvas-200 px-4 py-3 mb-1">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-amber-50">
                         <User className="h-4 w-4 text-amber-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-stone-400">Signed in as</p>
-                        <p className="truncate text-sm font-medium text-stone-700">{user.email}</p>
+                        <p className="text-xs text-ink-500">Signed in as</p>
+                        <p className="truncate text-sm font-medium text-ink">{user.email}</p>
                       </div>
                     </div>
                   )}
@@ -179,7 +179,7 @@ export default function Nav() {
                     <MobileNavLink href="/auth/login">Sign in</MobileNavLink>
                   )}
                   <Link href="/#upload" onClick={() => setMobileOpen(false)}
-                    className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-3.5 text-sm font-semibold text-white shadow-lg transition active:scale-95">
+                    className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3.5 text-sm font-semibold text-canvas-50 shadow-lg transition active:scale-95">
                     <Sparkles className="h-4 w-4" /> Start Estimate
                   </Link>
                 </>
@@ -195,7 +195,7 @@ export default function Nav() {
 function NavLink({ href, children, dark }: { href: string; children: React.ReactNode; dark?: boolean }) {
   return (
     <Link href={href} className={cn("rounded-full px-3.5 py-2 text-sm transition-all duration-300",
-      dark ? "text-canvas-50/70 hover:bg-white/5 hover:text-canvas-50" : "text-stone-600 hover:bg-stone-100 hover:text-stone-800")}>
+      dark ? "text-canvas-50/70 hover:bg-white/5 hover:text-canvas-50" : "text-ink-600 hover:bg-canvas-200 hover:text-ink")}>
       {children}
     </Link>
   );
@@ -204,8 +204,8 @@ function NavLink({ href, children, dark }: { href: string; children: React.React
 function MobileNavLink({ href, children, dark, icon }: { href: string; children: React.ReactNode; dark?: boolean; icon?: React.ReactNode }) {
   return (
     <Link href={href} className={cn("flex items-center gap-3 rounded-xl px-4 py-3.5 text-[15px] font-medium transition active:scale-[0.98]",
-      dark ? "text-canvas-50/80 hover:bg-white/5 hover:text-canvas-50" : "text-stone-600 hover:bg-stone-50 hover:text-stone-800")}>
-      {icon && <span className="text-stone-400">{icon}</span>}
+      dark ? "text-canvas-50/80 hover:bg-white/5 hover:text-canvas-50" : "text-ink-600 hover:bg-canvas-200 hover:text-ink")}>
+      {icon && <span className="text-ink-500">{icon}</span>}
       <span className="flex-1">{children}</span>
     </Link>
   );

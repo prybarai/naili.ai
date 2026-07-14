@@ -123,11 +123,11 @@ export default async function Showcase() {
                   <div className="relative aspect-[4/3] overflow-hidden">
                     {afterImage && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={afterImage} alt={`${category} AI concept`} className="absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-105 group-hover:opacity-0" />
+                      <img src={afterImage} alt={`${category} AI concept`} className="absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-105 group-hover:opacity-0" loading="lazy" />
                     )}
                     {beforeImage && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={beforeImage} alt={`${category} original`} className="absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-105" />
+                      <img src={beforeImage} alt={`${category} original`} className="absolute inset-0 h-full w-full object-cover transition-all duration-700 group-hover:scale-105" loading="lazy" />
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-graphite/80 via-transparent to-transparent" />
                     <div className="absolute left-3 top-3 flex gap-2">
@@ -163,6 +163,7 @@ export default async function Showcase() {
                       src={featured.uploaded_image_urls[0]}
                       alt="Before"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-graphite/60 via-transparent to-transparent" />
@@ -177,6 +178,7 @@ export default async function Showcase() {
                       src={featured.generated_image_urls[0]}
                       alt="AI concept"
                       className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      loading="lazy"
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-graphite/60 via-transparent to-transparent" />
