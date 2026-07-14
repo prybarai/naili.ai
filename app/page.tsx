@@ -389,51 +389,46 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* 📱 Mobile: native file input — no dropzone overlay, no react-dropzone */}
+            {/* 📱 Mobile: entire upload area IS the button — uses label wrapping */}
             <div className="sm:hidden">
-              <div className={cn(
-                'rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
-                previews.length > 0
-                  ? 'border-sand-dark/40 bg-white/60'
-                  : 'border-ink/15 bg-white/70'
-              )}>
-                {previews.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap justify-center gap-3">
-                      {previews.map((preview, idx) => (
-                        <div key={preview} className="group relative">
-                          <img src={preview} alt={`Upload ${idx + 1}`} loading="eager" className="h-28 w-36 rounded-2xl object-cover shadow-md sm:h-32 sm:w-40" />
-                          <button type="button" aria-label="Remove photo" onClick={() => removePhoto(idx)} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-md">
-                            <Trash2 className="h-3.5 w-3.5 text-ink-600" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {files.length < MAX_FILES && <p className="text-sm text-ink-500">Tap to add more photos</p>}
-                  </div>
-                ) : (
-                  <>
-                    <div className="mx-auto mb-5 relative">
-                      <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-sand/20 to-amber-50 text-sand-dark mx-auto">
-                        <Camera className="h-9 w-9" />
+              <label htmlFor="mobile-file-input" className="block cursor-pointer">
+                <div className={cn(
+                  'rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
+                  previews.length > 0
+                    ? 'border-sand-dark/40 bg-white/60'
+                    : 'border-ink/15 bg-white/70 active:border-sand-dark active:bg-white/80'
+                )}>
+                  {previews.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap justify-center gap-3">
+                        {previews.map((preview, idx) => (
+                          <div key={preview} className="group relative">
+                            <img src={preview} alt={`Upload ${idx + 1}`} loading="eager" className="h-28 w-36 rounded-2xl object-cover shadow-md sm:h-32 sm:w-40" />
+                            <button type="button" aria-label="Remove photo" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removePhoto(idx); }} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-md">
+                              <Trash2 className="h-3.5 w-3.5 text-ink-600" />
+                            </button>
+                          </div>
+                        ))}
                       </div>
+                      {files.length < MAX_FILES && <p className="text-sm text-ink-500">Tap to add more photos</p>}
                     </div>
-                    <p className="text-xl font-bold text-ink">Upload your space</p>
-                    <p className="mt-2 text-sm text-ink-500 max-w-md mx-auto">{SUPPORTED_IMAGE_LABEL} &middot; Up to {MAX_FILES} photos</p>
-                  </>
-                )}
-              </div>
-
-              {/* Always-visible native file input button */}
-              <label htmlFor="mobile-file-input" className="mt-3 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-sand-dark/60 bg-sand-light/20 px-6 py-4 text-base font-bold text-ink shadow-md transition-all active:scale-[0.97]">
-                <Camera className="h-5 w-5" />
-                {previews.length > 0 ? 'Add more photos' : 'Choose from gallery or camera'}
+                  ) : (
+                    <>
+                      <div className="mx-auto mb-5 relative">
+                        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-sand/20 to-amber-50 text-sand-dark mx-auto">
+                          <Camera className="h-9 w-9" />
+                        </div>
+                      </div>
+                      <p className="text-xl font-bold text-ink">Upload your space</p>
+                      <p className="mt-2 text-sm text-ink-500 max-w-md mx-auto">{SUPPORTED_IMAGE_LABEL} &middot; Up to {MAX_FILES} photos</p>
+                    </>
+                  )}
+                </div>
               </label>
               <input
                 id="mobile-file-input"
                 type="file"
                 accept="image/*"
-                capture="environment"
                 multiple
                 className="hidden"
                 onChange={(e) => {
