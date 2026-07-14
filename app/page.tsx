@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import posthog from 'posthog-js';
 import dynamic from 'next/dynamic';
+import { createClient } from '@/lib/supabase/client';
 
 const BelowFoldSections = dynamic(() => import('@/components/BelowFoldSections'), { ssr: false });
 
@@ -166,20 +167,29 @@ export default function HomePage() {
       const { project } = (await projectRes.json()) as { project: { id: string } };
       const projectId = project.id;
       markFinished('estimating');
+      // Upload directly to Supabase Storage from browser (bypasses Vercel's 4.5MB hobby-tier limit)
+      const supabase = createClient();
       const uploadResults = await Promise.all(
         files.map(async (file) => {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('project_id', projectId);
-          const uploadRes = await fetch('/api/projects/upload-image', { method: 'POST', body: formData });
-          if (uploadRes.ok) {
-            const { url } = (await uploadRes.json()) as { url: string };
-            return url;
+          const ext = file.name.split('.').pop() || 'jpg';
+          const filename = `uploads/${uuidv4()}.${ext}`;
+          const { error, data } = await supabase.storage
+            .from('project-images')
+            .upload(filename, file, { contentType: file.type, upsert: false });
+          if (error) {
+            console.error('Supabase upload error:', error);
+            return null;
           }
-          // Log why it failed
-          const errBody = await uploadRes.text().catch(() => 'no body');
-          console.error('Upload failed:', uploadRes.status, errBody);
-          return null;
+          const { data: { publicUrl } } = supabase.storage
+            .from('project-images')
+            .getPublicUrl(filename);
+          // Record the URL to the project in a background call
+          fetch('/api/projects/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: publicUrl, project_id: projectId }),
+          }).catch(() => {});
+          return publicUrl;
         })
       );
       const urls = uploadResults.filter(Boolean) as string[];
