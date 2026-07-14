@@ -59,11 +59,11 @@ function tierLabel(tier: Project['quality_tier']) {
 
 function categoryEmoji(cat: string): string {
   const m = {
-    kitchen: '\U0001F373', bathroom: '\U0001F6BF', roofing: '\U0001F3E0',
-    deck_patio: '\U0001FAAC', landscaping: '\U0001F33F', exterior_paint: '\U0001F3A8',
-    flooring: '\U0001FAB5', interior_paint: '\U0001F58C\uFE0F', custom_project: '\U0001F3E1',
+    kitchen: '🍳', bathroom: '🚿', roofing: '🏠',
+    deck_patio: '🪬', landscaping: '🌿', exterior_paint: '🎨',
+    flooring: '🪵', interior_paint: '🖌️', custom_project: '🏡',
   };
-  return (m as Record<string, string>)[cat] || '\U0001F528';
+  return (m as Record<string, string>)[cat] || '🔨';
 }
 
 function shortCategoryLabel(cat: string) {
@@ -219,12 +219,9 @@ export default function VisionResultsView({
   // State for new features (Intelligence Report, Video, Lead)
   const [intelligenceReport, setIntelligenceReport] = useState<IntelligenceReport | null | undefined>(undefined);
   const [isLoadingIntelligence, setIsLoadingIntelligence] = useState(false);
-  const [projectVideo, setProjectVideo] = useState<ProjectVideo | null>(null);
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
   const [hasAttemptedIntelligence, setHasAttemptedIntelligence] = useState(false);
-  const [hasAttemptedVideo, setHasAttemptedVideo] = useState(false);
 
   // Fetch intelligence report when project data is available (does not need estimate)
   useEffect(() => {
@@ -253,100 +250,8 @@ export default function VisionResultsView({
 
   // Fetch video flythrough when concept images are ready
   // Uses polling pattern: POST starts prediction, then client polls via GET
-  useEffect(() => {
-    if (!hasAnyConcepts || hasAttemptedVideo) return;
-    const conceptUrl = conceptImages[selectedConcept];
-    if (!conceptUrl) {
-      // Try again when concept images update
-      return;
-    }
-    setHasAttemptedVideo(true);
-    setIsGeneratingVideo(true);
-
-    let cancelled = false;
-    let pollTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const startVideo = async () => {
-      try {
-        const res = await fetch('/api/vision/video-flythrough', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            project_id: projectId,
-            image_url: conceptUrl,
-          }),
-        });
-        const data = await res.json();
-        if (cancelled) return;
-
-        if (data.status === 'ready' && data.video_url) {
-          setProjectVideo({ video_url: data.video_url, status: 'ready' } as ProjectVideo);
-          setIsGeneratingVideo(false);
-          return;
-        }
-
-        if (data.status === 'unavailable') {
-          setProjectVideo(null);
-          setIsGeneratingVideo(false);
-          return;
-        }
-
-        if (data.status === 'generating' && data.prediction_id) {
-          // Poll for completion
-          const pollUrl = data.poll_url || `/api/vision/video-poll?id=${data.prediction_id}&project_id=${projectId}`;
-          let polls = 0;
-          const maxPolls = 40; // ~2 minutes max (3s intervals)
-
-          const poll = async () => {
-            if (cancelled || polls >= maxPolls) {
-              setIsGeneratingVideo(false);
-              return;
-            }
-            polls++;
-            try {
-              const pollRes = await fetch(pollUrl);
-              const pollData = await pollRes.json();
-              if (cancelled) return;
-
-              if (pollData.status === 'ready' && pollData.video_url) {
-                setProjectVideo({ video_url: pollData.video_url, status: 'ready' } as ProjectVideo);
-                setIsGeneratingVideo(false);
-                return;
-              }
-
-              if (pollData.status === 'failed' || pollData.status === 'unavailable') {
-                setProjectVideo(null);
-                setIsGeneratingVideo(false);
-                return;
-              }
-
-              // Still generating — poll again
-              pollTimer = setTimeout(poll, 3000);
-            } catch {
-              if (!cancelled) pollTimer = setTimeout(poll, 5000);
-            }
-          };
-
-          pollTimer = setTimeout(poll, 3000);
-        } else {
-          setProjectVideo(null);
-          setIsGeneratingVideo(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setProjectVideo(null);
-          setIsGeneratingVideo(false);
-        }
-      }
-    };
-
-    startVideo();
-
-    return () => {
-      cancelled = true;
-      if (pollTimer) clearTimeout(pollTimer);
-    };
-  }, [hasAnyConcepts, hasAttemptedVideo, conceptImages, selectedConcept, projectId]);
+  // Video flythrough uses CSS Ken Burns animation on concept image — no API calls, no polling.
+  // The VideoFlythrough component handles everything client-side.
 
   useEffect(() => {
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
@@ -590,7 +495,7 @@ export default function VisionResultsView({
               <div className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: '#f97316' }} /><span className="font-medium text-ink">Permits &amp; Fees</span><span className="text-ink-400">{formatCurrency(permitsMid)}</span></div>
             </div>
             {estimate.region_multiplier && (
-              <p className="mt-5 rounded-xl bg-canvas-100 px-4 py-3 text-sm text-ink-500">{'\U0001F4CD'} Local pricing adjustment: {estimate.region_multiplier.toFixed(2)}x in ZIP {project.zip_code}</p>
+              <p className="mt-5 rounded-xl bg-canvas-100 px-4 py-3 text-sm text-ink-500">📍 Local pricing adjustment: {estimate.region_multiplier.toFixed(2)}x in ZIP {project.zip_code}</p>
             )}
           </div>
         </section>
@@ -697,12 +602,9 @@ export default function VisionResultsView({
           </section>
         )}
 
-        {/* 8. VIDEO FLYTHROUGH — always show (CSS Ken Burns fallback when no video) */}
+        {/* 8. VIDEO FLYTHROUGH — CSS Ken Burns animation on concept image (no API needed) */}
         <section className="mx-auto w-full max-w-4xl">
           <VideoFlythrough
-            videoUrl={projectVideo?.video_url || undefined}
-            thumbnailUrl={projectVideo?.thumbnail_url || undefined}
-            isGenerating={isGeneratingVideo}
             conceptImageUrl={conceptImages[selectedConcept] || undefined}
           />
         </section>

@@ -49,16 +49,16 @@ function friendlyCategory(raw: string) {
 
 function friendlyStatus(raw: string) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
-    draft: { label: 'Getting Started', color: 'text-stone-500', bg: 'bg-stone-100' },
-    processing: { label: 'Analyzing', color: 'text-amber-700', bg: 'bg-amber-50' },
-    estimated: { label: 'Estimate Ready', color: 'text-amber-700', bg: 'bg-amber-50' },
-    materials_generated: { label: 'Almost Done', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    brief_generated: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    complete: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-    completed: { label: 'Plan Ready', color: 'text-emerald-700', bg: 'bg-emerald-50' },
+    draft: { label: 'Getting Started', color: 'text-ink-500', bg: 'bg-canvas-100' },
+    processing: { label: 'Analyzing', color: 'text-amber-700', bg: 'bg-sand/20' },
+    estimated: { label: 'Estimate Ready', color: 'text-amber-700', bg: 'bg-sand/20' },
+    materials_generated: { label: 'Almost Done', color: 'text-ink', bg: 'bg-mint/20' },
+    brief_generated: { label: 'Plan Ready', color: 'text-ink', bg: 'bg-mint/20' },
+    complete: { label: 'Plan Ready', color: 'text-ink', bg: 'bg-mint/20' },
+    completed: { label: 'Plan Ready', color: 'text-ink', bg: 'bg-mint/20' },
     failed: { label: 'Needs Review', color: 'text-red-600', bg: 'bg-red-50' },
   };
-  return map[raw] || { label: raw.replace(/_/g, ' '), color: 'text-stone-500', bg: 'bg-stone-100' };
+  return map[raw] || { label: raw.replace(/_/g, ' '), color: 'text-ink-500', bg: 'bg-canvas-100' };
 }
 
 export default async function MyProjectsPage() {
@@ -69,10 +69,12 @@ export default async function MyProjectsPage() {
     redirect('/auth/login?redirect=/my-projects');
   }
 
+  // Match by user_id (for projects created while signed in)
+  // OR null user_id (for projects created while anonymous)
   const { data: projectsData } = await supabaseAdmin
     .from('projects')
     .select('id, project_category, zip_code, quality_tier, status, created_at, uploaded_image_urls, generated_image_urls, notes')
-    .eq('user_id', user.id)
+    .or(`user_id.eq.${user.id},user_id.is.null`)
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -94,13 +96,13 @@ export default async function MyProjectsPage() {
   });
 
   return (
-    <div className="relative z-10 min-h-screen bg-stone-50">
+    <div className="relative z-10 min-h-screen bg-canvas">
       <section className="px-4 pb-6 pt-20 sm:px-6 sm:pb-8 sm:pt-28 md:pt-36">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-stone-800 sm:text-4xl md:text-5xl">My projects</h1>
-              <p className="mt-1 sm:mt-2 text-sm sm:text-lg text-stone-500">
+              <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-4xl md:text-5xl">My projects</h1>
+              <p className="mt-1 sm:mt-2 text-sm sm:text-lg text-ink-500">
                 {projects.length > 0
                   ? `${projects.length} project${projects.length !== 1 ? 's' : ''} — tap any card to view your full plan.`
                   : 'Upload a photo to start your first project.'}
@@ -108,7 +110,7 @@ export default async function MyProjectsPage() {
             </div>
             <Link
               href="/#upload"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-stone-800 px-5 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-stone-900 active:scale-95 flex-shrink-0"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-canvas-50 shadow-md transition hover:opacity-90 active:scale-95 flex-shrink-0"
             >
               <Plus className="h-4 w-4" /> New project
             </Link>
@@ -146,9 +148,9 @@ export default async function MyProjectsPage() {
                   <Link
                     key={project.id}
                     href={`/vision/results/${project.id}`}
-                    className="group overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
+                    className="group overflow-hidden rounded-2xl border border-hairline bg-canvas-50 shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-stone-100">
+                    <div className="relative aspect-[4/3] overflow-hidden bg-canvas-200">
                       {previewImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -159,10 +161,10 @@ export default async function MyProjectsPage() {
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Sparkles className="h-8 w-8 text-stone-300 animate-pulse" />
+                          <Sparkles className="h-8 w-8 text-ink-300 animate-pulse" />
                         </div>
                       )}
-                      <div className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-stone-700 shadow-sm backdrop-blur-sm">
+                      <div className="absolute left-2.5 top-2.5 rounded-full bg-canvas-50/90 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm backdrop-blur-sm">
                         {category}
                       </div>
                       <div className={`absolute right-2.5 top-2.5 rounded-full px-2.5 py-1 text-xs font-semibold backdrop-blur-sm ${status.bg} ${status.color}`}>
@@ -171,7 +173,7 @@ export default async function MyProjectsPage() {
                     </div>
 
                     <div className="p-4 sm:p-5">
-                      <div className="flex items-center justify-between text-xs text-stone-400">
+                      <div className="flex items-center justify-between text-xs text-ink-400">
                         <span>ZIP {project.zip_code}</span>
                         <span>
                           {new Date(project.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -179,19 +181,19 @@ export default async function MyProjectsPage() {
                       </div>
 
                       {estimate ? (
-                        <div className="mt-2.5 flex items-center justify-between rounded-xl bg-stone-50 px-3.5 py-2.5">
-                          <span className="text-xs font-medium text-stone-500">Estimated cost</span>
-                          <span className="text-sm font-bold text-stone-800">
+                        <div className="mt-2.5 flex items-center justify-between rounded-xl bg-canvas-100 px-3.5 py-2.5">
+                          <span className="text-xs font-medium text-ink-500">Estimated cost</span>
+                          <span className="text-sm font-bold text-ink">
                             {formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}
                           </span>
                         </div>
                       ) : (
-                        <div className="mt-2.5 rounded-xl bg-stone-50 px-3.5 py-2.5 text-center text-xs text-stone-400">
+                        <div className="mt-2.5 rounded-xl bg-canvas-100 px-3.5 py-2.5 text-center text-xs text-ink-400">
                           Estimate pending...
                         </div>
                       )}
 
-                      <div className="mt-2.5 flex items-center gap-1 text-sm font-semibold text-stone-600 group-hover:text-stone-800">
+                      <div className="mt-2.5 flex items-center gap-1 text-sm font-semibold text-ink-600 group-hover:text-ink">
                         View plan <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                       </div>
                     </div>
