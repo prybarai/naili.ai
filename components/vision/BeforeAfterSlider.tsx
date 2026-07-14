@@ -19,29 +19,33 @@ export default function BeforeAfterSlider({
   afterLabel = 'After',
   priority = false,
 }: Props) {
-  const [position, setPosition] = useState(56);
+  const [position, setPosition] = useState(50);
   const [isFullReveal, setIsFullReveal] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const dragStartPos = useRef(0);
+  const dragStartX = useRef(0);
 
-  const safePosition = isFullReveal ? 100 : Math.min(88, Math.max(12, position));
+  const safePosition = isFullReveal ? 100 : Math.min(95, Math.max(5, position));
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     isDragging.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    handlePointerMove(e);
-  }, []);
+    dragStartPos.current = safePosition;
+    dragStartX.current = e.clientX;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, [safePosition]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!isDragging.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    setPosition(Math.max(5, Math.min(95, x)));
-  }, []);
+    const delta = ((e.clientX - dragStartX.current) / rect.width) * 100;
+    setPosition(Math.max(5, Math.min(95, dragStartPos.current + delta)));
+    // Exit full reveal on drag
+    if (isFullReveal) setIsFullReveal(false);
+  }, [isFullReveal]);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+  const handlePointerUp = useCallback(() => {
     isDragging.current = false;
-    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }, []);
 
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
@@ -51,18 +55,20 @@ export default function BeforeAfterSlider({
     const clickX = ((e.clientX - rect.left) / rect.width) * 100;
     if (isFullReveal) {
       setIsFullReveal(false);
-      setPosition(56);
-    } else if (clickX < 50) {
+      setPosition(clickX < 50 ? 30 : 70);
+    } else if (clickX < 20) {
       setPosition(20);
-    } else {
+    } else if (clickX > 80) {
       setPosition(80);
+    } else {
+      // Snap to click position
+      setPosition(clickX);
     }
   }, [isFullReveal]);
 
   const toggleReveal = useCallback(() => {
     setIsFullReveal((v) => !v);
-    if (isFullReveal) setPosition(56);
-  }, [isFullReveal]);
+  }, []);
 
   // Keyboard support
   useEffect(() => {
@@ -79,7 +85,7 @@ export default function BeforeAfterSlider({
     <div className="overflow-hidden rounded-[1.5rem] border border-hairline bg-canvas-50 shadow-lift">
       <div
         ref={containerRef}
-        className="relative aspect-[4/3] bg-canvas-200/70 cursor-col-resize select-none"
+        className="relative aspect-[4/3] bg-canvas-200/70 cursor-col-resize select-none touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -92,17 +98,18 @@ export default function BeforeAfterSlider({
         aria-valuemax={95}
         aria-valuenow={safePosition}
       >
-        {/* Before image (full width) */}
+        {/* Before image (full width — always visible on the right) */}
         <Image
           src={beforeImage}
           alt={beforeLabel}
           fill
-          className="object-cover"
+          className="object-cover pointer-events-none"
           sizes="(max-width: 1024px) 100vw, 50vw"
           priority={priority}
+          draggable={false}
         />
 
-        {/* After image (clipped) */}
+        {/* After image (clipped to the left by slider position) */}
         <div
           className="absolute inset-y-0 left-0 overflow-hidden"
           style={{ width: `${safePosition}%` }}
@@ -115,46 +122,56 @@ export default function BeforeAfterSlider({
               src={afterImage}
               alt={afterLabel}
               fill
-              className="object-cover"
+              className="object-cover pointer-events-none"
               sizes="(max-width: 1024px) 100vw, 50vw"
               priority={priority}
+              draggable={false}
             />
           </div>
         </div>
 
-        {/* Slider divider */}
+        {/* Slider divider — grabs events directly */}
         <div
-          className="absolute inset-y-0 pointer-events-none"
-          style={{ left: `calc(${safePosition}% - 1px)` }}
+          className="absolute inset-y-0 z-10 w-8 -translate-x-1/2 cursor-col-resize"
+          style={{ left: `${safePosition}%` }}
+          onPointerDown={(e) => {
+            // Block the event from reaching the parent onPointerDown so
+            // the drag starts from the divider's position, not a jump
+            e.stopPropagation();
+            isDragging.current = true;
+            dragStartPos.current = safePosition;
+            dragStartX.current = e.clientX;
+            (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          }}
         >
-          <div className="relative h-full w-[2px] bg-canvas-50/95 shadow-[0_0_0_1px_rgba(23,24,28,0.08)]">
-            <div className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-panel bg-canvas-50/90 text-ink-600 shadow-[0_2px_8px_rgba(0,0,0,0.15)] backdrop-blur transition-transform duration-150 hover:scale-110 active:scale-95">
+          <div className="absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 bg-white shadow-[0_0_0_1px_rgba(23,24,28,0.06)]">
+            <div className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-white text-ink-600 shadow-[0_2px_12px_rgba(0,0,0,0.2)] backdrop-blur transition-transform duration-150 hover:scale-110 active:scale-95">
               <ArrowLeftRight className="h-4 w-4" />
             </div>
           </div>
         </div>
 
-        {/* Labels - positioned relative to slider */}
-        <div
-          className="absolute top-4 pointer-events-none transition-all duration-100"
-          style={{
-            left: `clamp(8px, calc(${safePosition}% - 60px), calc(100% - 100px))`,
-          }}
-        >
-          <span className="inline-block rounded-full border border-panel bg-canvas-50/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-600 backdrop-blur shadow-sm">
-            {afterLabel}
-          </span>
-        </div>
-        <div
-          className="absolute top-4 pointer-events-none transition-all duration-100"
-          style={{
-            right: `clamp(8px, calc(${100 - safePosition}% - 60px), calc(100% - 100px))`,
-          }}
-        >
-          <span className="inline-block rounded-full border border-panel bg-canvas-50/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-600 backdrop-blur shadow-sm">
-            {beforeLabel}
-          </span>
-        </div>
+        {/* Labels */}
+        {!isFullReveal && (
+          <>
+            <div
+              className="absolute top-4 pointer-events-none z-20 transition-all duration-75"
+              style={{ left: `clamp(8px, calc(${Math.max(safePosition - 10, 20)}% - 30px), 40%)` }}
+            >
+              <span className="inline-block rounded-full border border-white/30 bg-black/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur shadow-sm">
+                {afterLabel}
+              </span>
+            </div>
+            <div
+              className="absolute top-4 pointer-events-none z-20 transition-all duration-75"
+              style={{ right: `clamp(8px, calc(${Math.max(100 - safePosition - 10, 20)}% - 30px), 40%)` }}
+            >
+              <span className="inline-block rounded-full border border-white/30 bg-black/50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 backdrop-blur shadow-sm">
+                {beforeLabel}
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="border-t border-hairline bg-canvas-50 px-4 py-3">

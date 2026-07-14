@@ -221,17 +221,48 @@ export default function VisionResultsView({
   const [stickyVisible, setStickyVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const mockAnnotations = useMemo(() => {
+  // Smart material-to-position mapping — matches each item to realistic image position
+  const materialAnnotations = useMemo(() => {
     if (!materials?.line_items) return [];
-    return materials.line_items.slice(0, 8).map((item, i) => ({
-      materialName: item.item,
-      category: item.category,
-      x: 20 + ((i * 25) % 70),
-      y: 25 + ((i * 20) % 55),
-      price: '$' + item.estimated_cost_low.toLocaleString() + ' - $' + item.estimated_cost_high.toLocaleString(),
-      shopUrl: item.retailer_url || undefined,
-      quantity: item.quantity + ' ' + item.unit,
-    }));
+    const items = materials.line_items;
+    const getPosition = (name: string, category: string, index: number) => {
+      const combined = (name + ' ' + category).toLowerCase();
+      if (/countertop|counter|quartz|granite|marble|butcher/i.test(combined)) return { x: 25, y: 55 };
+      if (/floor|flooring|hardwood|tile|vinyl|laminat|baseboard|underlaym/i.test(combined)) return { x: 40, y: 85 };
+      if (/cabinet|cabinetry|pantry|drawer|vanity/i.test(combined)) return { x: 20, y: 30 };
+      if (/tile|backsplash|subway|ceramic|mosaic|grout/i.test(combined)) return { x: 50, y: 45 };
+      if (/paint|primer|stain|color|finish|drywall|plaster|wall/i.test(combined)) return { x: 75, y: 30 };
+      if (/plumbing|pipe|drain|faucet|sink|shutoff/i.test(combined)) return { x: 50, y: 55 };
+      if (/lighting|light|sconce|pendant|lamp|bulb|fixture/i.test(combined)) return { x: 50, y: 15 };
+      if (/appliance|refrigerator|stove|oven|dishwasher|hood/i.test(combined)) return { x: 80, y: 40 };
+      if (/hardware|handle|knob|pull|hinge|drawer.?slide/i.test(combined)) return { x: 85, y: 60 };
+      if (/shower|toilet|bathtub|tub|bath/i.test(combined)) return { x: 60, y: 75 };
+      if (/window|frame|sash|glazing|glass/i.test(combined)) return { x: 30, y: 25 };
+      if (/door|jamb|casing|entry/i.test(combined)) return { x: 10, y: 40 };
+      if (/roof|shingle|flashing|ridge|gutter/i.test(combined)) return { x: 50, y: 15 };
+      if (/deck|composite|tread|stringer|railing|pergola/i.test(combined)) return { x: 40, y: 55 };
+      if (/patio|pav|stone|brick|concrete|cement|gravel/i.test(combined)) return { x: 30, y: 70 };
+      if (/plant|shrub|flower|mulch|soil|seed|sod|tree|lawn|garden/i.test(combined)) return { x: 20, y: 55 };
+      if (/trim|baseboard|molding|crown/i.test(combined)) return { x: 10, y: 85 };
+      if (/insulation|lumber|stud|framing|electrical|outlet|switch|wire|hvac|vent|duct/i.test(combined)) return { x: 50, y: 35 };
+      // Spread remaining items evenly
+      const cols = Math.ceil(Math.sqrt(items.length));
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      return { x: 15 + col * (70 / Math.max(cols - 1, 1)), y: 15 + row * (55 / Math.max(Math.ceil(items.length / cols) - 1, 1)) };
+    };
+    return items.map((item, i) => {
+      const pos = getPosition(item.item, item.category, i);
+      return {
+        materialName: item.item,
+        category: item.category,
+        x: Math.round(pos.x * 10) / 10,
+        y: Math.round(pos.y * 10) / 10,
+        price: '$' + item.estimated_cost_low.toLocaleString() + ' - $' + item.estimated_cost_high.toLocaleString(),
+        shopUrl: 'https://www.homedepot.com/s/' + item.item.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        quantity: item.quantity + ' ' + item.unit,
+      };
+    });
   }, [materials]);
 
   useEffect(() => setMounted(true), []);
@@ -552,10 +583,10 @@ export default function VisionResultsView({
                   <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Annotated Concept</h2><p className="text-sm text-ink-400">Interactive hotspots with material details</p></div>
                 </div>
               </div>
-              {hasAnyConcepts && mockAnnotations.length > 0 ? (
+              {hasAnyConcepts && materialAnnotations.length > 0 ? (
                 <AnnotatedConcepts
                   imageUrl={conceptImages[selectedConcept]}
-                  annotations={mockAnnotations}
+                  annotations={materialAnnotations}
                   onAnnotationClick={(a) => posthog.capture('naili_annotation_clicked', { project_id: projectId, material: a.materialName })}
                 />
               ) : (
