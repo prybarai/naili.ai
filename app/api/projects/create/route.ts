@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   // Legacy fields (for backward compatibility)
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ project: data });
   } catch (error) {
-    console.error('create project error:', error);
+    logApiError('projects.create', error);
     const message = error instanceof Error ? error.message : 'Failed to create project';
     return NextResponse.json({ error: message }, { status: 500 });
   }

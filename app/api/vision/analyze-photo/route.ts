@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { deepSeekVisionJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '../../../../lib/visionAnalysis';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   image_url: z.string().url(),
@@ -143,21 +144,21 @@ export async function POST(req: NextRequest) {
           SYSTEM_PROMPT,
           userPrompt,
           base64,
-          { maxTokens: 1800 }
+          { maxTokens: 1800, timeoutMs: 60000 }
         ));
 
         return NextResponse.json({ analysis });
       } catch (deepSeekError) {
-        console.error('DeepSeek vision failed, using fallback:', deepSeekError);
+        logApiError('analyze-photo', deepSeekError, { projectId: undefined });
       }
     } else {
-      console.log('DeepSeek not configured (DEEPSEEK_API_KEY missing), using fallback analysis');
+      logApi('analyze-photo', 'DeepSeek not configured, using fallback analysis');
     }
 
     // Fallback: return default analysis
     return NextResponse.json({ analysis: FALLBACK_VISION_ANALYSIS });
   } catch (error) {
-    console.error('analyze-photo error:', error);
+    logApiError('analyze-photo', error);
     return NextResponse.json({ analysis: FALLBACK_VISION_ANALYSIS });
   }
 }

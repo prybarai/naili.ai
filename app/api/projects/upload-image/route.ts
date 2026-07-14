@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { v4 as uuidv4 } from 'uuid';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
+  let logContext: Record<string, unknown> = {};
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const projectId = formData.get('project_id') as string | null;
+    logContext = { projectId };
 
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
@@ -54,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: publicUrl });
   } catch (error) {
-    console.error('upload-image error:', error);
+    logApiError('projects.upload-image', error, logContext);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }

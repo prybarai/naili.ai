@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 /**
  * GET /api/vision/results-data?id=<project_id>
@@ -9,9 +10,10 @@ import { supabaseAdmin } from '../../../../lib/supabase/admin';
  * Used by the results page for polling.
  */
 export async function GET(req: NextRequest) {
+  let projectId: string | null = null;
   try {
     const { searchParams } = new URL(req.url);
-    const projectId = searchParams.get('id');
+    projectId = searchParams.get('id');
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
@@ -34,7 +36,7 @@ export async function GET(req: NextRequest) {
       brief: briefRes.data || null,
     });
   } catch (error) {
-    console.error('results-data error:', error);
+    logApiError('results-data', error, { projectId });
     return NextResponse.json({ error: 'Failed to fetch results' }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { generateConceptImages } from '../../../../lib/imageGeneration';
 import { extractDesignConstraints } from '../../../../lib/designConstraints';
 import { type VisionAnalysis } from '../../../../lib/visionAnalysis';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   project_id: z.string().uuid(),
@@ -24,8 +25,9 @@ function getAnalysis(input: unknown): VisionAnalysis | undefined {
 }
 
 export async function POST(req: NextRequest) {
+  let body: Record<string, unknown> | undefined;
   try {
-    const body = await req.json();
+    body = await req.json();
     const params = schema.parse(body);
     const constraints = extractDesignConstraints(params.notes);
     const constraintSummary = {
@@ -41,7 +43,12 @@ export async function POST(req: NextRequest) {
       explicitRequirementCount: constraints.explicitRequirements.length,
     };
 
-    console.log('[vision.generate-concepts] request', {
+    if (!process.env.OPENAI_API_KEY) {
+      logApi('generate-concepts', 'OPENAI_API_KEY missing, returning empty');
+      return NextResponse.json({ image_urls: [], error: 'OpenAI not configured' }, { status: 503 });
+    }
+
+    logApi('generate-concepts', 'request', {
       category: params.category,
       style: params.style,
       hasNotes: Boolean(params.notes),
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ image_urls: imageUrls });
   } catch (error) {
-    console.error('generate concepts error:', error);
+    logApiError('generate-concepts', error, { projectId: body?.project_id });
     return NextResponse.json({ error: 'Failed to generate concepts', image_urls: [] }, { status: 500 });
   }
 }

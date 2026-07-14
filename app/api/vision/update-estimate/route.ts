@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { getEstimatorFloor, getScopeMids } from '../../../../lib/pricing';
 import { getRegionalPricingContext } from '../../../../lib/regionalPricing';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   project_id: z.string().uuid(),
@@ -21,8 +22,9 @@ const schema = z.object({
  * If quality_tier or style changed, also triggers concept regeneration.
  */
 export async function POST(req: NextRequest) {
+  let body: Record<string, unknown> | undefined;
   try {
-    const body = await req.json();
+    body = await req.json();
     const params = schema.parse(body);
 
     // 1. Load existing project and estimate
@@ -163,7 +165,7 @@ export async function POST(req: NextRequest) {
       needs_regeneration: needsRegen,
     });
   } catch (error) {
-    console.error('[update-estimate] error:', error);
+    logApiError('update-estimate', error, { projectId: body?.project_id });
     return NextResponse.json({ error: 'Failed to update estimate' }, { status: 500 });
   }
 }

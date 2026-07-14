@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { callDeepSeekJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { type VisionAnalysis } from '../../../../lib/visionAnalysis';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   project_id: z.string().uuid(),
@@ -240,9 +241,10 @@ function fallbackMaterials(category: string, style: string, qualityTier: string,
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  let params: z.infer<typeof schema> | undefined;
   try {
     const body = await req.json();
-    const params = schema.parse(body);
+    params = schema.parse(body);
     const analysis = getAnalysis(params.analysis);
     let materials: { line_items: unknown[]; sourcing_notes: string };
     try {
@@ -256,11 +258,11 @@ export async function POST(req: NextRequest) {
         );
         materials = raw;
       } else {
-        console.log('DeepSeek not available, using fallback materials');
+        logApi('materials', 'DeepSeek not available, using fallback materials');
         materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis);
       }
     } catch (aiError) {
-      console.error('materials ai fallback:', aiError);
+      logApiError('materials', aiError);
       materials = fallbackMaterials(params.category, params.style, params.quality_tier, params.estimate_mid, analysis);
     }
 
@@ -306,7 +308,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ materials: data });
   } catch (error) {
-    console.error('materials error:', error);
+    logApiError('materials', error, { projectId: params?.project_id });
     return NextResponse.json({ error: 'Failed to generate materials list' }, { status: 500 });
   }
 }

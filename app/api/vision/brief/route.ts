@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { callDeepSeekJSON, isDeepSeekAvailable } from '../../../../lib/deepseek';
 import { buildBriefPrompt } from '../../../../lib/prompts';
 import { describeAnalysisFacts, type VisionAnalysis } from '../../../../lib/visionAnalysis';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   project_id: z.string().uuid(),
@@ -330,9 +331,17 @@ function fallbackBrief(params: z.infer<typeof schema>, analysis?: VisionAnalysis
 }
 
 export async function POST(req: NextRequest) {
+  let body: unknown;
+  let params: z.infer<typeof schema> | undefined;
   try {
-    const body = await req.json();
-    const params = schema.parse(body);
+    body = await req.json();
+    params = schema.parse(body);
+  } catch (parseError) {
+    logApiError('brief', parseError);
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  try {
     const analysis = getAnalysis(params.analysis);
 
     let result: BriefResult;
@@ -387,11 +396,11 @@ ${analysis ? `
             prompt
           );
         } else {
-          console.log('DeepSeek not available, using fallback brief');
+          logApi('brief', 'DeepSeek not available, using fallback brief');
           result = fallbackBrief(params, analysis);
         }
     } catch (aiError) {
-      console.error('brief ai fallback:', aiError);
+      logApiError('brief', aiError);
       result = fallbackBrief(params, analysis);
     }
 
@@ -420,7 +429,7 @@ ${analysis ? `
       },
     });
   } catch (error) {
-    console.error('brief error:', error);
+    logApiError('brief', error, { projectId: params?.project_id });
     return NextResponse.json({ error: 'Failed to generate brief' }, { status: 500 });
   }
 }

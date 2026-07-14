@@ -33,19 +33,23 @@ function extractJsonText(text: string) {
 export async function callDeepSeek(
   systemPrompt: string,
   userPrompt: string,
-  opts: { maxTokens?: number; temperature?: number } = {}
+  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number } = {}
 ): Promise<string> {
+  const { timeoutMs = 30000 } = opts;
   try {
     const client = getClient();
-    const response = await client.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: opts.maxTokens || 2048,
-      temperature: opts.temperature ?? 0.3,
-    });
+    const response = await client.chat.completions.create(
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: opts.maxTokens || 2048,
+        temperature: opts.temperature ?? 0.3,
+      },
+      { timeout: timeoutMs }
+    );
     const text = response.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error('Empty response from DeepSeek');
     return text;
@@ -58,13 +62,18 @@ export async function callDeepSeek(
 export async function callDeepSeekJSON<T>(
   systemPrompt: string,
   userPrompt: string,
-  opts: { maxTokens?: number; temperature?: number } = {}
+  opts: { maxTokens?: number; temperature?: number; timeoutMs?: number } = {}
 ): Promise<T> {
   const text = await callDeepSeek(systemPrompt, userPrompt, {
     ...opts,
     temperature: opts.temperature ?? 0.1,
   });
-  return JSON.parse(extractJsonText(text)) as T;
+  try {
+    return JSON.parse(extractJsonText(text)) as T;
+  } catch (parseError) {
+    console.error('Failed to parse DeepSeek response as JSON:', extractJsonText(text).slice(0, 200));
+    throw new Error('Invalid JSON from DeepSeek');
+  }
 }
 
 /**
@@ -75,31 +84,34 @@ export async function deepSeekVisionJSON<T>(
   systemPrompt: string,
   userPrompt: string,
   imageBase64: string,
-  opts: { maxTokens?: number } = {}
+  opts: { maxTokens?: number; timeoutMs?: number } = {}
 ): Promise<T> {
   try {
     const client = getClient();
-    const response = await client.chat.completions.create({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: userPrompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:image/jpeg;base64,${imageBase64}`,
-                detail: 'low',
+    const response = await client.chat.completions.create(
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: userPrompt },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`,
+                  detail: 'low',
+                },
               },
-            },
-          ],
-        },
-      ],
-      max_tokens: opts.maxTokens || 1800,
-      temperature: 0.1,
-    });
+            ],
+          },
+        ],
+        max_tokens: opts.maxTokens || 1800,
+        temperature: 0.1,
+      },
+      { timeout: opts.timeoutMs || 60000 }
+    );
 
     const text = response.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error('Empty response from DeepSeek vision');

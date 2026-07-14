@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { getEstimatorFloor, getScopeMids } from '../../../../lib/pricing';
 import { getRegionalPricingContext } from '../../../../lib/regionalPricing';
 import { buildAnalysisSummary, describeAnalysisFacts, FALLBACK_VISION_ANALYSIS, type VisionAnalysis } from '../../../../lib/visionAnalysis';
+import { logApi, logApiError } from '../../../../lib/apiLog';
 
 const schema = z.object({
   project_id: z.string().uuid(),
@@ -1198,9 +1199,10 @@ function estimateDeterministically(category: string, scopeAnswers: ScopeAnswers 
 }
 
 export async function POST(req: NextRequest) {
+  let params: z.infer<typeof schema> | undefined;
   try {
     const body = await req.json();
-    const params = schema.parse(body);
+    params = schema.parse(body);
     const analysis = getAnalysis(params.analysis);
 
     let result = estimateDeterministically(params.category, params.scope_answers, params.quality_tier, params.zip_code, analysis, params.notes);
@@ -1254,7 +1256,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ estimate: { ...data, regional_notes: result.regional_notes, estimate_breakdown: result.estimate_breakdown } });
   } catch (error) {
-    console.error('estimate error:', error);
+    logApiError('estimate', error, { projectId: params?.project_id });
     return NextResponse.json({ error: 'Failed to generate estimate' }, { status: 500 });
   }
 }
