@@ -32,7 +32,6 @@ import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
 import type { Estimate, IntelligenceReport, MaterialList, Project, ProjectBrief, ProjectVideo, QualityTier, StylePreference, ProjectCategory } from '@/types';
 import IntelligenceReportComponent from '@/components/vision/IntelligenceReport';
 import CostPlayground from '@/components/vision/CostPlayground';
-import VideoFlythrough from '@/components/vision/VideoFlythrough';
 import ContractorLeadModal from '@/components/vision/ContractorLeadModal';
 
 interface Props {
@@ -250,8 +249,7 @@ export default function VisionResultsView({
 
   // Fetch video flythrough when concept images are ready
   // Uses polling pattern: POST starts prediction, then client polls via GET
-  // Video flythrough uses CSS Ken Burns animation on concept image — no API calls, no polling.
-  // The VideoFlythrough component handles everything client-side.
+  // Video flythrough removed — was CSS Ken Burns animation but didn't add value.
 
   useEffect(() => {
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
@@ -602,14 +600,7 @@ export default function VisionResultsView({
           </section>
         )}
 
-        {/* 8. VIDEO FLYTHROUGH — CSS Ken Burns animation on concept image (no API needed) */}
-        <section className="mx-auto w-full max-w-4xl">
-          <VideoFlythrough
-            conceptImageUrl={conceptImages[selectedConcept] || undefined}
-          />
-        </section>
-
-        {/* 9. CONTRACTOR LEAD CAPTURE */}
+        {/* 8. CONTRACTOR LEAD CAPTURE */}
         <section className="mx-auto w-full max-w-4xl print:hidden">
           <div className={cn(
             'rounded-[1.75rem] border p-6 shadow-soft sm:p-8 transition-all',
