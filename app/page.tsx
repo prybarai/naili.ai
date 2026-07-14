@@ -176,11 +176,17 @@ export default function HomePage() {
             const { url } = (await uploadRes.json()) as { url: string };
             return url;
           }
+          // Log why it failed
+          const errBody = await uploadRes.text().catch(() => 'no body');
+          console.error('Upload failed:', uploadRes.status, errBody);
           return null;
         })
       );
       const urls = uploadResults.filter(Boolean) as string[];
-      if (urls.length === 0) throw new Error('Could not upload photos.');
+      if (urls.length === 0) {
+        console.error('All uploads failed. Files:', files.map(f => ({ name: f.name, size: f.size, type: f.type })));
+        throw new Error('Could not upload photos.');
+      }
       const referenceImageUrl = urls[0];
 
       // Step 1: Analyze photo via DeepSeek vision
