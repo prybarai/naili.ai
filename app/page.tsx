@@ -21,8 +21,8 @@ import dynamic from 'next/dynamic';
 
 const BelowFoldSections = dynamic(() => import('@/components/BelowFoldSections'), { ssr: false });
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, or WEBP up to 10MB';
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const SUPPORTED_IMAGE_LABEL = 'JPG, PNG, WEBP, or HEIC up to 50MB';
 const MAX_FILES = 3;
 
 function revokePreviewUrls(urls: string[]) {

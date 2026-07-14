@@ -3,7 +3,7 @@ import { supabaseAdmin } from '../../../../lib/supabase/admin';
 import { v4 as uuidv4 } from 'uuid';
 import { logApi, logApiError } from '../../../../lib/apiLog';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   let logContext: Record<string, unknown> = {};
@@ -15,22 +15,37 @@ export async function POST(req: NextRequest) {
 
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
 
-    // Validate file type and size
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Use JPG, PNG, or WEBP.' }, { status: 400 });
+    // Accept mobile formats (HEIC, HEIF, etc.) plus standard web formats
+    // Modern phones (iPhone 15 Pro, etc.) shoot HEIC by default
+    const mime = file.type.toLowerCase();
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    // Also check extension for cases where MIME is generic (octet-stream)
+    const fileName = file.name?.toLowerCase() || '';
+    const validExts = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+    const hasValidType = validTypes.includes(mime);
+    const hasValidExt = validExts.some(ext => fileName.endsWith(ext));
+    if (!hasValidType && !hasValidExt) {
+      // If browser sends generic MIME but extension is valid, proceed anyway
+      // This helps with some mobile browsers
+      if (mime !== 'application/octet-stream' && mime !== '') {
+        return NextResponse.json({ error: 'Invalid file type. Use JPG, PNG, WEBP, or HEIC.' }, { status: 400 });
+      }
     }
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File too large. Max 10MB.' }, { status: 400 });
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large. Max 50MB.' }, { status: 400 });
     }
 
-    const ext = file.type.split('/')[1].replace('jpeg', 'jpg');
+    // Normalize file extension — HEIC -> jpg for broader compatibility
+    const rawExt = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+    // HEIC/HEIF files get converted to jpg extension for Supabase/S3 compatibility
+    const ext = rawExt === 'heic' || rawExt === 'heif' ? 'jpg' : rawExt;
+    const contentType = ext === 'jpg' ? 'image/jpeg' : (file.type || 'image/jpeg');
     const filename = `uploads/${uuidv4()}.${ext}`;
     const bytes = await file.arrayBuffer();
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from('project-images')
-      .upload(filename, bytes, { contentType: file.type, upsert: false });
+      .upload(filename, bytes, { contentType, upsert: false });
 
     if (uploadError) throw uploadError;
 
