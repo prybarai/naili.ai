@@ -11,7 +11,6 @@ import {
   FileText,
   Image as ImageIcon,
   Layers,
-  Loader2,
   MapPin,
   MessageSquareText,
   RefreshCw,
@@ -40,6 +39,7 @@ import ShareButton from '@/components/vision/ShareButton';
 import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
 import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
+import LoadingStage from '@/components/vision/LoadingStage';
 import AnnotatedConcepts from '@/components/vision/AnnotatedConcepts';
 import type { Estimate, IntelligenceReport, MaterialList, Project, ProjectBrief, ProjectVideo, QualityTier, StylePreference, ProjectCategory } from '@/types';
 import IntelligenceReportComponent from '@/components/vision/IntelligenceReport';
@@ -356,15 +356,15 @@ export default function VisionResultsView({
     if (isTimedOut) {
       return (
         <div className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-20">
-          <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50">
-            <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <div className="relative mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50">
+            <svg className="h-8 w-8 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-ink">Still working on your plan...</h2>
-          <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment.</p>
-          <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90">
-            <RefreshCw className="h-4 w-4" /> Try again
+          <h2 className="text-2xl font-bold text-ink">This is taking longer than expected</h2>
+          <p className="mt-2 max-w-md text-center text-sm text-ink-500">Our AI is working hard &mdash; you can wait a bit more or retry.</p>
+          <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90 hover:shadow-lift">
+            <RefreshCw className="h-4 w-4" /> Retry Now
           </button>
         </div>
       );
@@ -534,10 +534,8 @@ export default function VisionResultsView({
                     <div className="relative overflow-hidden rounded-[1.5rem]">
                       <img src={originalImage} alt="Original photo" className="aspect-[4/3] w-full object-cover" loading="lazy" />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                        <div className="flex flex-col items-center gap-3 text-center">
-                          <Sparkles className="h-8 w-8 animate-pulse text-amber-300" />
-                          <p className="text-lg font-bold text-white">Generating concepts...</p>
-                          <p className="text-sm text-white/60">AI is creating your before &amp; after visual</p>
+                        <div className="w-full max-w-sm px-4">
+                          <LoadingStage stage="concepts" />
                         </div>
                       </div>
                     </div>
@@ -699,10 +697,7 @@ export default function VisionResultsView({
                   <MaterialsAccordion materials={materials} />
                 </div>
               ) : (
-                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
-                  <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-ink-300" />
-                  <p className="text-ink-400 text-sm">Loading materials list...</p>
-                </div>
+                <LoadingStage stage="materials" />
               )}
             </section>
 
@@ -711,10 +706,7 @@ export default function VisionResultsView({
               {brief ? (
                 <ProjectBriefDocument project={project} brief={brief} estimate={estimate} materials={materials} categoryLabel={categoryLabel} />
               ) : (
-                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
-                  <FileText className="mx-auto mb-3 h-8 w-8 text-ink-300" />
-                  <p className="text-ink-400 text-sm">Loading project brief...</p>
-                </div>
+                <LoadingStage stage="brief" />
               )}
             </section>
 
@@ -729,10 +721,7 @@ export default function VisionResultsView({
               {intelligenceReport ? (
                 <IntelligenceReportComponent report={intelligenceReport} />
               ) : isLoadingIntelligence ? (
-                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
-                  <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-purple-400" />
-                  <p className="text-ink-400 text-sm">Loading market intelligence...</p>
-                </div>
+                <LoadingStage stage="intelligence" />
               ) : (
                 <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
                   <TrendingUp className="mx-auto mb-3 h-8 w-8 text-ink-300" />
