@@ -111,7 +111,16 @@ export default function HomePage() {
     maxFiles: MAX_FILES,
     maxSize: MAX_UPLOAD_BYTES,
     multiple: true,
+    // Mobile: prompt camera immediately
+    useFsAccessApi: false,
   });
+
+  // Override input attrs to add mobile camera capture
+  const mobileInputProps = {
+    ...getInputProps(),
+    capture: undefined, // Let mobile browsers decide between camera+gallery
+    multiple: true,
+  };
 
   const removePhoto = (index: number) => {
     revokePreviewUrls([previews[index]]);
@@ -346,7 +355,7 @@ export default function HomePage() {
                   ? 'border-sand-dark/40 bg-white/60 hover:border-sand-dark hover:shadow-[0_0_40px_rgba(216,185,138,0.15)]'
                   : 'border-ink/15 bg-white/70 hover:border-sand-dark/50 hover:bg-white/80 hover:shadow-[0_0_40px_rgba(216,185,138,0.12)]'
             )}>
-              <input {...getInputProps()} />
+              <input {...mobileInputProps} />
               {previews.length > 0 ? (
                 <div className="space-y-4">
                   <div className="flex flex-wrap justify-center gap-3">
