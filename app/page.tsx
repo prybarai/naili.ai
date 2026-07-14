@@ -113,15 +113,7 @@ export default function HomePage() {
     maxSize: MAX_UPLOAD_BYTES,
     multiple: true,
     // Mobile: prompt camera immediately
-    useFsAccessApi: false,
   });
-
-  // Override input attrs to add mobile camera capture
-  const mobileInputProps = {
-    ...getInputProps(),
-    capture: undefined, // Let mobile browsers decide between camera+gallery
-    multiple: true,
-  };
 
   const removePhoto = (index: number) => {
     revokePreviewUrls([previews[index]]);
@@ -352,15 +344,19 @@ export default function HomePage() {
         {/* ═══════════ UPLOAD ZONE ═══════════ */}
         <div className="mx-auto max-w-3xl">
           <div className="animate-reveal-up" style={{ animationDelay: '0.15s', animationFillMode: 'both' }}>
+            {/*
+              Desktop: native dnd zone with a real <input> inside
+              Mobile: always-use fallback, hide the drag zone
+            */}
             <div {...getRootProps()} className={cn(
-              'relative cursor-pointer rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
+              'relative hidden sm:block cursor-pointer rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
               isDragActive
                 ? 'border-sand bg-sand/10 scale-[1.02] shadow-[0_0_60px_rgba(216,185,138,0.25)]'
                 : previews.length > 0
                   ? 'border-sand-dark/40 bg-white/60 hover:border-sand-dark hover:shadow-[0_0_40px_rgba(216,185,138,0.15)]'
                   : 'border-ink/15 bg-white/70 hover:border-sand-dark/50 hover:bg-white/80 hover:shadow-[0_0_40px_rgba(216,185,138,0.12)]'
             )}>
-              <input {...mobileInputProps} />
+              <input {...getInputProps()} />
               {previews.length > 0 ? (
                 <div className="space-y-4">
                   <div className="flex flex-wrap justify-center gap-3">
@@ -392,12 +388,46 @@ export default function HomePage() {
                 </>
               )}
             </div>
-          </div>
-            {/* 📱 Mobile fallback: always-visible file picker button */}
-            <div className="mt-4 sm:hidden">
-              <label htmlFor="mobile-file-input" className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-sand-dark/50 bg-white/80 px-6 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-sand-light/20 active:scale-[0.98]">
-                <Camera className="h-4 w-4" />
-                Choose photos
+
+            {/* 📱 Mobile: native file input — no dropzone overlay, no react-dropzone */}
+            <div className="sm:hidden">
+              <div className={cn(
+                'rounded-[2rem] border-2 border-dashed p-8 sm:p-10 text-center transition-all duration-500',
+                previews.length > 0
+                  ? 'border-sand-dark/40 bg-white/60'
+                  : 'border-ink/15 bg-white/70'
+              )}>
+                {previews.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap justify-center gap-3">
+                      {previews.map((preview, idx) => (
+                        <div key={preview} className="group relative">
+                          <img src={preview} alt={`Upload ${idx + 1}`} loading="eager" className="h-28 w-36 rounded-2xl object-cover shadow-md sm:h-32 sm:w-40" />
+                          <button type="button" aria-label="Remove photo" onClick={() => removePhoto(idx)} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-md">
+                            <Trash2 className="h-3.5 w-3.5 text-ink-600" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    {files.length < MAX_FILES && <p className="text-sm text-ink-500">Tap to add more photos</p>}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mx-auto mb-5 relative">
+                      <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-sand/20 to-amber-50 text-sand-dark mx-auto">
+                        <Camera className="h-9 w-9" />
+                      </div>
+                    </div>
+                    <p className="text-xl font-bold text-ink">Upload your space</p>
+                    <p className="mt-2 text-sm text-ink-500 max-w-md mx-auto">{SUPPORTED_IMAGE_LABEL} &middot; Up to {MAX_FILES} photos</p>
+                  </>
+                )}
+              </div>
+
+              {/* Always-visible native file input button */}
+              <label htmlFor="mobile-file-input" className="mt-3 inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-2 border-sand-dark/60 bg-sand-light/20 px-6 py-4 text-base font-bold text-ink shadow-md transition-all active:scale-[0.97]">
+                <Camera className="h-5 w-5" />
+                {previews.length > 0 ? 'Add more photos' : 'Choose from gallery or camera'}
               </label>
               <input
                 id="mobile-file-input"
@@ -415,6 +445,7 @@ export default function HomePage() {
                 }}
               />
             </div>
+          </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-ink-500 animate-reveal-up" style={{ animationDelay: '0.25s', animationFillMode: 'both' }}>
             <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-mint" /> Good lighting</span>
