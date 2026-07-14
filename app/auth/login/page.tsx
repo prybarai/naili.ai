@@ -133,7 +133,7 @@ function LoginForm() {
             Don&apos;t have an account?{' '}
             <Link
               href={`/auth/signup${redirect !== '/' ? `?redirect=${encodeURIComponent(redirect)}` : ''}`}
-              className="font-semibold text-ink hover:text-ink-900 transition"
+              className="font-semibold text-ink hover:text-ink transition"
             >
               Create one free
             </Link>
@@ -151,7 +151,7 @@ export default function LoginPage() {
       <section className="flex items-center justify-center px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-28 md:pt-32">
         <Suspense fallback={
           <div className="w-full max-w-md text-center py-16">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink-300 border-t-transparent" />
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink-400 border-t-transparent" />
           </div>
         }>
           <LoginForm />

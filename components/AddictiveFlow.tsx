@@ -88,7 +88,7 @@ export default function AddictiveFlow() {
           {STEPS.map(({ num, icon: Icon, title, body, gradient, iconBg, iconColor }) => (
             <div
               key={num}
-              className="group relative overflow-hidden rounded-2xl sm:rounded-[1.5rem] border border-stone-200 bg-white p-5 sm:p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+              className="group relative overflow-hidden rounded-2xl sm:rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 sm:p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift"
             >
               {/* Hover gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
@@ -101,8 +101,8 @@ export default function AddictiveFlow() {
                   <span className="hidden sm:block font-display text-4xl font-light text-ink/[0.06]">{num}</span>
                 </div>
                 <div className="flex-1">
-                  <h3 className="mb-1 sm:mb-2 text-base sm:text-lg font-semibold tracking-tight text-stone-800">{title}</h3>
-                  <p className="text-sm sm:text-[15px] leading-relaxed text-stone-500">{body}</p>
+                  <h3 className="mb-1 sm:mb-2 text-base sm:text-lg font-semibold tracking-tight text-ink">{title}</h3>
+                  <p className="text-sm sm:text-[15px] leading-relaxed text-ink-500">{body}</p>
                 </div>
               </div>
             </div>
@@ -113,7 +113,7 @@ export default function AddictiveFlow() {
         <div className="mt-10 sm:mt-14 text-center">
           <Link
             href="#upload"
-            className="inline-flex items-center gap-2 rounded-full bg-stone-800 px-6 py-3.5 sm:px-8 sm:py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-stone-900 hover:shadow-xl active:scale-95"
+            className="inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 sm:px-8 sm:py-4 text-base font-semibold text-canvas-50 shadow-lg transition-all hover:opacity-90 hover:shadow-xl active:scale-95"
           >
             <Camera className="h-5 w-5" />
             Try it now — it&apos;s free

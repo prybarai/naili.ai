@@ -14,7 +14,7 @@ export default function Footer() {
         "relative z-10 border-t px-4 py-12 sm:px-6 sm:py-14 md:px-10",
         isPro
           ? "border-white/5 bg-graphite-800 text-white/50"
-          : "border-stone-800 bg-graphite text-white/50"
+          : "border-canvas-50/10 bg-graphite text-white/50"
       )}
     >
       <div className="mx-auto flex max-w-6xl flex-col gap-8">

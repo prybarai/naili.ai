@@ -149,7 +149,7 @@ export default function ContractorLeadModal({ isOpen, onClose, projectId, estima
           onClick={handleOverlayClick}
           className="flex min-h-full w-full items-end sm:items-center sm:justify-center"
         >
-          <div className="relative w-full max-w-md rounded-t-2xl bg-white p-8 shadow-[0_32px_80px_rgba(0,0,0,0.2)] sm:rounded-2xl sm:mx-4 animate-in slide-in-from-bottom">
+          <div className="relative w-full max-w-md rounded-t-2xl bg-canvas-50 p-8 shadow-[0_32px_80px_rgba(0,0,0,0.2)] sm:rounded-2xl sm:mx-4 animate-in slide-in-from-bottom">
             <div className="flex flex-col items-center py-8 text-center">
               {/* Success animation */}
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
@@ -185,7 +185,7 @@ export default function ContractorLeadModal({ isOpen, onClose, projectId, estima
         onClick={handleOverlayClick}
         className="flex min-h-full w-full items-end sm:items-center sm:justify-center"
       >
-        <div className="relative w-full max-w-md rounded-t-2xl bg-white shadow-[0_32px_80px_rgba(0,0,0,0.2)] sm:rounded-2xl sm:mx-4 animate-in slide-in-from-bottom">
+        <div className="relative w-full max-w-md rounded-t-2xl bg-canvas-50 shadow-[0_32px_80px_rgba(0,0,0,0.2)] sm:rounded-2xl sm:mx-4 animate-in slide-in-from-bottom">
           {/* Gradient header */}
           <div className="rounded-t-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 px-6 pb-6 pt-8 sm:rounded-t-2xl">
             <button

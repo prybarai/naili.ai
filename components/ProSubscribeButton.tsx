@@ -77,7 +77,7 @@ export default function ProSubscribeButton({
         disabled={loading || stripeNotConfigured}
         className={
           className ||
-          "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-stone-900 shadow-lg transition hover:from-amber-600 hover:to-amber-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-ink shadow-lg transition hover:from-amber-600 hover:to-amber-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
         }
       >
         {loading ? (
@@ -103,7 +103,7 @@ export default function ProSubscribeButton({
         <p className="mt-2 text-sm text-red-600">{error}</p>
       )}
       {stripeNotConfigured && !error && (
-        <p className="mt-2 text-xs text-stone-400">
+        <p className="mt-2 text-xs text-ink-400">
           Stripe payment setup is in progress. Check back soon.
         </p>
       )}

@@ -354,7 +354,7 @@ export default function HomePage() {
                       <div key={preview} className="group relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={preview} alt={`Upload ${idx + 1}`} loading="lazy" className="h-28 w-36 rounded-2xl object-cover shadow-md transition-all duration-300 group-hover:scale-[1.03] sm:h-32 sm:w-40" />
-                        <button type="button" aria-label="Remove photo" onClick={(e) => { e.stopPropagation(); removePhoto(idx); }} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-white shadow-md opacity-0 transition-all duration-200 hover:bg-canvas-200 group-hover:opacity-100">
+                        <button type="button" aria-label="Remove photo" onClick={(e) => { e.stopPropagation(); removePhoto(idx); }} className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full border border-panel bg-canvas-50 shadow-md opacity-0 transition-all duration-200 hover:bg-canvas-200 group-hover:opacity-100">
                           <Trash2 className="h-3.5 w-3.5 text-ink-600" />
                         </button>
                       </div>
@@ -410,7 +410,7 @@ export default function HomePage() {
               <label className="mono-label flex items-center gap-1.5 mb-2"><MapPin className="h-3 w-3" /> ZIP code</label>
               <input type="text" inputMode="numeric" placeholder="10001" value={zipCode}
                 onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 5); setZipCode(v); }}
-                className="w-full bg-transparent text-ink text-lg font-bold placeholder:text-ink-300 focus:outline-none" required />
+                className="w-full bg-transparent text-ink text-lg font-bold placeholder:text-ink-400 focus:outline-none" required />
             </div>
             <div className="rounded-xl border border-panel bg-white/60 backdrop-blur-sm p-4 transition-all hover:border-sand/50 hover:shadow-soft">
               <p className="mono-label mb-2">Style</p>
@@ -568,7 +568,7 @@ export default function HomePage() {
                 project: 'Contractor Partner',
               },
             ].map((t) => (
-              <div key={t.name} className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift">
+              <div key={t.name} className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift">
                 <div className="mb-3 flex items-center gap-0.5">
                   {[1,2,3,4,5].map((star) => (
                     <svg key={star} className="h-4 w-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
@@ -578,7 +578,7 @@ export default function HomePage() {
                 </div>
                 <p className="text-sm text-ink-600 leading-relaxed mb-4">&ldquo;{t.quote}&rdquo;</p>
                 <div className="flex items-center gap-3 border-t border-hairline pt-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sand-light/40 to-amber-50 text-xs font-bold text-ink-700">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-sand-light/40 to-amber-50 text-xs font-bold text-ink">
                     {t.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>

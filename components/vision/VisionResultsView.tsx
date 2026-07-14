@@ -304,7 +304,7 @@ export default function VisionResultsView({
         <div className="-mt-4 space-y-10 sm:space-y-14 lg:space-y-16">
           {/* Skeleton: Cost breakdown bar */}
           <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
                 <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
@@ -323,7 +323,7 @@ export default function VisionResultsView({
 
           {/* Skeleton: What we found */}
           <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
                 <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
@@ -347,7 +347,7 @@ export default function VisionResultsView({
 
           {/* Skeleton: Concept images grid */}
           <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center gap-2">
                 <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
                 <div className="flex-1">
@@ -364,7 +364,7 @@ export default function VisionResultsView({
 
           {/* Skeleton: Materials list */}
           <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
               <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
@@ -477,12 +477,12 @@ export default function VisionResultsView({
       <div className="-mt-4 space-y-10 sm:space-y-14 lg:space-y-16">
         {/* 2. ESTIMATE BREAKDOWN stacked bar */}
         <section className="mx-auto w-full max-w-4xl">
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
             <div className="mb-5 flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50"><Layers className="h-5 w-5 text-indigo-500" /></div>
               <div><h2 className="text-xl font-bold text-ink sm:text-2xl">How Your Estimate Breaks Down</h2><p className="text-sm text-ink-400">Labor, materials, and fees at a glance</p></div>
             </div>
-            <div className="mb-6 h-7 w-full overflow-hidden rounded-full bg-gray-100">
+            <div className="mb-6 h-7 w-full overflow-hidden rounded-full bg-canvas-200">
               <div className="flex h-full">
                 <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all" style={{ width: `${Math.max(laborPct, 4)}%`, backgroundColor: '#4f6bf5' }} title={`Labor: ${formatCurrency(laborMid)}`}>{laborPct > 12 && 'Labor'}</div>
                 <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all" style={{ width: `${Math.max(materialsPct, 4)}%`, backgroundColor: '#22c55e' }} title={`Materials: ${formatCurrency(materialsMid)}`}>{materialsPct > 12 && 'Materials'}</div>
@@ -502,7 +502,7 @@ export default function VisionResultsView({
 
         {/* 3. WHAT WE FOUND */}
         <section className="mx-auto w-full max-w-4xl">
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
             <div className="mb-5 flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50"><Search className="h-5 w-5 text-amber-500" /></div>
               <div><h2 className="text-xl font-bold text-ink sm:text-2xl">What We Found</h2><p className="text-sm text-ink-400">AI analysis of your photo &mdash; {detectedFeatures.length} data points</p></div>
@@ -521,7 +521,7 @@ export default function VisionResultsView({
         {/* 3b. ASSUMPTIONS + RISK */}
         <section className="mx-auto w-full max-w-4xl">
           <div className="grid gap-5 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
               <div className="mb-3 flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint/20"><CheckCircle2 className="h-4 w-4 text-mint" /></div><h3 className="text-sm font-bold text-ink">Key Assumptions</h3></div>
               <ul className="space-y-2 text-sm text-ink-600">
                 {estimateAssumptions.length > 0 ? estimateAssumptions.slice(0, 5).map((item, i) => (
@@ -529,7 +529,7 @@ export default function VisionResultsView({
                 )) : <li className="flex gap-2 text-ink-400">Standard planning assumptions applied for this project type.</li>}
               </ul>
             </div>
-            <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft">
+            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
               <div className="mb-3 flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50"><Ruler className="h-4 w-4 text-orange-500" /></div><h3 className="text-sm font-bold text-ink">What to Verify</h3></div>
               <ul className="space-y-2 text-sm text-ink-600">
                 {riskNotes.length > 0 ? riskNotes.slice(0, 5).map((item, i) => (
@@ -542,13 +542,13 @@ export default function VisionResultsView({
 
         {/* 4. MATERIALS accordion */}
         <section id="section-materials" className="mx-auto w-full max-w-4xl scroll-mt-20">
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50"><Wrench className="h-5 w-5 text-sky-500" /></div><div><h2 className="text-xl font-bold text-ink sm:text-2xl">Shopping List</h2><p className="text-sm text-ink-400">Materials with prices and links</p></div></div>
               <div className="flex items-center gap-2">
                 {materials && <Badge variant="green">{materials.line_items.length} items</Badge>}
                 {materials && (
-                  <button type="button" onClick={handleRegenerateMaterials} disabled={isRegenerating} className="inline-flex items-center gap-1.5 rounded-xl border border-hairline bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 shadow-soft transition-all hover:bg-canvas-50 hover:shadow-md disabled:opacity-50">
+                  <button type="button" onClick={handleRegenerateMaterials} disabled={isRegenerating} className="inline-flex items-center gap-1.5 rounded-xl border border-hairline bg-canvas-50 px-3 py-1.5 text-xs font-semibold text-ink-600 shadow-soft transition-all hover:bg-canvas-50 hover:shadow-md disabled:opacity-50">
                     <RefreshCw className={cn('h-3.5 w-3.5', isRegenerating && 'animate-spin')} />{isRegenerating ? 'Refreshing...' : 'Refresh'}
                   </button>
                 )}
@@ -572,7 +572,7 @@ export default function VisionResultsView({
               <div className="w-44"><ShareButton shareUrl={shareUrl} variant="light" projectTitle={`${categoryLabel} brief`} /></div>
             </div>
           </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
             {brief ? <ProjectBriefDocument project={project} categoryLabel={categoryLabel} estimate={estimate} materials={materials} brief={brief} likelyTrades={likelyTrades} siteQuestions={siteQuestions} subtitle="Share this with your contractor for accurate, comparable quotes." /> : (
               <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6"><Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" /><div><p className="font-semibold text-ink">Writing your contractor brief...</p><p className="mt-1 text-sm text-ink-500">This will appear automatically when ready.</p></div></div>
             )}
@@ -647,7 +647,7 @@ export default function VisionResultsView({
                   <Link
                     href={matchHref}
                     onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
-                    className="inline-flex items-center justify-center rounded-xl border border-hairline bg-white px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+                    className="inline-flex items-center justify-center rounded-xl border border-hairline bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
                   >
                     Browse contractors
                   </Link>
@@ -676,7 +676,7 @@ export default function VisionResultsView({
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         aria-label="Scroll to top"
         className={cn(
-          'fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 hover:bg-stone-50 hover:shadow-[0_6px_24px_rgba(0,0,0,0.2)] print:hidden',
+          'fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_20px_rgba(0,0,0,0.15)] transition-all duration-300 hover:bg-canvas-100 hover:shadow-[0_6px_24px_rgba(0,0,0,0.2)] print:hidden',
           stickyVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0 pointer-events-none'
         )}
       >

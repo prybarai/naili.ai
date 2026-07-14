@@ -24,7 +24,7 @@ const sections: Array<{
 export default function IntelligenceReport({ report }: Props) {
   if (!report) {
     return (
-      <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+      <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50">
             <span className="text-lg">{'\u{1F50D}'}</span>
@@ -49,7 +49,7 @@ export default function IntelligenceReport({ report }: Props) {
   }
 
   return (
-    <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+    <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
       <div className="mb-5 flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50">
           <span className="text-lg">{'\u{1F50D}'}</span>

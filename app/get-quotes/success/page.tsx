@@ -88,7 +88,7 @@ export default function SuccessPage({
               ].map((item) => (
                 <div
                   key={item.step}
-                  className="flex gap-4 p-4 rounded-xl bg-white border border-hairline"
+                  className="flex gap-4 p-4 rounded-xl bg-canvas-50 border border-hairline"
                 >
                   <div className="w-8 h-8 rounded-lg bg-ink/5 flex items-center justify-center shrink-0 text-sm font-bold text-ink/50">
                     {item.step}

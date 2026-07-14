@@ -80,7 +80,7 @@ export default function ShareButton({ shareUrl, variant = 'light', projectTitle 
   const isDark = variant === 'dark';
   const btnBase = isDark
     ? 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/15'
-    : 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 py-3 text-sm font-semibold text-ink-600 transition-colors hover:bg-canvas-50';
+    : 'inline-flex w-full items-center justify-center gap-2 rounded-xl border border-hairline bg-canvas-50 px-4 py-3 text-sm font-semibold text-ink-600 transition-colors hover:bg-canvas-100';
 
   return (
     <div className="relative w-full" ref={menuRef}>
@@ -90,7 +90,7 @@ export default function ShareButton({ shareUrl, variant = 'light', projectTitle 
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-2xl border border-hairline bg-white shadow-[0_16px_48px_rgba(0,0,0,0.12)]">
+        <div className="absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden rounded-2xl border border-hairline bg-canvas-50 shadow-[0_16px_48px_rgba(0,0,0,0.12)]">
           <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
             <span className="text-sm font-semibold text-ink">Share your plan</span>
             <button onClick={() => setOpen(false)} className="rounded-full p-1 text-ink-400 hover:bg-canvas-50 hover:text-ink">

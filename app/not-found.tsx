@@ -33,13 +33,13 @@ export default function NotFound() {
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/blog"
-              className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+              className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-canvas-50 px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-100"
             >
               <Search className="h-4 w-4" /> Blog & Guides
             </Link>
             <Link
               href="/cities"
-              className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+              className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-canvas-50 px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-100"
             >
               <Search className="h-4 w-4" /> City Guides
             </Link>

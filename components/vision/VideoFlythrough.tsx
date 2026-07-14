@@ -58,7 +58,7 @@ export default function VideoFlythrough({
   // Generating state (transitioning to real video)
   if (isGenerating && !videoUrl) {
     return (
-      <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+      <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50">
             <Film className="h-5 w-5 text-violet-500" />
@@ -70,7 +70,7 @@ export default function VideoFlythrough({
         </div>
         <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-100 via-fuchsia-50 to-indigo-100">
           <div className="flex flex-col items-center justify-center gap-4 px-6 py-16">
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-soft">
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-canvas-50 shadow-soft">
               <div className="h-7 w-7 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
             </div>
             <div className="text-center">
@@ -89,7 +89,7 @@ export default function VideoFlythrough({
   // Ready state with real video
   if (videoUrl) {
     return (
-      <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+      <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50">
             <Film className="h-5 w-5 text-violet-500" />
@@ -128,7 +128,7 @@ export default function VideoFlythrough({
   // CSS Ken Burns flythrough — always available, no API needed
   // Slow cinematic zoom + pan on the concept image, looks like a real camera move
   return (
-    <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+    <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
       <div className="mb-5 flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50">
           <Film className="h-5 w-5 text-violet-500" />
@@ -190,9 +190,9 @@ export default function VideoFlythrough({
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-gradient-to-br from-stone-50 to-violet-50 px-6 py-12">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-stone-100">
-            <Film className="h-6 w-6 text-stone-400" />
+        <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-gradient-to-br from-canvas-50 to-violet-50 px-6 py-12">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-canvas-100">
+            <Film className="h-6 w-6 text-ink-400" />
           </div>
           <div className="text-center">
             <p className="font-bold text-ink">Preview coming soon</p>

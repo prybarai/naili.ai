@@ -107,7 +107,7 @@ export default function CityPage({ params }: CityPageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-cream-50 to-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-amber-50 via-sand-light/30 to-white">
         <div className="max-w-6xl mx-auto px-4 py-20 md:py-28">
           <div className="animate-reveal-up">
             <span className="nl-eyebrow">
@@ -149,7 +149,7 @@ export default function CityPage({ params }: CityPageProps) {
         <ol className="flex gap-2">
           <li><Link href="/" className="hover:text-ink-600 transition-colors">Home</Link></li>
           <li aria-hidden="true">/</li>
-          <li><span className="text-ink-700 font-medium">{city.name} Renovation Guide</span></li>
+          <li><span className="text-ink font-medium">{city.name} Renovation Guide</span></li>
         </ol>
       </nav>
 
@@ -170,7 +170,7 @@ export default function CityPage({ params }: CityPageProps) {
                    city.costIndex > 0.95 ? 'close to the national baseline' : 
                    'more affordably than the national average'}.
                 </p>
-                <h3 className="text-lg font-semibold text-ink-800 mt-6">Cost Drivers Unique to {city.name}</h3>
+                <h3 className="text-lg font-semibold text-ink mt-6">Cost Drivers Unique to {city.name}</h3>
                 <ul className="list-disc pl-5 space-y-2">
                   <li><strong>Permitting complexity:</strong> {city.permitAuthority} oversees all construction permits, and the process{' '}
                     {city.region === 'Northeast' ? 'can be thorough and time-consuming, especially for older buildings with historical considerations.' :
@@ -235,26 +235,26 @@ export default function CityPage({ params }: CityPageProps) {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-ink-200">
-                      <th className="text-left py-3 font-semibold text-ink-700">Project</th>
-                      <th className="text-right py-3 font-semibold text-ink-700">Budget</th>
-                      <th className="text-right py-3 font-semibold text-ink-700">Mid-Range</th>
-                      <th className="text-right py-3 font-semibold text-ink-700">Premium</th>
+                    <tr className="border-b border-hairline">
+                      <th className="text-left py-3 font-semibold text-ink">Project</th>
+                      <th className="text-right py-3 font-semibold text-ink">Budget</th>
+                      <th className="text-right py-3 font-semibold text-ink">Mid-Range</th>
+                      <th className="text-right py-3 font-semibold text-ink">Premium</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(CITY_CATEGORY_PRICES).map(([slug, prices]) => {
                       const adj = (val: number) => `$${Math.round(val * city.costIndex / 500) * 500}`;
                       return (
-                        <tr key={slug} className="border-b border-ink-100 hover:bg-cream-50 transition-colors">
-                          <td className="py-3 text-ink-700 capitalize">
+                        <tr key={slug} className="border-b border-hairline hover:bg-sand-light/20 transition-colors">
+                          <td className="py-3 text-ink capitalize">
                             <Link href={`/blog/${slug}`} className="hover:text-sand-dark underline underline-offset-2">
                               {getCategoryName(slug)}
                             </Link>
                           </td>
-                          <td className="py-3 text-right text-ink-700 font-medium">{adj(prices.low)}</td>
-                          <td className="py-3 text-right text-ink-700 font-medium">{adj(prices.mid)}</td>
-                          <td className="py-3 text-right text-ink-700 font-medium">{adj(prices.high)}</td>
+                          <td className="py-3 text-right text-ink font-medium">{adj(prices.low)}</td>
+                          <td className="py-3 text-right text-ink font-medium">{adj(prices.mid)}</td>
+                          <td className="py-3 text-right text-ink font-medium">{adj(prices.high)}</td>
                         </tr>
                       );
                     })}
@@ -285,8 +285,8 @@ export default function CityPage({ params }: CityPageProps) {
                   <li><strong>Review insurance:</strong> General liability and workers' compensation coverage are essential</li>
                   <li><strong>Check references:</strong> Recent {city.name} projects similar to yours</li>
                 </ul>
-                <div className="mt-4 p-4 bg-sand-50 rounded-xl border border-sand-100">
-                  <p className="font-semibold text-ink-800 mb-1">Ready for a real estimate?</p>
+                <div className="mt-4 p-4 bg-sand-light/30 rounded-xl border border-sand/20">
+                  <p className="font-semibold text-ink mb-1">Ready for a real estimate?</p>
                   <p className="text-ink-600 text-sm mb-3">
                     Upload a photo of your {city.name} home, tell us what you want to do, and Naili will build 
                     a project brief with scope, materials, and market-accurate pricing.
@@ -338,23 +338,23 @@ export default function CityPage({ params }: CityPageProps) {
                   <span className="text-ink-500">Population</span>
                   <span className="font-medium">{city.population.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between border-t border-ink-100 pt-2">
+                <div className="flex justify-between border-t border-hairline pt-2">
                   <span className="text-ink-500">Median Home Value</span>
                   <span className="font-medium">{city.medianHomeValue}</span>
                 </div>
-                <div className="flex justify-between border-t border-ink-100 pt-2">
+                <div className="flex justify-between border-t border-hairline pt-2">
                   <span className="text-ink-500">Typical Sq Ft</span>
                   <span className="font-medium">{city.typicalSqft}</span>
                 </div>
-                <div className="flex justify-between border-t border-ink-100 pt-2">
+                <div className="flex justify-between border-t border-hairline pt-2">
                   <span className="text-ink-500">Cost Index</span>
                   <span className="font-medium">{city.costIndex.toFixed(2)}x</span>
                 </div>
-                <div className="flex justify-between border-t border-ink-100 pt-2">
+                <div className="flex justify-between border-t border-hairline pt-2">
                   <span className="text-ink-500">Permit Authority</span>
                   <span className="font-medium text-right text-xs leading-tight max-w-[180px]">{city.permitAuthority}</span>
                 </div>
-                <div className="flex justify-between border-t border-ink-100 pt-2">
+                <div className="flex justify-between border-t border-hairline pt-2">
                   <span className="text-ink-500">Region</span>
                   <span className="font-medium">{city.region}</span>
                 </div>
@@ -366,7 +366,7 @@ export default function CityPage({ params }: CityPageProps) {
               <h3 className="font-bold text-lg mb-3">Climate Zones</h3>
               <div className="flex flex-wrap gap-2">
                 {city.climateZones.map((zone) => (
-                  <span key={zone} className="text-xs bg-sand-50 text-ink-600 px-3 py-1.5 rounded-full border border-sand-100">
+                  <span key={zone} className="text-xs bg-sand-light/30 text-ink-600 px-3 py-1.5 rounded-full border border-sand/20">
                     {zone}
                   </span>
                 ))}
@@ -382,7 +382,7 @@ export default function CityPage({ params }: CityPageProps) {
               <h3 className="font-bold text-lg mb-3">Popular Architectural Styles</h3>
               <ul className="space-y-1">
                 {city.commonArchitecturalStyles.map((style) => (
-                  <li key={style} className="text-sm text-ink-600 py-1 border-b border-ink-100 last:border-0">
+                  <li key={style} className="text-sm text-ink-600 py-1 border-b border-hairline last:border-0">
                     {style}
                   </li>
                 ))}
@@ -390,7 +390,7 @@ export default function CityPage({ params }: CityPageProps) {
             </div>
 
             {/* CTA */}
-            <div className="nl-card bg-gradient-to-br from-amber-50 to-cream-50 border-amber-100">
+            <div className="nl-card bg-gradient-to-br from-amber-50 to-sand-light/30 border-amber-200">
               <h3 className="font-bold text-lg mb-2">Get a Real Estimate</h3>
               <p className="text-sm text-ink-600 mb-4">
                 Upload a photo and get a personalized estimate with scope, materials, and market-accurate 
@@ -413,9 +413,9 @@ export default function CityPage({ params }: CityPageProps) {
                       <li key={slug}>
                         <Link
                           href={`/blog/${slug}`}
-                          className="block p-3 rounded-xl hover:bg-cream-50 transition-colors border border-ink-100 hover:border-sand-100"
+                          className="block p-3 rounded-xl hover:bg-sand-light/30 transition-colors border border-hairline hover:border-sand/30"
                         >
-                          <span className="font-medium text-sm text-ink-700">{guide.title}</span>
+                          <span className="font-medium text-sm text-ink">{guide.title}</span>
                           <span className="text-xs text-ink-400 block mt-1">{guide.description.slice(0, 80)}...</span>
                         </Link>
                       </li>
@@ -429,9 +429,9 @@ export default function CityPage({ params }: CityPageProps) {
       </section>
 
       {/* City SEO Text Section */}
-      <section className="bg-sand-50 py-12">
+      <section className="bg-canvas-100 py-12">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="nl-card bg-white">
+          <div className="nl-card bg-canvas-50">
             <h2 className="text-xl font-bold mb-4">Planning a Renovation in {city.name}?</h2>
             <div className="text-ink-600 leading-relaxed space-y-3 max-w-3xl">
               <p>

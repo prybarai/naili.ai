@@ -65,10 +65,10 @@ export default function CitiesIndexPage() {
         </div>
 
         {/* CTA */}
-        <div className="bg-gradient-to-r from-amber-50 to-cream-50 rounded-[1.5rem] p-6 md:p-8 mb-12 border border-sand-100 animate-reveal-up" style={{ animationDelay: '0.15s' }}>
+        <div className="bg-gradient-to-r from-amber-50 to-sand-light/30 rounded-[1.5rem] p-6 md:p-8 mb-12 border border-sand/20 animate-reveal-up" style={{ animationDelay: '0.15s' }}>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-ink-800">Need a personalized estimate?</h2>
+              <h2 className="text-xl font-bold text-ink">Need a personalized estimate?</h2>
               <p className="text-ink-600">Upload a photo and get scope, materials, and pricing for your specific project.</p>
             </div>
             <Link href="/" className="nl-pill shrink-0">Start your estimate →</Link>
@@ -110,7 +110,7 @@ export default function CitiesIndexPage() {
                     {city.featuredGuides.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {city.featuredGuides.map((g) => (
-                          <span key={g} className="text-xs bg-cream-50 text-ink-500 px-2 py-0.5 rounded-full">
+                          <span key={g} className="text-xs bg-sand-light/30 text-ink-500 px-2 py-0.5 rounded-full">
                             {g.replace(/-/g, ' ')}
                           </span>
                         ))}

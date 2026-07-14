@@ -100,7 +100,7 @@ export default function EstimateBreakdown({
         {breakdownItems.map((item) => (
           <div
             key={item.label}
-            className="rounded-[1.5rem] border border-hairline bg-white p-5 shadow-soft transition-all hover:shadow-md"
+            className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 shadow-soft transition-all hover:shadow-md"
           >
             <div className="mb-3 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sand/10">

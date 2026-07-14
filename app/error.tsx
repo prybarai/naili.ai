@@ -39,7 +39,7 @@ export default function Error({
           </button>
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-white px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+            className="flex items-center justify-center gap-2 rounded-xl border border-hairline bg-canvas-50 px-4 py-3 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-100"
           >
             <Home className="h-4 w-4" /> Back to homepage
           </Link>

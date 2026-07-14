@@ -171,7 +171,7 @@ export default function MaterialsAccordion({ materials }: Props) {
         return (
           <div
             key={category}
-            className="overflow-hidden rounded-[1.5rem] border border-hairline bg-white shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
+            className="overflow-hidden rounded-[1.5rem] border border-hairline bg-canvas-50 shadow-[0_12px_32px_rgba(15,23,42,0.06)]"
           >
             <button
               onClick={() => toggle(category)}
@@ -206,7 +206,7 @@ export default function MaterialsAccordion({ materials }: Props) {
                   return (
                     <div
                       key={`${item.item}-${index}`}
-                      className="group rounded-[1.25rem] border border-hairline bg-white p-5 shadow-sm transition-all hover:shadow-md"
+                      className="group rounded-[1.25rem] border border-hairline bg-canvas-50 p-5 shadow-soft transition-all hover:shadow-md"
                     >
                       {/* Header row */}
                       <div className="flex items-start justify-between gap-3">
@@ -300,7 +300,7 @@ export default function MaterialsAccordion({ materials }: Props) {
       })}
 
       {materials.sourcing_notes && (
-        <div className="rounded-[1.5rem] border border-hairline bg-white p-5 text-sm text-ink-600 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+        <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-5 text-sm text-ink-600 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
           <span className="font-semibold text-ink">Shopping note:</span> {materials.sourcing_notes}
         </div>
       )}

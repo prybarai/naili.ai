@@ -161,7 +161,7 @@ export default async function MyProjectsPage() {
                         />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Sparkles className="h-8 w-8 text-ink-300 animate-pulse" />
+                          <Sparkles className="h-8 w-8 text-ink-400 animate-pulse" />
                         </div>
                       )}
                       <div className="absolute left-2.5 top-2.5 rounded-full bg-canvas-50/90 px-2.5 py-1 text-xs font-semibold text-ink shadow-sm backdrop-blur-sm">

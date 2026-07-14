@@ -186,7 +186,7 @@ export default function CostPlayground({
   }, [projectId, localTier, customNotes, onEstimateUpdate, projectedEstimate.mid]);
 
   return (
-    <div className="rounded-[1.5rem] border border-hairline bg-white p-6 shadow-soft sm:p-8">
+    <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
       <div className="mb-5 flex items-center gap-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-50 to-amber-50">
           <Calculator className="h-5 w-5 text-orange-500" />
@@ -213,7 +213,7 @@ export default function CostPlayground({
               setLocalTier(TIER_ORDER[idx]);
             }}
             disabled={tierIndex === 0}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-hairline bg-white text-ink-500 transition-colors hover:bg-canvas-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-hairline bg-canvas-50 text-ink-500 transition-colors hover:bg-canvas-50 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -247,7 +247,7 @@ export default function CostPlayground({
               setLocalTier(TIER_ORDER[idx]);
             }}
             disabled={tierIndex === TIER_ORDER.length - 1}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-hairline bg-white text-ink-500 transition-colors hover:bg-canvas-50 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-hairline bg-canvas-50 text-ink-500 transition-colors hover:bg-canvas-50 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Plus className="h-4 w-4" />
           </button>

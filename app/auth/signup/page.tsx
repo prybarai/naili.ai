@@ -153,7 +153,7 @@ function SignupForm() {
           </div>
 
           <div>
-            <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-stone-700">
+            <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-ink-600">
               Confirm password
             </label>
             <input
@@ -230,7 +230,7 @@ export default function SignupPage() {
       <section className="flex items-center justify-center px-0 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-28 md:pt-32">
         <Suspense fallback={
           <div className="w-full max-w-md text-center py-16">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink-300 border-t-transparent" />
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-ink-400 border-t-transparent" />
           </div>
         }>
           <SignupForm />
