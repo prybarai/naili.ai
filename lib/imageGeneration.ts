@@ -18,7 +18,7 @@ async function tryOpenAI(params: ImageGenParams): Promise<string[]> {
   }
 }
 
-type ImageGenParams = {
+export type ImageGenParams = {
   category: string;
   style: string;
   qualityTier: string;
@@ -27,6 +27,7 @@ type ImageGenParams = {
   analysis?: VisionAnalysis;
   projectId: string;
   count?: number;
+  materialsContext?: string;
 };
 
 /**

@@ -122,6 +122,16 @@ export interface Lead {
   updated_at?: string;
 }
 
+export interface ImageAnnotation {
+  materialName: string;
+  category: string;
+  x: number;
+  y: number;
+  price: string;
+  shopUrl?: string;
+  quantity?: string;
+}
+
 export interface ContractorScan {
   id: string;
   contractor_name?: string;

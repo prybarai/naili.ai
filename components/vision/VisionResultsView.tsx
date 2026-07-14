@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Download,
   FileText,
+  Image as ImageIcon,
   Layers,
   Loader2,
   MapPin,
@@ -19,6 +20,16 @@ import {
   Sparkles,
   UserPlus,
   Wrench,
+  List,
+  DollarSign,
+  ShoppingBag,
+  ClipboardList,
+  TrendingUp,
+  Building2,
+  Paintbrush,
+  Zap,
+  HardHat,
+  Hammer,
 } from 'lucide-react';
 import posthog from 'posthog-js';
 import { DISCLAIMERS } from '@/lib/disclaimers';
@@ -29,6 +40,7 @@ import ShareButton from '@/components/vision/ShareButton';
 import MaterialsAccordion from '@/components/vision/MaterialsAccordion';
 import ProjectBriefDocument from '@/components/vision/ProjectBriefDocument';
 import BeforeAfterSlider from '@/components/vision/BeforeAfterSlider';
+import AnnotatedConcepts from '@/components/vision/AnnotatedConcepts';
 import type { Estimate, IntelligenceReport, MaterialList, Project, ProjectBrief, ProjectVideo, QualityTier, StylePreference, ProjectCategory } from '@/types';
 import IntelligenceReportComponent from '@/components/vision/IntelligenceReport';
 import CostPlayground from '@/components/vision/CostPlayground';
@@ -48,6 +60,23 @@ interface Props {
   siteQuestions: string[];
 }
 
+interface SectionNav {
+  id: string;
+  label: string;
+  icon: typeof Layers;
+}
+
+const NAV_SECTIONS: SectionNav[] = [
+  { id: 'section-hero', label: 'Overview', icon: ImageIcon },
+  { id: 'section-compare', label: 'Before & After', icon: Layers },
+  { id: 'section-annotated', label: 'Annotated Concept', icon: MapPin },
+  { id: 'section-cost', label: 'Cost Breakdown', icon: DollarSign },
+  { id: 'section-materials', label: 'Materials', icon: ShoppingBag },
+  { id: 'section-brief', label: 'Project Brief', icon: ClipboardList },
+  { id: 'section-intel', label: 'Intel Report', icon: TrendingUp },
+  { id: 'section-contractors', label: 'Contractors', icon: Building2 },
+];
+
 function tierLabel(tier: Project['quality_tier']) {
   switch (tier) {
     case 'budget': return 'Budget';
@@ -57,12 +86,12 @@ function tierLabel(tier: Project['quality_tier']) {
 }
 
 function categoryEmoji(cat: string): string {
-  const m = {
-    kitchen: '🍳', bathroom: '🚿', roofing: '🏠',
-    deck_patio: '🪬', landscaping: '🌿', exterior_paint: '🎨',
-    flooring: '🪵', interior_paint: '🖌️', custom_project: '🏡',
+  const m: Record<string, string> = {
+    kitchen: '\U0001F373', bathroom: '\U0001F6BF', roofing: '\U0001F3E0',
+    deck_patio: '\U0001FAAC', landscaping: '\U0001F33F', exterior_paint: '\U0001F3A8',
+    flooring: '\U0001FAB5', interior_paint: '\U0001F58C\uFE0F', custom_project: '\U0001F3E1',
   };
-  return (m as Record<string, string>)[cat] || '🔨';
+  return m[cat] || '\U0001F528';
 }
 
 function shortCategoryLabel(cat: string) {
@@ -103,6 +132,25 @@ function confidenceColor(pct: number) {
   return 'bg-orange-400';
 }
 
+const MATERIAL_CATEGORY_ICONS: Record<string, any> = {
+  Countertop: Paintbrush,
+  Flooring: Ruler,
+  Cabinetry: Layers,
+  'Wall Finish': Paintbrush,
+  'Tile Work': Zap,
+  Fixtures: Wrench,
+  Lighting: Zap,
+  Plumbing: Wrench,
+  Electrical: Zap,
+  Labor: HardHat,
+  default: ShoppingBag,
+};
+
+function getMaterialCategoryIcon(cat: string) {
+  const key = Object.keys(MATERIAL_CATEGORY_ICONS).find(k => cat.toLowerCase().includes(k.toLowerCase()));
+  return MATERIAL_CATEGORY_ICONS[key || 'default'];
+}
+
 export default function VisionResultsView({
   projectId, project, estimate: initialEstimate, materials: initialMaterials, brief: initialBrief,
   categoryLabel, shareUrl, estimateAssumptions, riskNotes, likelyTrades, siteQuestions,
@@ -119,9 +167,10 @@ export default function VisionResultsView({
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const conceptImageCountRef = useRef(conceptImages.length);
-  // Keep ref in sync
   conceptImageCountRef.current = conceptImages.length;
   const needsPolling = !estimate || !materials || !brief || conceptImages.length === 0;
+
+  const [activeSection, setActiveSection] = useState('section-hero');
 
   useEffect(() => {
     if (estimate) {
@@ -137,7 +186,7 @@ export default function VisionResultsView({
     try {
       const res = await fetch(`/api/vision/results-data?id=${projectId}`);
       if (!res.ok) return;
-      const data = await res.json() as { project: Project & { image_url?: string }; estimate: Estimate | null; materials: MaterialList | null; brief: ProjectBrief | null; };
+      const data = await res.json() as { project: Project; estimate: Estimate | null; materials: MaterialList | null; brief: ProjectBrief | null; };
       if (data.estimate) setEstimate(data.estimate as Estimate);
       if (data.materials) setMaterials(data.materials);
       if (data.brief) setBrief(data.brief as ProjectBrief);
@@ -171,18 +220,54 @@ export default function VisionResultsView({
   const [selectedConcept, setSelectedConcept] = useState(0);
   const [stickyVisible, setStickyVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  const mockAnnotations = useMemo(() => {
+    if (!materials?.line_items) return [];
+    return materials.line_items.slice(0, 8).map((item, i) => ({
+      materialName: item.item,
+      category: item.category,
+      x: 20 + ((i * 25) % 70),
+      y: 25 + ((i * 20) % 55),
+      price: '$' + item.estimated_cost_low.toLocaleString() + ' - $' + item.estimated_cost_high.toLocaleString(),
+      shopUrl: item.retailer_url || undefined,
+      quantity: item.quantity + ' ' + item.unit,
+    }));
+  }, [materials]);
+
   useEffect(() => setMounted(true), []);
 
   const laborMid = estimate?.estimate_breakdown?.labor_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.58) : 0);
-  const materialsMid = estimate?.estimate_breakdown?.materials_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
+  const materialsMidEst = estimate?.estimate_breakdown?.materials_mid ?? (estimate ? Math.round(estimate.mid_estimate * 0.3) : 0);
   const permitsMid = estimate ? Math.round(estimate.mid_estimate * 0.05) : 0;
-  const totalBd = laborMid + materialsMid + permitsMid;
+  const totalBd = laborMid + materialsMidEst + permitsMid;
   const laborPct = totalBd > 0 ? (laborMid / totalBd) * 100 : 58;
-  const materialsPct = totalBd > 0 ? (materialsMid / totalBd) * 100 : 30;
+  const materialsPct = totalBd > 0 ? (materialsMidEst / totalBd) * 100 : 30;
   const permitsPct = totalBd > 0 ? (permitsMid / totalBd) * 100 : 5;
 
   const detectedFeatures = useMemo(() => buildDetectedFeatures(project, estimate, materials), [project, estimate, materials]);
-  const matchHref = `/get-quotes?project=${encodeURIComponent(projectId)}&zip=${encodeURIComponent(project.zip_code)}&category=${encodeURIComponent(project.project_category)}&estimate=${encodeURIComponent(String(estimate?.mid_estimate || ''))}`;
+  const matchHref = '/get-quotes?project=' + encodeURIComponent(projectId) + '&zip=' + encodeURIComponent(project.zip_code) + '&category=' + encodeURIComponent(project.project_category) + '&estimate=' + encodeURIComponent(String(estimate?.mid_estimate || ''));
+
+  useEffect(() => {
+    const ids = NAV_SECTIONS.map(s => s.id).filter(id => document.getElementById(id));
+    if (ids.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: '-100px 0px -60% 0px', threshold: 0 }
+    );
+
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [conceptImages, estimate]);
 
   useEffect(() => {
     const handleScroll = () => setStickyVisible(window.scrollY > 700);
@@ -201,13 +286,7 @@ export default function VisionResultsView({
       });
       if (!res.ok) throw new Error('Failed to regenerate');
       const { materials: nm } = await res.json();
-      // Patch in the parent record fields so materials retains full MaterialList shape
-      setMaterials({
-        ...nm,
-        id: materials?.id || '',
-        project_id: projectId,
-        created_at: materials?.created_at || new Date().toISOString(),
-      });
+      setMaterials({ ...nm, id: materials?.id || '', project_id: projectId, created_at: materials?.created_at || new Date().toISOString() });
       posthog.capture('naili_materials_regenerated', { project_id: projectId });
     } catch (err) {
       setRegenError('Could not refresh materials. Please try again.');
@@ -215,14 +294,12 @@ export default function VisionResultsView({
     } finally { setIsRegenerating(false); }
   };
 
-  // State for new features (Intelligence Report, Video, Lead)
   const [intelligenceReport, setIntelligenceReport] = useState<IntelligenceReport | null | undefined>(undefined);
   const [isLoadingIntelligence, setIsLoadingIntelligence] = useState(false);
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
   const [hasAttemptedIntelligence, setHasAttemptedIntelligence] = useState(false);
 
-  // Fetch intelligence report when project data is available (does not need estimate)
   useEffect(() => {
     if (!project?.zip_code || hasAttemptedIntelligence) return;
     setHasAttemptedIntelligence(true);
@@ -231,31 +308,50 @@ export default function VisionResultsView({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        project_id: projectId,
-        zip_code: project.zip_code,
-        category: project.project_category,
-        style: project.style_preference,
-        quality_tier: project.quality_tier,
-        notes: project.notes,
+        project_id: projectId, zip_code: project.zip_code, category: project.project_category,
+        style: project.style_preference, quality_tier: project.quality_tier, notes: project.notes,
       }),
     })
       .then((r) => r.json())
-      .then((data) => {
-        setIntelligenceReport((data.report as IntelligenceReport) || null);
-      })
+      .then((data) => setIntelligenceReport((data.report as IntelligenceReport) || null))
       .catch(() => setIntelligenceReport(null))
       .finally(() => setIsLoadingIntelligence(false));
   }, [project?.zip_code, hasAttemptedIntelligence, project.zip_code, project.project_category, project.quality_tier, project.style_preference, project.notes, projectId]);
-
-  // Fetch video flythrough when concept images are ready
-  // Uses polling pattern: POST starts prediction, then client polls via GET
-  // Video flythrough removed — was CSS Ken Burns animation but didn't add value.
 
   useEffect(() => {
     posthog.capture('naili_results_viewed', { project_id: projectId, zip_code: project.zip_code, project_category: project.project_category, quality_tier: project.quality_tier });
   }, [project.project_category, project.quality_tier, project.zip_code, projectId]);
 
-  // Loading skeleton: show placeholder layout while estimate loads
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const SidebarNav = () => (
+    <nav className="space-y-0.5">
+      {NAV_SECTIONS.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          type="button"
+          onClick={() => scrollToSection(id)}
+          className={cn(
+            'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-200',
+            activeSection === id
+              ? 'bg-ink/5 text-ink shadow-sm'
+              : 'text-ink-400 hover:bg-canvas-100 hover:text-ink-600'
+          )}
+        >
+          <Icon className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate">{label}</span>
+          {activeSection === id && (
+            <span className="ml-auto h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-500/60" />
+          )}
+        </button>
+      ))}
+    </nav>
+  );
+
+  // Loading skeleton
   if (!estimate) {
     if (isTimedOut) {
       return (
@@ -266,7 +362,7 @@ export default function VisionResultsView({
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-ink">Still working on your plan...</h2>
-          <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment. If it doesn&apos;t load soon, please try again.</p>
+          <p className="mt-2 max-w-md text-center text-sm text-ink-500">The initial calculation is taking a moment.</p>
           <button onClick={handleRetry} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all hover:opacity-90">
             <RefreshCw className="h-4 w-4" /> Try again
           </button>
@@ -276,7 +372,6 @@ export default function VisionResultsView({
 
     return (
       <div className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8 lg:pb-16">
-        {/* Skeleton: Hero */}
         <section className="relative mb-0 overflow-hidden rounded-b-[2rem] bg-[linear-gradient(135deg,#0f1115_0%,#1a1d25_50%,#0f1115_100%)] shadow-[0_32px_100px_rgba(0,0,0,0.3)] sm:rounded-b-[2.5rem]">
           <div className="px-4 pb-10 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:px-12">
             <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
@@ -292,110 +387,33 @@ export default function VisionResultsView({
             <div className="mx-auto max-w-4xl">
               <div className="aspect-[4/3] w-full rounded-[1.5rem] bg-white/5 animate-pulse" />
             </div>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <div className="h-12 w-44 rounded-xl bg-white/10 animate-pulse" />
-              <div className="h-12 w-40 rounded-xl bg-white/5 animate-pulse" />
-            </div>
           </div>
         </section>
-
         <div className="-mt-4 space-y-10 sm:space-y-14 lg:space-y-16">
-          {/* Skeleton: Cost breakdown bar */}
-          <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-              <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
-                <div className="flex-1">
-                  <div className="h-5 w-48 rounded bg-canvas-200 animate-pulse" />
-                  <div className="mt-1 h-3 w-36 rounded bg-canvas-200 animate-pulse" />
-                </div>
-              </div>
-              <div className="mb-6 h-7 w-full rounded-full bg-canvas-200 animate-pulse" />
-              <div className="flex flex-wrap gap-6">
-                <div className="h-4 w-24 rounded bg-canvas-200 animate-pulse" />
-                <div className="h-4 w-28 rounded bg-canvas-200 animate-pulse" />
-                <div className="h-4 w-28 rounded bg-canvas-200 animate-pulse" />
-              </div>
-            </div>
-          </section>
-
-          {/* Skeleton: What we found */}
-          <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-              <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
-                <div className="flex-1">
-                  <div className="h-5 w-36 rounded bg-canvas-200 animate-pulse" />
-                  <div className="mt-1 h-3 w-44 rounded bg-canvas-200 animate-pulse" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl border border-hairline bg-canvas-50 px-4 py-3">
-                    <div className="flex-1">
-                      <div className="h-3 w-20 rounded bg-canvas-200 animate-pulse" />
-                      <div className="mt-1 h-4 w-28 rounded bg-canvas-200 animate-pulse" />
-                    </div>
-                    <div className="h-5 w-12 rounded-full bg-canvas-200 animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          {/* Skeleton: Concept images grid */}
-          <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-              <div className="mb-5 flex items-center gap-2">
-                <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
-                <div className="flex-1">
-                  <div className="h-5 w-40 rounded bg-canvas-200 animate-pulse" />
-                  <div className="mt-1 h-3 w-32 rounded bg-canvas-200 animate-pulse" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="aspect-[4/3] rounded-xl bg-canvas-200 animate-pulse" />
-                <div className="aspect-[4/3] rounded-xl bg-canvas-200 animate-pulse" />
-              </div>
-            </div>
-          </section>
-
-          {/* Skeleton: Materials list */}
-          <section className="mx-auto w-full max-w-4xl">
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-              <div className="mb-5 flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          {[1, 2, 3, 4].map((s) => (
+            <section key={s} className="mx-auto w-full max-w-4xl">
+              <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
+                <div className="mb-5 flex items-center gap-2">
                   <div className="h-10 w-10 rounded-xl bg-canvas-200 animate-pulse" />
-                  <div>
-                    <div className="h-5 w-32 rounded bg-canvas-200 animate-pulse" />
-                    <div className="mt-1 h-3 w-24 rounded bg-canvas-200 animate-pulse" />
-                  </div>
+                  <div className="flex-1"><div className="h-5 w-48 rounded bg-canvas-200 animate-pulse" /><div className="mt-1 h-3 w-36 rounded bg-canvas-200 animate-pulse" /></div>
                 </div>
-                <div className="h-6 w-16 rounded-full bg-canvas-200 animate-pulse" />
+                <div className="mb-6 h-7 w-full rounded-full bg-canvas-200 animate-pulse" />
               </div>
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl border border-hairline bg-canvas-50 p-4">
-                    <div className="h-14 w-14 rounded-lg bg-canvas-200 animate-pulse" />
-                    <div className="flex-1">
-                      <div className="h-4 w-36 rounded bg-canvas-200 animate-pulse" />
-                      <div className="mt-1 h-3 w-24 rounded bg-canvas-200 animate-pulse" />
-                    </div>
-                    <div className="h-4 w-16 rounded bg-canvas-200 animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
+            </section>
+          ))}
         </div>
       </div>
     );
   }
 
+
   return (
-    <div className={cn('mx-auto max-w-7xl px-4 pb-12 transition-opacity duration-700 sm:px-6 lg:px-8 lg:pb-16', mounted ? 'opacity-100' : 'opacity-0')}>
+    <div className={cn('mx-auto transition-opacity duration-700', mounted ? 'opacity-100' : 'opacity-0')}>
       {/* STICKY ESTIMATE BAR */}
-      <div className={cn('fixed left-0 right-0 top-0 z-40 border-b border-hairline bg-white/95 shadow-soft backdrop-blur-md transition-all duration-400 print:hidden', stickyVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0')}>
+      <div className={cn(
+        'fixed left-0 right-0 top-0 z-40 border-b border-hairline bg-white/95 shadow-soft backdrop-blur-md transition-all duration-400 print:hidden',
+        stickyVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+      )}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400">Estimate</span>
@@ -409,259 +427,384 @@ export default function VisionResultsView({
             >
               <MessageSquareText className="h-3.5 w-3.5" /> Get Contractor Quotes
             </button>
-            <Link href={matchHref} onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'sticky' })} className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3.5 py-2 text-xs font-semibold text-ink transition-all hover:bg-canvas-50">
+            <Link
+              href={matchHref}
+              onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'sticky' })}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3.5 py-2 text-xs font-semibold text-ink transition-all hover:bg-canvas-50"
+            >
               Browse All <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 1. BEFORE / AFTER HERO */}
-      <section className="relative mb-0 overflow-hidden rounded-b-[2rem] bg-[linear-gradient(135deg,#0f1115_0%,#1a1d25_50%,#0f1115_100%)] shadow-[0_32px_100px_rgba(0,0,0,0.3)] sm:rounded-b-[2.5rem]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(216,185,138,0.10),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(100,200,170,0.06),transparent_40%)]" />
-        <div className="relative px-4 pb-10 pt-12 sm:px-8 sm:pb-12 sm:pt-16 lg:px-12">
-          <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
-            <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80">{categoryEmoji(project.project_category)} {categoryLabel}</Badge>
-            <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80"><MapPin className="mr-0.5 h-3 w-3" /> ZIP {project.zip_code}</Badge>
-            <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80">{tierLabel(project.quality_tier)}</Badge>
-          </div>
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-white/30">Estimated Project Cost</p>
-            <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">{formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}</h1>
-            <p className="mt-3 text-sm text-white/40">{categoryLabel} &middot; {tierLabel(project.quality_tier)} finish &middot; {materials?.line_items?.length || 25}+ data points</p>
-          </div>
-          {originalImage && (
-            <div className="mx-auto max-w-4xl">
-              {hasAnyConcepts ? (
+      {/* MOBILE TABBAR NAV */}
+      <div className="sticky top-0 z-30 overflow-x-auto border-b border-hairline bg-white/90 backdrop-blur-md lg:hidden print:hidden">
+        <div className="flex gap-1 px-3 py-2">
+          {NAV_SECTIONS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => scrollToSection(id)}
+              className={cn(
+                'flex flex-shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all whitespace-nowrap',
+                activeSection === id
+                  ? 'bg-ink text-white shadow-sm'
+                  : 'text-ink-500 hover:bg-canvas-100'
+              )}
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 lg:pb-16">
+        <div className="flex gap-8">
+          {/* DESKTOP SIDEBAR NAV */}
+          <aside className="hidden lg:sticky lg:top-24 lg:block lg:w-56 lg:flex-shrink-0 lg:self-start">
+            <div className="rounded-xl border border-hairline bg-canvas-50 p-3 shadow-soft">
+              <div className="mb-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.15em] text-ink-400">
+                <List className="mr-1.5 inline-block h-3 w-3" />
+                Sections
+              </div>
+              <SidebarNav />
+            </div>
+          </aside>
+
+          {/* MAIN */}
+          <div className="min-w-0 flex-1">
+            {/* ===== 1. HERO ===== */}
+            <section id="section-hero" className="scroll-mt-20 scroll-animate">
+              <div className="relative mb-4 overflow-hidden rounded-b-[2rem] bg-[linear-gradient(135deg,#0f1115_0%,#1a1d25_50%,#0f1115_100%)] shadow-[0_32px_100px_rgba(0,0,0,0.3)] sm:rounded-b-[2.5rem]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(216,185,138,0.10),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(100,200,170,0.06),transparent_40%)]" />
+                <div className="relative px-4 pb-8 pt-8 sm:px-8 sm:pb-10 sm:pt-12 lg:px-12">
+                  <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+                    <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80">{categoryEmoji(project.project_category)} {categoryLabel}</Badge>
+                    <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80"><MapPin className="mr-0.5 h-3 w-3" /> ZIP {project.zip_code}</Badge>
+                    <Badge variant="gray" className="border-white/15 bg-white/8 text-white/80">{tierLabel(project.quality_tier)}</Badge>
+                  </div>
+                  <div className="mb-6 text-center">
+                    <h1 className="text-3xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-4xl lg:text-5xl">
+                      Your {categoryLabel} Renovation Plan
+                    </h1>
+                    <p className="mt-3 text-sm text-white/40">
+                      {categoryLabel} &middot; {tierLabel(project.quality_tier)} finish &middot; ZIP {project.zip_code}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ===== 2. BEFORE & AFTER ===== */}
+            <section id="section-compare" className="scroll-mt-20 scroll-animate">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50"><Layers className="h-5 w-5 text-indigo-500" /></div>
+                  <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Before &amp; After</h2><p className="text-sm text-ink-400">Drag to compare original with renovation concept</p></div>
+                </div>
+              </div>
+              {originalImage && (
                 <div className="space-y-4">
-                  <BeforeAfterSlider beforeImage={originalImage} afterImage={conceptImages[selectedConcept]} beforeLabel="Before" afterLabel="After" priority />
-                  <p className="text-center text-xs text-white/35 italic">AI-generated concept &mdash; final results may vary.</p>
-                  {conceptImages.length > 1 && (
-                    <div className="flex items-center justify-center gap-3 pt-1">
-                      {conceptImages.map((url, i) => (
-                        <button key={url} onClick={() => setSelectedConcept(i)} className={cn('relative h-16 w-24 overflow-hidden rounded-lg border-2 transition-all duration-200', selectedConcept === i ? 'border-white/70 shadow-[0_0_20px_rgba(255,255,255,0.15)]' : 'border-white/10 opacity-50 hover:opacity-80')}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={url} alt={`Concept ${i + 1}`} className="h-full w-full object-cover" loading="lazy" />
-                        </button>
-                      ))}
+                  {hasAnyConcepts ? (
+                    <>
+                      <BeforeAfterSlider beforeImage={originalImage} afterImage={conceptImages[selectedConcept]} beforeLabel="Before" afterLabel="After" priority />
+                      <p className="text-center text-xs text-ink-400 italic">AI-generated concept - final results may vary.</p>
+                      {conceptImages.length > 1 && (
+                        <div className="flex items-center justify-center gap-3 pt-1">
+                          {conceptImages.map((url, i) => (
+                            <button
+                              key={url}
+                              onClick={() => setSelectedConcept(i)}
+                              className={cn(
+                                'relative h-16 w-24 overflow-hidden rounded-lg border-2 transition-all duration-200',
+                                selectedConcept === i
+                                  ? 'border-amber-500/60 shadow-[0_0_20px_rgba(216,185,138,0.2)]'
+                                  : 'border-hairline opacity-50 hover:opacity-80'
+                              )}
+                            >
+                              <img src={url} alt={'Concept ' + (i + 1)} className="h-full w-full object-cover" loading="lazy" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="relative overflow-hidden rounded-[1.5rem]">
+                      <img src={originalImage} alt="Original photo" className="aspect-[4/3] w-full object-cover" loading="lazy" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                        <div className="flex flex-col items-center gap-3 text-center">
+                          <Sparkles className="h-8 w-8 animate-pulse text-amber-300" />
+                          <p className="text-lg font-bold text-white">Generating concepts...</p>
+                          <p className="text-sm text-white/60">AI is creating your before &amp; after visual</p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
+              )}
+            </section>
+
+            {/* ===== 3. ANNOTATED CONCEPT ===== */}
+            <section id="section-annotated" className="scroll-mt-20 scroll-animate">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50"><MapPin className="h-5 w-5 text-amber-600" /></div>
+                  <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Annotated Concept</h2><p className="text-sm text-ink-400">Interactive hotspots with material details</p></div>
+                </div>
+              </div>
+              {hasAnyConcepts && mockAnnotations.length > 0 ? (
+                <AnnotatedConcepts
+                  imageUrl={conceptImages[selectedConcept]}
+                  annotations={mockAnnotations}
+                  onAnnotationClick={(a) => posthog.capture('naili_annotation_clicked', { project_id: projectId, material: a.materialName })}
+                />
               ) : (
-                <div className="relative overflow-hidden rounded-[1.5rem]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={originalImage} alt="Original photo" className="aspect-[4/3] w-full object-cover" loading="lazy" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                    <div className="flex flex-col items-center gap-3 text-center">
-                      <Sparkles className="h-8 w-8 animate-pulse text-sand-light" />
-                      <p className="text-lg font-bold text-white">Generating concepts&hellip;</p>
-                      <p className="text-sm text-white/60">AI is creating your before &amp; after visual</p>
+                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
+                  <MapPin className="mx-auto mb-3 h-8 w-8 text-ink-300" />
+                  <p className="text-ink-400 text-sm">Annotations will appear once concepts and materials are ready.</p>
+                </div>
+              )}
+            </section>
+
+            {/* ===== 4. COST BREAKDOWN ===== */}
+            <section id="section-cost" className="scroll-mt-20 scroll-animate">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50"><DollarSign className="h-5 w-5 text-emerald-600" /></div>
+                  <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Cost Breakdown</h2><p className="text-sm text-ink-400">Estimated project costs by category</p></div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-hairline bg-gradient-to-br from-emerald-50/50 to-white p-6 shadow-soft sm:p-8">
+                <div className="mb-6 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-400">Estimated Cost Range</p>
+                  <p className="mt-2 text-4xl font-extrabold tracking-tight text-ink sm:text-5xl">
+                    {formatCurrencyRange(estimate.low_estimate, estimate.high_estimate)}
+                  </p>
+                  <p className="mt-1 text-sm text-ink-400">
+                    Midpoint: <span className="font-semibold text-ink">{formatCurrency(estimate.mid_estimate)}</span>
+                  </p>
+                </div>
+
+                {/* Bar chart */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-ink">How your budget breaks down</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className="font-medium text-ink"><HardHat className="mr-1.5 inline-block h-4 w-4 text-emerald-500" /> Labor</span>
+                        <span className="text-ink-500">{formatCurrency(laborMid)} ({Math.round(laborPct)}%)</span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-emerald-100">
+                        <div className="h-full rounded-full bg-emerald-500 transition-all duration-1000" style={{ width: laborPct + '%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className="font-medium text-ink"><ShoppingBag className="mr-1.5 inline-block h-4 w-4 text-blue-500" /> Materials</span>
+                        <span className="text-ink-500">{formatCurrency(materialsMidEst)} ({Math.round(materialsPct)}%)</span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-blue-100">
+                        <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: materialsPct + '%' }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className="font-medium text-ink"><FileText className="mr-1.5 inline-block h-4 w-4 text-amber-500" /> Permits &amp; Fees</span>
+                        <span className="text-ink-500">{formatCurrency(permitsMid)} ({Math.round(permitsPct)}%)</span>
+                      </div>
+                      <div className="h-3 w-full overflow-hidden rounded-full bg-amber-100">
+                        <div className="h-full rounded-full bg-amber-500 transition-all duration-1000" style={{ width: permitsPct + '%' }} />
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {estimate?.region_multiplier && (
+                  <div className="mt-6 flex items-center justify-between rounded-xl bg-emerald-50 px-4 py-3">
+                    <span className="text-sm font-medium text-ink"><MapPin className="mr-1.5 inline-block h-4 w-4 text-emerald-600" /> Regional cost factor</span>
+                    <Badge variant="green">{estimate.region_multiplier.toFixed(2)}x</Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* Interactive CostPlayground */}
+              {estimate && (
+                <CostPlayground
+                  projectId={projectId}
+                  initialEstimate={estimate}
+                  initialTier={project.quality_tier}
+                  initialStyle={(project.style_preference || 'modern') as StylePreference}
+                  category={project.project_category}
+                  zipCode={project.zip_code}
+                  notes={project.notes || ''}
+                  onEstimateUpdate={setEstimate}
+                />
               )}
-            </div>
-          )}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href={matchHref} onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'hero' })} className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-ink shadow-soft transition-all duration-300 hover:scale-[1.02] hover:shadow-lift">
-              <UserPlus className="mr-2 h-4 w-4" /> Find Contractors <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-            <ShareButton shareUrl={shareUrl} variant="dark" />
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* WHITE SECTIONS */}
-      <div className="-mt-4 space-y-10 sm:space-y-14 lg:space-y-16">
-        {/* 2. ESTIMATE BREAKDOWN stacked bar */}
-        <section className="mx-auto w-full max-w-4xl">
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-            <div className="mb-5 flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50"><Layers className="h-5 w-5 text-indigo-500" /></div>
-              <div><h2 className="text-xl font-bold text-ink sm:text-2xl">How Your Estimate Breaks Down</h2><p className="text-sm text-ink-400">Labor, materials, and fees at a glance</p></div>
-            </div>
-            <div className="mb-6 h-7 w-full overflow-hidden rounded-full bg-canvas-200">
-              <div className="flex h-full">
-                <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all" style={{ width: `${Math.max(laborPct, 4)}%`, backgroundColor: '#4f6bf5' }} title={`Labor: ${formatCurrency(laborMid)}`}>{laborPct > 12 && 'Labor'}</div>
-                <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all" style={{ width: `${Math.max(materialsPct, 4)}%`, backgroundColor: '#22c55e' }} title={`Materials: ${formatCurrency(materialsMid)}`}>{materialsPct > 12 && 'Materials'}</div>
-                <div className="flex items-center justify-center text-[10px] font-bold text-white transition-all" style={{ width: `${Math.max(permitsPct, 4)}%`, backgroundColor: '#f97316' }} title={`Permits: ${formatCurrency(permitsMid)}`}>{permitsPct > 12 && 'Permits'}</div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-6 text-sm">
-              <div className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: '#4f6bf5' }} /><span className="font-medium text-ink">Labor</span><span className="text-ink-400">{formatCurrency(laborMid)}</span></div>
-              <div className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: '#22c55e' }} /><span className="font-medium text-ink">Materials</span><span className="text-ink-400">{formatCurrency(materialsMid)}</span></div>
-              <div className="flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: '#f97316' }} /><span className="font-medium text-ink">Permits &amp; Fees</span><span className="text-ink-400">{formatCurrency(permitsMid)}</span></div>
-            </div>
-            {estimate.region_multiplier && (
-              <p className="mt-5 rounded-xl bg-canvas-100 px-4 py-3 text-sm text-ink-500">📍 Local pricing adjustment: {estimate.region_multiplier.toFixed(2)}x in ZIP {project.zip_code}</p>
-            )}
-          </div>
-        </section>
-
-        {/* 3. WHAT WE FOUND */}
-        <section className="mx-auto w-full max-w-4xl">
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-            <div className="mb-5 flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50"><Search className="h-5 w-5 text-amber-500" /></div>
-              <div><h2 className="text-xl font-bold text-ink sm:text-2xl">What We Found</h2><p className="text-sm text-ink-400">AI analysis of your photo &mdash; {detectedFeatures.length} data points</p></div>
-            </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {detectedFeatures.map((f, i) => (
-                <div key={i} className="flex items-center justify-between rounded-xl border border-hairline bg-canvas-50 px-4 py-3">
-                  <div><p className="text-xs font-medium text-ink-400">{f.label}</p><p className="text-sm font-semibold text-ink">{f.value}</p></div>
-                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold text-white', confidenceColor(f.confidence))}>{f.confidence}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* 3b. ASSUMPTIONS + RISK */}
-        <section className="mx-auto w-full max-w-4xl">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-              <div className="mb-3 flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-mint/20"><CheckCircle2 className="h-4 w-4 text-mint" /></div><h3 className="text-sm font-bold text-ink">Key Assumptions</h3></div>
-              <ul className="space-y-2 text-sm text-ink-600">
-                {estimateAssumptions.length > 0 ? estimateAssumptions.slice(0, 5).map((item, i) => (
-                  <li key={i} className="flex gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-mint" /><span>{item}</span></li>
-                )) : <li className="flex gap-2 text-ink-400">Standard planning assumptions applied for this project type.</li>}
-              </ul>
-            </div>
-            <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft">
-              <div className="mb-3 flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50"><Ruler className="h-4 w-4 text-orange-500" /></div><h3 className="text-sm font-bold text-ink">What to Verify</h3></div>
-              <ul className="space-y-2 text-sm text-ink-600">
-                {riskNotes.length > 0 ? riskNotes.slice(0, 5).map((item, i) => (
-                  <li key={i} className="flex gap-2"><span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-orange-400" /><span>{item}</span></li>
-                )) : <li className="flex gap-2 text-ink-400">Verify all measurements and conditions onsite before committing to quotes.</li>}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. MATERIALS accordion */}
-        <section id="section-materials" className="mx-auto w-full max-w-4xl scroll-mt-20">
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-            <div className="mb-5 flex items-center justify-between">
-              <div className="flex items-center gap-2"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50"><Wrench className="h-5 w-5 text-sky-500" /></div><div><h2 className="text-xl font-bold text-ink sm:text-2xl">Shopping List</h2><p className="text-sm text-ink-400">Materials with prices and links</p></div></div>
-              <div className="flex items-center gap-2">
-                {materials && <Badge variant="green">{materials.line_items.length} items</Badge>}
-                {materials && (
-                  <button type="button" onClick={handleRegenerateMaterials} disabled={isRegenerating} className="inline-flex items-center gap-1.5 rounded-xl border border-hairline bg-canvas-50 px-3 py-1.5 text-xs font-semibold text-ink-600 shadow-soft transition-all hover:bg-canvas-50 hover:shadow-md disabled:opacity-50">
-                    <RefreshCw className={cn('h-3.5 w-3.5', isRegenerating && 'animate-spin')} />{isRegenerating ? 'Refreshing...' : 'Refresh'}
-                  </button>
-                )}
-              </div>
-            </div>
-            {regenError && <div className="mb-4 rounded-xl bg-red-50 px-4 py-2 text-sm text-red-700">{regenError}</div>}
-            {materials ? <MaterialsAccordion materials={materials} /> : (
-              <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6">
-                <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" /><div><p className="font-semibold text-ink">Building your materials list...</p><p className="mt-1 text-sm text-ink-500">Real products with prices will appear here automatically.</p></div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* 5. CONTRACTOR BRIEF (print-friendly) */}
-        <section id="section-brief" className="mx-auto w-full max-w-4xl scroll-mt-20">
-          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-center gap-2"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50"><FileText className="h-5 w-5 text-purple-500" /></div><div><h2 className="text-xl font-bold text-ink sm:text-2xl">Contractor Brief</h2><p className="text-sm text-ink-400 print:hidden">Print or share with your contractor for accurate quotes</p></div></div>
-            <div className="flex gap-2 print:hidden">
-              <button aria-label="Print contractor brief" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition-opacity hover:opacity-90"><Download className="h-4 w-4" /> Print</button>
-              <div className="w-44"><ShareButton shareUrl={shareUrl} variant="light" projectTitle={`${categoryLabel} brief`} /></div>
-            </div>
-          </div>
-          <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-6 shadow-soft sm:p-8">
-            {brief ? <ProjectBriefDocument project={project} categoryLabel={categoryLabel} estimate={estimate} materials={materials} brief={brief} likelyTrades={likelyTrades} siteQuestions={siteQuestions} subtitle="Share this with your contractor for accurate, comparable quotes." /> : (
-              <div className="flex items-center gap-4 rounded-[1.5rem] border border-hairline bg-canvas-50 p-6"><Loader2 className="h-5 w-5 flex-shrink-0 animate-spin text-sand-dark" /><div><p className="font-semibold text-ink">Writing your contractor brief...</p><p className="mt-1 text-sm text-ink-500">This will appear automatically when ready.</p></div></div>
-            )}
-          </div>
-        </section>
-
-        {/* 6. MARKET INTELLIGENCE REPORT — only render when data is available or still loading */}
-        {intelligenceReport !== null && (
-          <section className="mx-auto w-full max-w-4xl">
-            <IntelligenceReportComponent report={intelligenceReport ?? null} />
-          </section>
-        )}
-
-        {/* 7. COST PLAYGROUND */}
-        {estimate && (
-          <section className="mx-auto w-full max-w-4xl">
-            <CostPlayground
-              initialEstimate={estimate}
-              initialTier={project.quality_tier}
-              initialStyle={project.style_preference || 'modern'}
-              projectId={projectId}
-              category={project.project_category}
-              zipCode={project.zip_code}
-              notes={project.notes || ''}
-              onEstimateUpdate={(newEstimate) => setEstimate(newEstimate)}
-            />
-          </section>
-        )}
-
-        {/* 8. CONTRACTOR LEAD CAPTURE */}
-        <section className="mx-auto w-full max-w-4xl print:hidden">
-          <div className={cn(
-            'rounded-[1.75rem] border p-6 shadow-soft sm:p-8 transition-all',
-            leadSubmitted
-              ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'
-              : 'border-hairline bg-gradient-to-br from-indigo-50 to-white'
-          )}>
-            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  'flex h-14 w-14 items-center justify-center rounded-2xl',
-                  leadSubmitted ? 'bg-emerald-100' : 'bg-indigo-100'
-                )}>
-                  {leadSubmitted ? (
-                    <CheckCircle2 className="h-7 w-7 text-emerald-600" />
-                  ) : (
-                    <UserPlus className="h-7 w-7 text-indigo-600" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-ink">
-                    {leadSubmitted ? 'Request Submitted!' : 'Ready to get started?'}
-                  </h2>
-                  <p className="mt-1 text-sm text-ink-500">
-                    {leadSubmitted
-                      ? 'Your project scope is locked and ready. A Naili advisor will connect you with qualified contractors.'
-                      : 'Submit your project scope to get matched with verified local contractors.'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {leadSubmitted ? (
-                  <Badge variant="green" className="text-sm">{'\u2713'} Lead submitted</Badge>
-                ) : (
-                  <Link
-                    href={matchHref}
-                    onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
-                    className="inline-flex items-center justify-center rounded-xl border border-hairline bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
-                  >
-                    Browse contractors
-                  </Link>
-                )}
-                {!leadSubmitted && (
+            {/* ===== 5. MATERIALS & SUPPLIES ===== */}
+            <section id="section-materials" className="scroll-mt-20 scroll-animate">
+              <div className="mb-6">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50"><ShoppingBag className="h-5 w-5 text-blue-600" /></div>
+                    <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Materials &amp; Supplies</h2><p className="text-sm text-ink-400">Everything needed for this renovation</p></div>
+                  </div>
                   <button
                     type="button"
-                    aria-label="Get connected with contractors"
-                    onClick={() => setLeadModalOpen(true)}
-                    className="inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:opacity-95 hover:shadow-lift"
+                    onClick={handleRegenerateMaterials}
+                    disabled={isRegenerating}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-hairline bg-white px-3 py-2 text-xs font-semibold text-ink transition-all hover:bg-canvas-50 disabled:opacity-50"
                   >
-                    <UserPlus className="mr-2 h-4 w-4" /> Get Connected
+                    <RefreshCw className={cn('h-3.5 w-3.5', isRegenerating && 'animate-spin')} />
+                    {isRegenerating ? 'Regenerating...' : 'Regenerate'}
                   </button>
-                )}
+                </div>
+                {regenError && <p className="mt-1 text-xs text-red-500">{regenError}</p>}
               </div>
-            </div>
-          </div>
-        </section>
 
-        <Disclaimer text={DISCLAIMERS.estimate} className="print:hidden" />
+              {materials ? (
+                <div className="space-y-4">
+                  {/* Material cards grid */}
+                  {materials.line_items.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {materials.line_items.map((item, idx) => {
+                        const IconComp = getMaterialCategoryIcon(item.category);
+                        return (
+                          <div key={idx} className="flex items-start gap-3 rounded-xl border border-hairline bg-canvas-50 p-4 shadow-soft transition-all hover:shadow-md">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-white">
+                              <IconComp className="h-5 w-5 text-ink-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-ink truncate">{item.item}</p>
+                              <p className="text-xs text-ink-400">{item.quantity} {item.unit}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Badge variant="gray" className="text-[10px]">{item.category}</Badge>
+                                <span className="text-xs font-medium text-emerald-600">{formatCurrency(item.estimated_cost_low)} - {formatCurrency(item.estimated_cost_high)}</span>
+                              </div>
+                              {item.retailer_url && (
+                                <a href={item.retailer_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                                  <ShoppingBag className="h-3 w-3" /> Shop
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <MaterialsAccordion materials={materials} />
+                </div>
+              ) : (
+                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
+                  <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-ink-300" />
+                  <p className="text-ink-400 text-sm">Loading materials list...</p>
+                </div>
+              )}
+            </section>
+
+            {/* ===== 6. PROJECT BRIEF ===== */}
+            <section id="section-brief" className="scroll-mt-20 scroll-animate">
+              {brief ? (
+                <ProjectBriefDocument project={project} brief={brief} estimate={estimate} materials={materials} categoryLabel={categoryLabel} />
+              ) : (
+                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
+                  <FileText className="mx-auto mb-3 h-8 w-8 text-ink-300" />
+                  <p className="text-ink-400 text-sm">Loading project brief...</p>
+                </div>
+              )}
+            </section>
+
+            {/* ===== 7. INTELLIGENCE REPORT ===== */}
+            <section id="section-intel" className="scroll-mt-20 scroll-animate">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50"><TrendingUp className="h-5 w-5 text-purple-600" /></div>
+                  <div><h2 className="text-xl font-bold text-ink sm:text-2xl">Intelligence Report</h2><p className="text-sm text-ink-400">Market data, trends, and insights for your area</p></div>
+                </div>
+              </div>
+              {intelligenceReport ? (
+                <IntelligenceReportComponent report={intelligenceReport} />
+              ) : isLoadingIntelligence ? (
+                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
+                  <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-purple-400" />
+                  <p className="text-ink-400 text-sm">Loading market intelligence...</p>
+                </div>
+              ) : (
+                <div className="rounded-[1.5rem] border border-hairline bg-canvas-50 p-8 text-center shadow-soft">
+                  <TrendingUp className="mx-auto mb-3 h-8 w-8 text-ink-300" />
+                  <p className="text-ink-400 text-sm">Intelligence report will appear once available.</p>
+                </div>
+              )}
+            </section>
+
+            {/* ===== 8. GET CONTRACTORS ===== */}
+            <section id="section-contractors" className="scroll-mt-20 scroll-animate print:hidden">
+              <div className={cn(
+                'rounded-[1.75rem] p-6 shadow-soft sm:p-8 transition-all',
+                leadSubmitted
+                  ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white'
+                  : 'border-hairline bg-gradient-to-br from-indigo-50 to-white'
+              )}>
+                <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      'flex h-14 w-14 items-center justify-center rounded-2xl',
+                      leadSubmitted ? 'bg-emerald-100' : 'bg-indigo-100'
+                    )}>
+                      {leadSubmitted ? (
+                        <CheckCircle2 className="h-7 w-7 text-emerald-600" />
+                      ) : (
+                        <Building2 className="h-7 w-7 text-indigo-600" />
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-ink">
+                        {leadSubmitted ? 'Request Submitted!' : 'Ready to get started?'}
+                      </h2>
+                      <p className="mt-1 text-sm text-ink-500">
+                        {leadSubmitted
+                          ? 'Your project scope is locked. A Naili advisor will connect you with qualified contractors.'
+                          : 'Submit your project scope to get matched with verified local contractors.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {leadSubmitted ? (
+                      <Badge variant="green" className="text-sm">{'\u2713'} Lead submitted</Badge>
+                    ) : (
+                      <Link
+                        href={matchHref}
+                        onClick={() => posthog.capture('naili_match_cta_clicked', { project_id: projectId, placement: 'footer' })}
+                        className="inline-flex items-center justify-center rounded-xl border border-hairline bg-canvas-50 px-5 py-2.5 text-sm font-semibold text-ink shadow-soft transition-all hover:bg-canvas-50"
+                      >
+                        Browse contractors
+                      </Link>
+                    )}
+                    {!leadSubmitted && (
+                      <button
+                        type="button"
+                        aria-label="Get connected with contractors"
+                        onClick={() => setLeadModalOpen(true)}
+                        className="inline-flex items-center justify-center rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-white shadow-soft transition-all duration-200 hover:opacity-95 hover:shadow-lift"
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" /> Get Connected
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <Disclaimer text={DISCLAIMERS.estimate} className="print:hidden" />
+          </div>
+        </div>
       </div>
 
-      {/* Back to top button */}
+      {/* Back to top */}
       <button
         type="button"
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}

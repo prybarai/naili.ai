@@ -321,6 +321,36 @@ function buildStyleGuidance(category: string, styleDesc: string, constraints: De
   return `Style guidance: ${styleDesc}. Apply this style ONLY to the scope of work, not to unchanged areas.`;
 }
 
+function materialsContextBlock(materialsContext?: string): string {
+  if (!materialsContext) return '';
+  return `
+=== MATERIALS THIS RENOVATION USES ===
+The renovation in this image MUST clearly show these materials:
+${materialsContext}`;
+}
+
+/**
+ * Return default materials for a project category.
+ */
+export function getMaterialsForCategory(category: string, notes?: string): string {
+  const defaults: Record<string, string> = {
+    kitchen: '- Quartz countertops\n- Shaker-style cabinets\n- Subway tile backsplash\n- Stainless steel appliances\n- Undermount sink\n- Brushed nickel hardware\n- LED under-cabinet lighting',
+    bathroom: '- Porcelain tile flooring\n- Quartz vanity top\n- White shaker vanity\n- Chrome faucet\n- Frameless glass shower\n- Ceramic wall tile\n- LED vanity mirror',
+    flooring: '- Engineered hardwood\n- Luxury vinyl plank\n- Porcelain tile\n- Waterproof underlayment\n- Quarter-round trim\n- Threshold transitions',
+    interior_paint: '- Premium matte wall paint\n- Semi-gloss trim paint\n- High-quality primer\n- Painter\'s tape\n- Drop cloths\n- Brushes and rollers',
+    roofing: '- Architectural shingles\n- Synthetic underlayment\n- Drip edge flashing\n- Ridge vent\n- Pipe boots\n- Step flashing',
+    exterior_paint: '- Exterior acrylic paint\n- Oil-based primer\n- Caulk and sealant\n- Pressure-treated trim\n- Weather-resistant finish',
+    deck_patio: '- Composite decking\n- Powder-coated aluminum railing\n- Concrete pavers\n- Gravel base\n- Post anchors\n- Hidden fastener system',
+    landscaping: '- Native shrubs\n- Ornamental grasses\n- Mulch\n- Stepping stones\n- Drip irrigation\n- Perennial flowers',
+    custom_project: '- As specified in project notes',
+  };
+  let base = defaults[category] || '- As specified in project notes';
+  if (notes) {
+    base += `\n- Homeowner notes: ${notes}`;
+  }
+  return base;
+}
+
 /**
  * Build an EXACT edit prompt with maximum preservation language.
  * This is the primary function for generating edit instructions.
@@ -331,7 +361,8 @@ function buildEditPrompt(
   style: string,
   notes?: string,
   analysis?: VisionAnalysis,
-  extraGuidance?: string
+  extraGuidance?: string,
+  materialsContext?: string
 ): string {
   const resolvedCategory = resolveCustomProjectCategory(category, analysis);
   const styleDesc = STYLE_DESCRIPTORS[style] || style;
@@ -362,6 +393,7 @@ function buildEditPrompt(
     'CRITICAL INSTRUCTION: The edited image must be a photorealistic after version that could be shown side-by-side with the original as a believable before-and-after. The camera angle, room layout, building structure, and all unrenovated elements must remain EXACTLY as in the original. If a stranger saw these two photos together, they should believe it is the same space after construction.',
     '=== FINAL REMINDER: Do NOT hallucinate changes to anything outside the explicit scope. Every element not being modified must look exactly like the original photo. ===',
     'Return one highly believable concept, not multiple alternatives inside one image.',
+    materialsContextBlock(materialsContext),
   ].filter(Boolean).join('\n\n');
 
   return parts;
@@ -372,7 +404,8 @@ function buildTextPrompt(
   style: string,
   notes?: string,
   analysis?: VisionAnalysis,
-  extraGuidance?: string
+  extraGuidance?: string,
+  materialsContext?: string
 ): string {
   const resolvedCategory = resolveCustomProjectCategory(category, analysis);
   const styleDesc = STYLE_DESCRIPTORS[style] || style;
@@ -391,6 +424,7 @@ function buildTextPrompt(
     `Category: ${category === 'custom_project' ? 'custom project' : resolvedCategory.replace(/_/g, ' ')}.`,
     buildStyleGuidance(category, styleDesc, constraints, notes),
     extraGuidance ? `Presentation guidance: ${extraGuidance}` : '',
+    materialsContextBlock(materialsContext),
     'Generate one high-quality, photorealistic concept only.',
   ].filter(Boolean).join(' ');
 }
@@ -409,10 +443,11 @@ async function generateWithEdit(
   style: string,
   notes?: string,
   analysis?: VisionAnalysis,
-  extraGuidance?: string
+  extraGuidance?: string,
+  materialsContext?: string
 ): Promise<string | null> {
   try {
-    const instruction = buildEditPrompt(category, style, notes, analysis, extraGuidance);
+    const instruction = buildEditPrompt(category, style, notes, analysis, extraGuidance, materialsContext);
     console.log(`[OpenAI edit] category=${category} style=${style}`);
     console.log(`[OpenAI edit] instruction=${instruction.substring(0, 250)}...`);
 
@@ -450,10 +485,11 @@ async function generateTextToImage(
   style: string,
   notes?: string,
   analysis?: VisionAnalysis,
-  extraGuidance?: string
+  extraGuidance?: string,
+  materialsContext?: string
 ): Promise<string | null> {
   try {
-    const prompt = buildTextPrompt(category, style, notes, analysis, extraGuidance);
+    const prompt = buildTextPrompt(category, style, notes, analysis, extraGuidance, materialsContext);
     console.log(`[OpenAI generate] interior=${INTERIOR_CATEGORIES.has(category)} prompt=${prompt.substring(0, 220)}...`);
 
     const response = await client.images.generate({
@@ -501,6 +537,7 @@ export async function generateConceptImages(params: {
   analysis?: VisionAnalysis;
   projectId: string;
   count?: number;
+  materialsContext?: string;
 }): Promise<string[]> {
   const client = getClient();
   const requestedCount = params.count ?? 1;
@@ -521,7 +558,8 @@ export async function generateConceptImages(params: {
         params.style,
         params.notes,
         params.analysis,
-        variation
+        variation,
+        params.materialsContext
       );
       if (!result) continue;
       try {
@@ -541,7 +579,8 @@ export async function generateConceptImages(params: {
         params.style,
         params.notes,
         params.analysis,
-        variation
+        variation,
+        params.materialsContext
       );
       if (!result) continue;
       try {

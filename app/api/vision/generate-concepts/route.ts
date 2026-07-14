@@ -67,11 +67,14 @@ export async function POST(req: NextRequest) {
       count: params.count ?? 1,
     });
 
+    // Track annotations for each new image
+    let newAnnotations: Record<string, unknown>[] = [];
+
     if (imageUrls.length > 0) {
-      // Append new concepts to existing ones instead of overwriting
+      // Append new concepts to existing ones
       const { data: existingProject } = await supabaseAdmin
         .from('projects')
-        .select('generated_image_urls')
+        .select('generated_image_urls, image_annotations')
         .eq('id', params.project_id)
         .single();
 
@@ -81,9 +84,59 @@ export async function POST(req: NextRequest) {
 
       const mergedUrls = [...existingUrls, ...imageUrls];
 
+      // Try to get annotations for the new images
+      for (const imageUrl of imageUrls) {
+        try {
+          // Fetch the project materials for this project
+          const { data: mats } = await supabaseAdmin
+            .from('materials')
+            .select('line_items')
+            .eq('project_id', params.project_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (mats?.line_items) {
+            const annotateRes = await fetch(
+              new URL('/api/vision/annotate-image', req.url).toString(),
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  image_url: imageUrl,
+                  materials: mats.line_items,
+                  category: params.category,
+                }),
+              }
+            );
+            if (annotateRes.ok) {
+              const { annotations } = await annotateRes.json();
+              if (annotations) {
+                newAnnotations.push({
+                  image_url: imageUrl,
+                  annotations,
+                });
+              }
+            }
+          }
+        } catch {
+          // Non-blocking — skip annotation for this image
+        }
+      }
+
+      // Merge existing annotations with new ones
+      const existingAnnotations: Record<string, unknown>[] = Array.isArray(existingProject?.image_annotations)
+        ? existingProject.image_annotations
+        : [];
+
+      const mergedAnnotations = [...existingAnnotations, ...newAnnotations];
+
       await supabaseAdmin
         .from('projects')
-        .update({ generated_image_urls: mergedUrls })
+        .update({
+          generated_image_urls: mergedUrls,
+          image_annotations: mergedAnnotations.length > 0 ? mergedAnnotations : undefined,
+        })
         .eq('id', params.project_id);
     }
 
