@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import posthog from 'posthog-js';
 import dynamic from 'next/dynamic';
-import { createClient } from '@/lib/supabase/client';
+
 
 const BelowFoldSections = dynamic(() => import('@/components/BelowFoldSections'), { ssr: false });
 
@@ -167,29 +167,47 @@ export default function HomePage() {
       const { project } = (await projectRes.json()) as { project: { id: string } };
       const projectId = project.id;
       markFinished('estimating');
-      // Upload directly to Supabase Storage from browser (bypasses Vercel's 4.5MB hobby-tier limit)
-      const supabase = createClient();
+      // Get signed upload URLs from server, then upload files directly to Supabase
+      // (bypasses Vercel's 4.5MB hobby-tier body limit)
       const uploadResults = await Promise.all(
         files.map(async (file) => {
-          const ext = file.name.split('.').pop() || 'jpg';
-          const filename = `uploads/${uuidv4()}.${ext}`;
-          const { error, data } = await supabase.storage
-            .from('project-images')
-            .upload(filename, file, { contentType: file.type, upsert: false });
-          if (error) {
-            console.error('Supabase upload error:', error);
+          try {
+            // 1. Request a signed upload URL from our server (tiny JSON request)
+            const signRes = await fetch('/api/projects/signed-upload-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ file_name: file.name, content_type: file.type }),
+            });
+            if (!signRes.ok) {
+              const errText = await signRes.text();
+              console.error('Signed URL request failed:', signRes.status, errText);
+              return null;
+            }
+            const { signedUrl, path, publicUrl } = await signRes.json();
+
+            // 2. Upload directly to Supabase Storage using the signed URL
+            const uploadRes = await fetch(signedUrl, {
+              method: 'PUT',
+              body: file,
+              headers: { 'Content-Type': file.type },
+            });
+            if (!uploadRes.ok) {
+              console.error('Direct Supabase upload failed:', uploadRes.status, await uploadRes.text());
+              return null;
+            }
+
+            // 3. Record the URL to the project in the background
+            fetch('/api/projects/upload-image', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: publicUrl, project_id: projectId }),
+            }).catch(() => {});
+
+            return publicUrl;
+          } catch (e) {
+            console.error('Upload file error:', file.name, e);
             return null;
           }
-          const { data: { publicUrl } } = supabase.storage
-            .from('project-images')
-            .getPublicUrl(filename);
-          // Record the URL to the project in a background call
-          fetch('/api/projects/upload-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: publicUrl, project_id: projectId }),
-          }).catch(() => {});
-          return publicUrl;
         })
       );
       const urls = uploadResults.filter(Boolean) as string[];
